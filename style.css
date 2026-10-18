@@ -1212,3 +1212,193 @@ body {
     padding: 16px
   }
 }
+
+/* =========================
+   WORK HOURS / FLEXI
+========================= */
+
+.work-hours-stats {
+  margin-bottom: 14px;
+}
+
+.work-day-card {
+  padding: 20px;
+}
+
+.work-day-empty {
+  text-align: center;
+  padding: 24px 10px;
+  color: var(--text-muted);
+}
+
+.work-day-main {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.work-day-metric {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 13px;
+  background: #fafbfc;
+}
+
+.work-day-metric span {
+  display: block;
+  font-size: 10px;
+  color: var(--text-soft);
+}
+
+.work-day-metric strong {
+  display: block;
+  margin-top: 5px;
+  font-size: 17px;
+}
+
+.work-day-times {
+  display: flex;
+  gap: 20px;
+  margin-top: 15px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.work-day-time-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.work-day-time-item span {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.work-day-time-item strong {
+  font-size: 12px;
+}
+
+.work-day-preview {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 13px;
+  background: #fafbfc;
+  color: var(--text-soft);
+  font-size: 11px;
+}
+
+.work-day-preview strong {
+  color: var(--text);
+}
+
+.flexi-balance-card {
+  padding: 20px;
+}
+
+.flexi-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+  padding: 10px 0;
+  font-size: 12px;
+}
+
+.flexi-row span {
+  color: var(--text-soft);
+}
+
+.flexi-row strong {
+  font-size: 14px;
+}
+
+.flexi-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 7px 0;
+}
+
+.flexi-total {
+  padding-top: 14px;
+}
+
+.flexi-total strong {
+  font-size: 20px;
+  color: var(--primary);
+}
+
+.work-week-panel {
+  margin-top: 14px;
+}
+
+.work-week-table-wrapper {
+  overflow-x: auto;
+}
+
+.work-week-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.work-week-table th,
+.work-week-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.work-week-table th {
+  background: #fafbfc;
+  color: var(--text-soft);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.work-week-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.work-week-table .flexi-positive {
+  color: var(--success);
+  font-weight: 750;
+}
+
+.work-week-table .below-target {
+  color: var(--warning);
+  font-weight: 700;
+}
+
+.time-input-with-suffix {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.time-input-with-suffix input {
+  flex: 1;
+}
+
+.time-input-with-suffix span {
+  color: var(--text-muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+@media(max-width:700px) {
+  .work-day-main {
+    grid-template-columns: 1fr;
+  }
+
+  .work-day-times {
+    flex-direction: column;
+    gap: 9px;
+  }
+
+  .work-week-table {
+    min-width: 760px;
+  }
+}
