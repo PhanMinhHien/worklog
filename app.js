@@ -44,12 +44,17 @@ const state = {
   workSessions: [],
   corrections: [],
   activities: [],
+  workDays: [],
+  workSettings: {
+    dailyTargetMinutes: 480,
+    openingFlexiMinutes: 0
+  },
   activePage: "dashboard",
   showArchived: false,
-  pendingConfirm: null,
+  pendingConfirm: null
 };
 
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => localDateString();
 const escapeHtml = (v = "") =>
   String(v).replace(
     /[&<>"']/g,
@@ -113,7 +118,120 @@ const correctionMinutes = (id) =>
   state.corrections
     .filter((x) => x.taskId === id)
     .reduce((s, x) => s + (Number(x.duration) || 0), 0);
+/* =========================
+   WORK HOURS / FLEXI HELPERS
+========================= */
 
+const DAILY_TARGET_MINUTES = 480;
+
+function localDateString(date = new Date()) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function parseTimeToMinutes(value) {
+  if (!value || !value.includes(":")) return null;
+
+  const [h, m] = value.split(":").map(Number);
+
+  if (!Number.isFinite(h) || !Number.isFinite(m)) {
+    return null;
+  }
+
+  return h * 60 + m;
+}
+
+function calculateWorkDay(checkIn, checkOut, lunchMinutes = 0) {
+  const start = parseTimeToMinutes(checkIn);
+  const end = parseTimeToMinutes(checkOut);
+  const lunch = Math.max(0, Number(lunchMinutes) || 0);
+
+  if (start === null || end === null) {
+    return {
+      actualMinutes: 0,
+      normalMinutes: 0,
+      flexiMinutes: 0,
+      valid: false
+    };
+  }
+
+  let gross = end - start;
+
+  // Supports an overnight shift if needed.
+  if (gross < 0) {
+    gross += 24 * 60;
+  }
+
+  const actual = Math.max(0, gross - lunch);
+  const target = Number(state.workSettings.dailyTargetMinutes) || DAILY_TARGET_MINUTES;
+
+  return {
+    actualMinutes: actual,
+    normalMinutes: Math.min(actual, target),
+    flexiMinutes: Math.max(0, actual - target),
+    valid: true
+  };
+}
+
+function getMonday(dateString) {
+  const d = new Date(`${dateString}T00:00:00`);
+  const day = d.getDay();
+
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diff);
+
+  return localDateString(d);
+}
+
+function getSunday(dateString) {
+  const monday = new Date(`${getMonday(dateString)}T00:00:00`);
+  monday.setDate(monday.getDate() + 6);
+  return localDateString(monday);
+}
+
+function getWeekDates(dateString = today()) {
+  const monday = new Date(`${getMonday(dateString)}T00:00:00`);
+
+  return Array.from({length: 7}, (_, i) => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    return localDateString(d);
+  });
+}
+
+function getWorkDay(date) {
+  return state.workDays.find(x => x.date === date);
+}
+
+function getWeekWorkDays(date = today()) {
+  const dates = new Set(getWeekDates(date));
+  return state.workDays
+    .filter(x => dates.has(x.date))
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+function weekFlexiMinutes(date = today()) {
+  return getWeekWorkDays(date)
+    .reduce((sum, x) => sum + (Number(x.flexiMinutes) || 0), 0);
+}
+
+function weekActualMinutes(date = today()) {
+  return getWeekWorkDays(date)
+    .reduce((sum, x) => sum + (Number(x.actualMinutes) || 0), 0);
+}
+
+function availableFlexiMinutes(date = today()) {
+  return (
+    Number(state.workSettings.openingFlexiMinutes) || 0
+  ) + weekFlexiMinutes(date);
+}
+
+function formatFlexi(mins = 0) {
+  const value = Math.max(0, Math.round(Number(mins) || 0));
+  return formatDuration(value);
+}
 function notify(message, type = "success") {
   const el = document.createElement("div");
   el.className = `toast ${type}`;
@@ -347,8 +465,400 @@ function updateDashboard() {
   renderToday();
   renderDashboardTasks();
   renderRecentActivity();
+  renderWorkHours();
+}
+function renderWorkHours() {
+  const date = today();
+  const day = getWorkDay(date);
+
+  const calc = day
+    ? calculateWorkDay(
+        day.checkIn,
+        day.checkOut,
+        day.lunchMinutes
+      )
+    : {
+        actualMinutes: 0,
+        normalMinutes: 0,
+        flexiMinutes: 0,
+        valid: false
+      };
+
+  $("workTodayActual").textContent =
+    formatDuration(calc.actualMinutes);
+
+  $("workTodayFlexi").textContent =
+    formatFlexi(calc.flexiMinutes);
+
+  $("workWeekActual").textContent =
+    formatDuration(weekActualMinutes(date));
+
+  $("flexiOpening").textContent =
+    formatFlexi(state.workSettings.openingFlexiMinutes);
+
+  $("flexiWeekAdded").textContent =
+    formatFlexi(weekFlexiMinutes(date));
+
+  $("flexiAvailable").textContent =
+    formatFlexi(availableFlexiMinutes(date));
+
+  $("workAvailableFlexi").textContent =
+    formatFlexi(availableFlexiMinutes(date));
+
+  $("workFlexiHelper").textContent =
+    `${formatFlexi(state.workSettings.openingFlexiMinutes)} opening + ${formatFlexi(weekFlexiMinutes(date))} this week`;
+
+  $("workWeekFlexi").textContent =
+    `${formatFlexi(weekFlexiMinutes(date))} flexi`;
+
+  const monday = getMonday(date);
+  const sunday = getSunday(date);
+
+  $("workWeekLabel").textContent =
+    `${dateLabel(monday)} → ${dateLabel(sunday)}`;
+
+  renderTodayWorkDay(day, calc);
+  renderWorkWeekTable(date);
 }
 
+function renderTodayWorkDay(day, calc) {
+  if (!day) {
+    $("todayWorkDayCard").innerHTML = `
+      <div class="work-day-empty">
+        <div class="empty-title">No work hours recorded today</div>
+        <div class="empty-text">
+          Add your check-in, check-out and lunch break.
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  $("todayWorkDayCard").innerHTML = `
+    <div class="work-day-main">
+
+      <div class="work-day-metric">
+        <span>Actual worked</span>
+        <strong>${formatDuration(calc.actualMinutes)}</strong>
+      </div>
+
+      <div class="work-day-metric">
+        <span>Normal time</span>
+        <strong>${formatDuration(calc.normalMinutes)}</strong>
+      </div>
+
+      <div class="work-day-metric">
+        <span>Flexi earned</span>
+        <strong>${formatFlexi(calc.flexiMinutes)}</strong>
+      </div>
+
+    </div>
+
+    <div class="work-day-times">
+
+      <div class="work-day-time-item">
+        <span>Check-in</span>
+        <strong>${escapeHtml(day.checkIn || "—")}</strong>
+      </div>
+
+      <div class="work-day-time-item">
+        <span>Check-out</span>
+        <strong>${escapeHtml(day.checkOut || "—")}</strong>
+      </div>
+
+      <div class="work-day-time-item">
+        <span>Lunch</span>
+        <strong>${Number(day.lunchMinutes) || 0}m</strong>
+      </div>
+
+    </div>
+  `;
+}
+
+function renderWorkWeekTable(date = today()) {
+  const dates = getWeekDates(date);
+
+  $("workWeekTableBody").innerHTML = dates.map(d => {
+    const item = getWorkDay(d);
+
+    if (!item) {
+      const dateObj = new Date(`${d}T00:00:00`);
+
+      return `
+        <tr>
+          <td>${escapeHtml(shortDate(d))}</td>
+          <td>${dateObj.toLocaleDateString("en-US", {
+            weekday: "short"
+          })}</td>
+          <td>—</td>
+          <td>—</td>
+          <td>—</td>
+          <td>—</td>
+          <td>—</td>
+          <td>—</td>
+        </tr>
+      `;
+    }
+
+    const calc = calculateWorkDay(
+      item.checkIn,
+      item.checkOut,
+      item.lunchMinutes
+    );
+
+    const dateObj = new Date(`${d}T00:00:00`);
+
+    const flexiClass =
+      calc.flexiMinutes > 0
+        ? "flexi-positive"
+        : calc.actualMinutes < (state.workSettings.dailyTargetMinutes || 480)
+          ? "below-target"
+          : "";
+
+    return `
+      <tr>
+        <td>${escapeHtml(shortDate(d))}</td>
+
+        <td>
+          ${dateObj.toLocaleDateString("en-US", {
+            weekday: "short"
+          })}
+        </td>
+
+        <td>${escapeHtml(item.checkIn || "—")}</td>
+
+        <td>${escapeHtml(item.checkOut || "—")}</td>
+
+        <td>${Number(item.lunchMinutes) || 0}m</td>
+
+        <td>
+          ${formatDuration(calc.actualMinutes)}
+        </td>
+
+        <td>
+          ${formatDuration(calc.normalMinutes)}
+        </td>
+
+        <td class="${flexiClass}">
+          ${calc.flexiMinutes > 0
+            ? "+" + formatFlexi(calc.flexiMinutes)
+            : formatFlexi(0)}
+        </td>
+      </tr>
+    `;
+  }).join("");
+}
+function openWorkDayModal(date = today()) {
+  const item = getWorkDay(date);
+
+  $("workDayDate").value = date;
+  $("workDayCheckIn").value = item?.checkIn || "";
+  $("workDayCheckOut").value = item?.checkOut || "";
+  $("workDayLunch").value =
+    item?.lunchMinutes ?? 60;
+
+  $("workDayModalTitle").textContent =
+    date === today()
+      ? "Today's Work Hours"
+      : `Work Hours · ${dateLabel(date)}`;
+
+  updateWorkDayPreview();
+
+  openModal("workDayModal");
+}
+
+function updateWorkDayPreview() {
+  const calc = calculateWorkDay(
+    $("workDayCheckIn").value,
+    $("workDayCheckOut").value,
+    $("workDayLunch").value
+  );
+
+  if (!calc.valid) {
+    $("workDayPreview").innerHTML =
+      "Enter check-in and check-out to see the calculation.";
+    return;
+  }
+
+  const target =
+    Number(state.workSettings.dailyTargetMinutes) || 480;
+
+  $("workDayPreview").innerHTML = `
+    <div>
+      Actual worked:
+      <strong>${formatDuration(calc.actualMinutes)}</strong>
+    </div>
+
+    <div style="margin-top:5px">
+      Daily target:
+      <strong>${formatDuration(target)}</strong>
+    </div>
+
+    <div style="margin-top:5px">
+      Flexi earned:
+      <strong>${formatFlexi(calc.flexiMinutes)}</strong>
+    </div>
+  `;
+}
+
+async function saveWorkDay(e) {
+  e.preventDefault();
+
+  const date = $("workDayDate").value;
+  const checkIn = $("workDayCheckIn").value;
+  const checkOut = $("workDayCheckOut").value;
+  const lunchMinutes = Math.max(
+    0,
+    Number($("workDayLunch").value) || 0
+  );
+
+  if (!date || !checkIn || !checkOut) {
+    return notify(
+      "Please enter date, check-in and check-out.",
+      "warning"
+    );
+  }
+
+  const calc = calculateWorkDay(
+    checkIn,
+    checkOut,
+    lunchMinutes
+  );
+
+  if (!calc.valid || calc.actualMinutes <= 0) {
+    return notify(
+      "The working time is not valid.",
+      "warning"
+    );
+  }
+
+  try {
+    const existing = getWorkDay(date);
+
+    const data = {
+      date,
+      checkIn,
+      checkOut,
+      lunchMinutes,
+      actualMinutes: calc.actualMinutes,
+      normalMinutes: calc.normalMinutes,
+      flexiMinutes: calc.flexiMinutes,
+      updatedAt: serverTimestamp()
+    };
+
+    if (existing) {
+      await updateDoc(
+        doc(db, "workDays", existing.id),
+        data
+      );
+    } else {
+      data.createdAt = serverTimestamp();
+
+      await addDoc(
+        collection(db, "workDays"),
+        data
+      );
+    }
+
+    closeModal("workDayModal");
+
+    notify("Work hours saved.");
+
+    renderWorkHours();
+
+  } catch (err) {
+    notify(
+      err.message || "Could not save work hours.",
+      "error"
+    );
+  }
+}
+async function saveWorkSettings() {
+  const dailyTargetHours =
+    Number($("settingsDailyTarget").value);
+
+  const openingFlexiMinutes =
+    Math.max(
+      0,
+      Number($("settingsOpeningFlexi").value) || 0
+    );
+
+  if (!dailyTargetHours || dailyTargetHours <= 0) {
+    return notify(
+      "Please enter a valid daily target.",
+      "warning"
+    );
+  }
+
+  try {
+    await updateDoc(
+      doc(db, "settings", "workHours"),
+      {
+        dailyTargetMinutes:
+          Math.round(dailyTargetHours * 60),
+
+        openingFlexiMinutes,
+
+        updatedAt: serverTimestamp()
+      }
+    );
+
+    state.workSettings.dailyTargetMinutes =
+      Math.round(dailyTargetHours * 60);
+
+    state.workSettings.openingFlexiMinutes =
+      openingFlexiMinutes;
+
+    notify("Work hours settings saved.");
+
+    renderWorkHours();
+
+  } catch (err) {
+    notify(
+      err.message || "Could not save settings.",
+      "error"
+    );
+  }
+}
+
+async function loadWorkSettings() {
+  try {
+    const snap = await getDocs(
+      collection(db, "settings")
+    );
+
+    const docData =
+      snap.docs.find(d => d.id === "workHours");
+
+    if (!docData) {
+      return;
+    }
+
+    const data = docData.data();
+
+    state.workSettings = {
+      dailyTargetMinutes:
+        Number(data.dailyTargetMinutes) || 480,
+
+      openingFlexiMinutes:
+        Number(data.openingFlexiMinutes) || 0
+    };
+
+  } catch (err) {
+    console.warn(
+      "Could not load work settings:",
+      err
+    );
+  }
+
+  if ($("settingsDailyTarget")) {
+    $("settingsDailyTarget").value =
+      state.workSettings.dailyTargetMinutes / 60;
+
+    $("settingsOpeningFlexi").value =
+      state.workSettings.openingFlexiMinutes;
+  }
+}
 function fillSelects() {
   $("taskType").innerHTML = TASK_TYPES.map(
     (x) => `<option value="${escapeHtml(x)}">${escapeHtml(x)}</option>`,
@@ -371,16 +881,37 @@ function setPage(page) {
   document
     .querySelectorAll(".nav-item")
     .forEach((x) => x.classList.toggle("active", x.dataset.page === page));
-  const meta = {
-    dashboard: ["Dashboard", "Track your work, rework, and daily progress."],
-    tasks: ["Tasks", "Work items, time history, and status."],
-    reports: ["Reports", "Understand where your time is going."],
-    settings: ["Settings", "Backup and manage your WorkLog data."],
-  }[page];
+const meta={
+  dashboard:[
+    "Dashboard",
+    "Track your work, rework, and daily progress."
+  ],
+
+  "work-hours":[
+    "Work Hours",
+    "Track office hours and flexi time."
+  ],
+
+  tasks:[
+    "Tasks",
+    "Work items, time history, and status."
+  ],
+
+  reports:[
+    "Reports",
+    "Understand where your time is going."
+  ],
+
+  settings:[
+    "Settings",
+    "Backup and manage your WorkLog data."
+  ]
+}[page];
   $("pageTitle").textContent = meta[0];
   $("pageSubtitle").textContent = meta[1];
   if (page === "tasks") renderTasks();
   if (page === "reports") renderReport();
+  if(page==="work-hours")renderWorkHours();
 }
 
 function openTaskModal(task = null) {
@@ -635,6 +1166,8 @@ async function clearAll() {
       "workSessions",
       "corrections",
       "activityLogs",
+        "workDays"
+
     ]) {
       const snap = await getDocs(collection(db, name));
       const batch = writeBatch(db);
@@ -927,6 +1460,23 @@ function bindActions() {
     .querySelectorAll("[data-page-link]")
     .forEach((b) => (b.onclick = () => setPage(b.dataset.pageLink)));
   $("newTaskBtn").onclick = () => openTaskModal();
+  $("editWorkDayBtn").onclick =
+  () => openWorkDayModal(today());
+
+$("workDayForm").onsubmit =
+  saveWorkDay;
+
+$("workDayCheckIn").oninput =
+  updateWorkDayPreview;
+
+$("workDayCheckOut").oninput =
+  updateWorkDayPreview;
+
+$("workDayLunch").oninput =
+  updateWorkDayPreview;
+
+$("saveWorkSettingsBtn").onclick =
+  saveWorkSettings;
   $("generateSummaryBtn").onclick = generateSummary;
   $("copySummaryBtn").onclick = copySummary;
   $("taskForm").onsubmit = saveTask;
@@ -1033,14 +1583,19 @@ function exportCsv() {
   URL.revokeObjectURL(a.href);
 }
 function exportJson() {
-  const data = {
-    version: "2.0",
-    exportedAt: new Date().toISOString(),
-    tasks: state.tasks,
-    workSessions: state.workSessions,
-    corrections: state.corrections,
-    activityLogs: state.activities,
-  };
+const data={
+  version:"2.1",
+  exportedAt:new Date().toISOString(),
+
+  tasks:state.tasks,
+  workSessions:state.workSessions,
+  corrections:state.corrections,
+  activityLogs:state.activities,
+
+  workDays:state.workDays,
+
+  workSettings:state.workSettings
+};
   const blob = new Blob([JSON.stringify(data, null, 2)], {
       type: "application/json",
     }),
@@ -1080,6 +1635,27 @@ async function restoreJson(e) {
       delete copy.id;
       await importDoc("activityLogs", id, copy);
     }
+    for(const x of data.workDays||[]){
+  const id=x.id;
+  const copy={...x};
+  delete copy.id;
+  await importDoc("workDays",id,copy);
+}
+
+if(data.workSettings){
+  await updateDoc(
+    doc(db,"settings","workHours"),
+    {
+      dailyTargetMinutes:
+        Number(data.workSettings.dailyTargetMinutes) || 480,
+
+      openingFlexiMinutes:
+        Number(data.workSettings.openingFlexiMinutes) || 0,
+
+      updatedAt:serverTimestamp()
+    }
+  );
+}
     notify("Backup restored.");
     e.target.value = "";
   } catch (err) {
@@ -1114,6 +1690,16 @@ function subscribe() {
     updateDashboard();
     renderTasks();
   });
+  onSnapshot(collection(db,"workDays"),snap=>{
+  state.workDays =
+    snap.docs.map(d=>({
+      id:d.id,
+      ...d.data()
+    }));
+
+  updateDashboard();
+  renderWorkHours();
+});
 }
 function setConnection(online = true) {
   $("connectionDot").classList.toggle("offline", !online);
@@ -1126,6 +1712,12 @@ fillSelects();
 initReportDates();
 bindActions();
 setConnection(navigator.onLine);
+
+await loadWorkSettings();
+
 subscribe();
+
+renderWorkHours();
+
 $("loadingScreen").classList.add("hidden");
 $("app").classList.remove("hidden");
