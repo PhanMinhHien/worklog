@@ -1,0 +1,654 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WorkLog 2.0</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <div id="loadingScreen" class="loading-screen">
+      <div class="loading-spinner"></div>
+      <div>Loading WorkLog...</div>
+    </div>
+
+    <div id="app" class="app hidden">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-icon">W</div>
+          <div>
+            <div class="brand-title">WorkLog</div>
+            <div class="brand-subtitle">Personal work journal</div>
+          </div>
+        </div>
+        <nav class="navigation">
+          <button class="nav-item active" data-page="dashboard">
+            <span class="nav-icon">⌂</span><span>Dashboard</span>
+          </button>
+          <button class="nav-item" data-page="tasks">
+            <span class="nav-icon">✓</span><span>Tasks</span>
+          </button>
+          <button class="nav-item" data-page="reports">
+            <span class="nav-icon">▥</span><span>Reports</span>
+          </button>
+          <button class="nav-item" data-page="settings">
+            <span class="nav-icon">⚙</span><span>Settings</span>
+          </button>
+        </nav>
+        <div class="sidebar-footer">
+          <div class="connection">
+            <span id="connectionDot" class="connection-dot"></span
+            ><span id="connectionStatus">Connecting...</span>
+          </div>
+        </div>
+      </aside>
+
+      <main class="main-content">
+        <header class="topbar">
+          <div>
+            <h1 id="pageTitle">Dashboard</h1>
+            <p id="pageSubtitle">
+              Track your work, rework, and daily progress.
+            </p>
+          </div>
+          <button id="newTaskBtn" class="btn btn-primary">+ New Task</button>
+        </header>
+
+        <section id="page-dashboard" class="page active">
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-label">TODAY TRACKED</div>
+              <div id="statTodayTime" class="stat-value">0m</div>
+              <div class="stat-helper">Normal + corrections</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">TASKS WORKED</div>
+              <div id="statTasksWorked" class="stat-value">0</div>
+              <div class="stat-helper">Today</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">CORRECTIONS</div>
+              <div id="statCorrections" class="stat-value">0</div>
+              <div class="stat-helper">Today</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">OPEN TASKS</div>
+              <div id="statOpenTasks" class="stat-value">0</div>
+              <div class="stat-helper">Active + waiting</div>
+            </div>
+          </div>
+
+          <div class="dashboard-grid">
+            <div class="panel timeline-panel">
+              <div class="panel-header">
+                <div>
+                  <h2>Today's Work</h2>
+                  <p>Daily timeline based on your logged entries.</p>
+                </div>
+                <strong id="todayTimelineTotal" class="panel-total">0m</strong>
+              </div>
+              <div id="todayWorkList" class="work-list"></div>
+            </div>
+
+            <div class="panel">
+              <div class="panel-header">
+                <div>
+                  <h2>Recent Activity</h2>
+                  <p>Your latest work journal events.</p>
+                </div>
+                <button class="btn btn-ghost btn-small" data-page-link="tasks">
+                  View all
+                </button>
+              </div>
+              <div id="recentActivityList" class="activity-list"></div>
+            </div>
+          </div>
+
+          <div class="dashboard-grid dashboard-grid-bottom">
+            <div class="panel">
+              <div class="panel-header">
+                <div>
+                  <h2>Recent Tasks</h2>
+                  <p>Tasks you've worked on recently.</p>
+                </div>
+              </div>
+              <div id="dashboardTasks" class="task-list compact"></div>
+            </div>
+
+            <div class="panel summary-panel">
+              <div class="panel-header">
+                <div>
+                  <h2>Daily Summary</h2>
+                  <p>Turn today's work into a report-ready update.</p>
+                </div>
+              </div>
+              <div class="summary-preview">
+                <div>
+                  <span>Worked</span><strong id="summaryWorked">0m</strong>
+                </div>
+                <div>
+                  <span>Tasks</span><strong id="summaryTasks">0</strong>
+                </div>
+                <div>
+                  <span>Corrections</span
+                  ><strong id="summaryCorrections">0</strong>
+                </div>
+              </div>
+              <button id="generateSummaryBtn" class="btn btn-primary btn-block">
+                Generate Daily Summary
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <section id="page-tasks" class="page">
+          <div class="panel">
+            <div class="panel-header">
+              <div>
+                <h2>Tasks</h2>
+                <p>Work items, time history, and status.</p>
+              </div>
+              <button id="showArchivedBtn" class="btn btn-ghost btn-small">
+                Show Archived
+              </button>
+            </div>
+            <div class="task-filters">
+              <input
+                id="taskSearch"
+                placeholder="Search tasks, projects, notes..."
+              />
+              <select id="taskStatusFilter">
+                <option value="all">All statuses</option>
+                <option value="open">🟡 Open</option>
+                <option value="in_progress">🔵 In Progress</option>
+                <option value="waiting">🟣 Waiting</option>
+                <option value="blocked">🟠 Blocked</option>
+                <option value="completed">🟢 Completed</option>
+                <option value="archived">⚫ Archived</option>
+              </select>
+              <select id="taskTypeFilter">
+                <option value="all">All types</option>
+              </select>
+            </div>
+            <div id="tasksList" class="task-list"></div>
+          </div>
+        </section>
+
+        <section id="page-reports" class="page">
+          <div class="panel">
+            <div class="panel-header">
+              <div>
+                <h2>Reports</h2>
+                <p>Review time by task, project, and work type.</p>
+              </div>
+            </div>
+            <div class="report-filters">
+              <div class="field">
+                <label for="reportFrom">From</label
+                ><input id="reportFrom" type="date" />
+              </div>
+              <div class="field">
+                <label for="reportTo">To</label
+                ><input id="reportTo" type="date" />
+              </div>
+              <div class="field">
+                <label for="reportProject">Project</label
+                ><select id="reportProject">
+                  <option value="all">All projects</option>
+                </select>
+              </div>
+              <div class="report-actions">
+                <button id="refreshReportBtn" class="btn btn-secondary">
+                  Refresh</button
+                ><button id="exportCsvBtn" class="btn btn-secondary">
+                  Export CSV
+                </button>
+              </div>
+            </div>
+            <div class="report-summary">
+              <div class="summary-card">
+                <span>Normal time</span
+                ><strong id="reportNormalTime">0m</strong>
+              </div>
+              <div class="summary-card">
+                <span>Correction time</span
+                ><strong id="reportCorrectionTime">0m</strong>
+              </div>
+              <div class="summary-card">
+                <span>Total time</span><strong id="reportTotalTime">0m</strong>
+              </div>
+              <div class="summary-card">
+                <span>Correction rate</span
+                ><strong id="reportCorrectionRate">0%</strong>
+              </div>
+            </div>
+            <div class="report-breakdowns">
+              <div class="breakdown-card">
+                <h3>By Project</h3>
+                <div id="reportByProject"></div>
+              </div>
+              <div class="breakdown-card">
+                <h3>By Type</h3>
+                <div id="reportByType"></div>
+              </div>
+            </div>
+            <div class="table-wrapper">
+              <table class="report-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Task</th>
+                    <th>Project</th>
+                    <th>Type</th>
+                    <th>Normal</th>
+                    <th>Correction</th>
+                    <th>Total</th>
+                  </tr>
+                </thead>
+                <tbody id="reportTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section id="page-settings" class="page">
+          <div class="settings-grid">
+            <div class="panel">
+              <div class="panel-header">
+                <div>
+                  <h2>Backup</h2>
+                  <p>Export or restore your WorkLog data.</p>
+                </div>
+              </div>
+              <div class="settings-actions">
+                <button id="exportJsonBtn" class="btn btn-secondary">
+                  Export JSON</button
+                ><button id="restoreJsonBtn" class="btn btn-secondary">
+                  Restore JSON</button
+                ><input
+                  id="restoreFileInput"
+                  type="file"
+                  accept=".json,application/json"
+                  hidden
+                />
+              </div>
+            </div>
+            <div class="panel">
+              <div class="panel-header">
+                <div>
+                  <h2>Data model</h2>
+                  <p>WorkLog 2.0 collections.</p>
+                </div>
+              </div>
+              <div class="collection-list">
+                <div class="collection-item">
+                  <code>tasks</code><span>Task information</span>
+                </div>
+                <div class="collection-item">
+                  <code>workSessions</code><span>Normal tracked time</span>
+                </div>
+                <div class="collection-item">
+                  <code>corrections</code><span>Rework / correction time</span>
+                </div>
+                <div class="collection-item">
+                  <code>activityLogs</code><span>Personal work journal</span>
+                </div>
+              </div>
+            </div>
+            <div class="panel danger-panel">
+              <div class="panel-header">
+                <div>
+                  <h2>Danger Zone</h2>
+                  <p>Permanently delete all WorkLog data.</p>
+                </div>
+              </div>
+              <div class="danger-box">
+                <div>
+                  <strong>Clear all WorkLog data</strong>
+                  <p>
+                    Deletes tasks, normal time, corrections, and activity logs.
+                  </p>
+                </div>
+                <button id="clearAllBtn" class="btn btn-danger">
+                  Clear All Data
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <!-- Task modal -->
+    <div id="taskModal" class="modal-overlay hidden">
+      <div class="modal">
+        <div class="modal-header">
+          <div>
+            <h2 id="taskModalTitle">New Task</h2>
+            <p>Create a work item to track.</p>
+          </div>
+          <button class="modal-close" data-close-modal="taskModal">×</button>
+        </div>
+        <form id="taskForm">
+          <input id="taskId" type="hidden" />
+          <div class="form-grid">
+            <div class="field field-full">
+              <label for="taskTitle">Task title *</label
+              ><input
+                id="taskTitle"
+                required
+                placeholder="e.g. Fix email Outlook layout"
+              />
+            </div>
+            <div class="field">
+              <label for="taskProject">Project / Client</label
+              ><input id="taskProject" placeholder="e.g. WorkingMinds" />
+            </div>
+            <div class="field">
+              <label for="taskType">Type</label
+              ><select id="taskType"></select>
+            </div>
+            <div class="field">
+              <label for="taskStatus">Status</label
+              ><select id="taskStatus"></select>
+            </div>
+            <div class="field field-full">
+              <label for="taskUrl">Ticket / Link</label
+              ><input id="taskUrl" placeholder="https://..." />
+            </div>
+            <div class="field field-full">
+              <label for="taskNote">Notes</label
+              ><textarea
+                id="taskNote"
+                rows="3"
+                placeholder="Context, scope, or useful notes..."
+              ></textarea>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn btn-secondary"
+              data-close-modal="taskModal"
+            >
+              Cancel</button
+            ><button type="submit" class="btn btn-primary">Save Task</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Time modal -->
+    <div id="timeModal" class="modal-overlay hidden">
+      <div class="modal">
+        <div class="modal-header">
+          <div>
+            <h2>Add Time</h2>
+            <p id="timeModalTaskName">Task</p>
+          </div>
+          <button class="modal-close" data-close-modal="timeModal">×</button>
+        </div>
+        <form id="timeForm">
+          <input id="timeTaskId" type="hidden" />
+          <div class="form-grid">
+            <div class="field">
+              <label for="timeDate">Date *</label
+              ><input id="timeDate" type="date" required />
+            </div>
+            <div class="time-row">
+              <div class="field">
+                <label for="timeHours">Hours</label
+                ><input
+                  id="timeHours"
+                  type="number"
+                  min="0"
+                  max="999"
+                  value="0"
+                />
+              </div>
+              <div class="field">
+                <label for="timeMinutes">Minutes</label
+                ><input
+                  id="timeMinutes"
+                  type="number"
+                  min="0"
+                  max="59"
+                  value="0"
+                />
+              </div>
+            </div>
+            <div class="quick-times">
+              <button type="button" class="quick-time" data-time-preset="15">
+                15m</button
+              ><button type="button" class="quick-time" data-time-preset="30">
+                30m</button
+              ><button type="button" class="quick-time" data-time-preset="60">
+                1h</button
+              ><button type="button" class="quick-time" data-time-preset="120">
+                2h
+              </button>
+            </div>
+            <div class="field field-full">
+              <label for="timeNote">Note</label
+              ><textarea
+                id="timeNote"
+                rows="3"
+                placeholder="What did you work on?"
+              ></textarea>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn btn-secondary"
+              data-close-modal="timeModal"
+            >
+              Cancel</button
+            ><button type="submit" class="btn btn-primary">Add Time</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Correction modal -->
+    <div id="correctionModal" class="modal-overlay hidden">
+      <div class="modal">
+        <div class="modal-header">
+          <div>
+            <h2>Add Correction</h2>
+            <p id="correctionModalTaskName">Task</p>
+          </div>
+          <button class="modal-close" data-close-modal="correctionModal">
+            ×
+          </button>
+        </div>
+        <form id="correctionForm">
+          <input id="correctionTaskId" type="hidden" />
+          <div class="form-grid">
+            <div class="field">
+              <label for="correctionDate">Date *</label
+              ><input id="correctionDate" type="date" required />
+            </div>
+            <div class="field field-full">
+              <label>Reason</label>
+              <div class="reason-grid">
+                <label class="reason-option"
+                  ><input
+                    type="radio"
+                    name="correctionReason"
+                    value="client_feedback"
+                    checked
+                  /><span>Client feedback</span></label
+                >
+                <label class="reason-option"
+                  ><input
+                    type="radio"
+                    name="correctionReason"
+                    value="qa_issue"
+                  /><span>QA issue</span></label
+                >
+                <label class="reason-option"
+                  ><input
+                    type="radio"
+                    name="correctionReason"
+                    value="dev_mistake"
+                  /><span>Dev mistake</span></label
+                >
+                <label class="reason-option"
+                  ><input
+                    type="radio"
+                    name="correctionReason"
+                    value="design_change"
+                  /><span>Design change</span></label
+                >
+                <label class="reason-option"
+                  ><input
+                    type="radio"
+                    name="correctionReason"
+                    value="other"
+                  /><span>Other</span></label
+                >
+              </div>
+            </div>
+            <div class="time-row">
+              <div class="field">
+                <label for="correctionHours">Hours</label
+                ><input
+                  id="correctionHours"
+                  type="number"
+                  min="0"
+                  max="999"
+                  value="0"
+                />
+              </div>
+              <div class="field">
+                <label for="correctionMinutes">Minutes</label
+                ><input
+                  id="correctionMinutes"
+                  type="number"
+                  min="0"
+                  max="59"
+                  value="0"
+                />
+              </div>
+            </div>
+            <div class="quick-times">
+              <button
+                type="button"
+                class="quick-time"
+                data-correction-preset="15"
+              >
+                15m</button
+              ><button
+                type="button"
+                class="quick-time"
+                data-correction-preset="30"
+              >
+                30m</button
+              ><button
+                type="button"
+                class="quick-time"
+                data-correction-preset="60"
+              >
+                1h</button
+              ><button
+                type="button"
+                class="quick-time"
+                data-correction-preset="120"
+              >
+                2h
+              </button>
+            </div>
+            <div class="field field-full">
+              <label for="correctionNote">Description *</label
+              ><textarea
+                id="correctionNote"
+                rows="4"
+                required
+                placeholder="What needed to be corrected?"
+              ></textarea>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn btn-secondary"
+              data-close-modal="correctionModal"
+            >
+              Cancel</button
+            ><button type="submit" class="btn btn-warning">
+              Save Correction
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- History modal -->
+    <div id="historyModal" class="modal-overlay hidden">
+      <div class="modal modal-large">
+        <div class="modal-header">
+          <div>
+            <h2 id="historyTitle">Task History</h2>
+            <p id="historySubtitle"></p>
+          </div>
+          <button class="modal-close" data-close-modal="historyModal">×</button>
+        </div>
+        <div id="historySummary" class="history-summary"></div>
+        <div id="historyContent" class="history-content"></div>
+        <div class="modal-footer">
+          <button id="historyAddTimeBtn" class="btn btn-secondary">
+            + Add Time</button
+          ><button id="historyCorrectionBtn" class="btn btn-warning">
+            Add Correction
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Summary modal -->
+    <div id="summaryModal" class="modal-overlay hidden">
+      <div class="modal modal-large">
+        <div class="modal-header">
+          <div>
+            <h2>Daily Summary</h2>
+            <p id="summaryModalSubtitle"></p>
+          </div>
+          <button class="modal-close" data-close-modal="summaryModal">×</button>
+        </div>
+        <textarea id="summaryText" class="summary-text" readonly></textarea>
+        <div class="modal-footer">
+          <button id="copySummaryBtn" class="btn btn-primary">
+            Copy Summary</button
+          ><button
+            type="button"
+            class="btn btn-secondary"
+            data-close-modal="summaryModal"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Confirm -->
+    <div id="confirmModal" class="modal-overlay hidden">
+      <div class="modal modal-small">
+        <div class="modal-header">
+          <div>
+            <h2 id="confirmTitle">Confirm</h2>
+            <p id="confirmMessage"></p>
+          </div>
+          <button class="modal-close" data-close-modal="confirmModal">×</button>
+        </div>
+        <div class="modal-footer">
+          <button id="confirmCancelBtn" class="btn btn-secondary">Cancel</button
+          ><button id="confirmOkBtn" class="btn btn-danger">Confirm</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="toastContainer" class="toast-container"></div>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
