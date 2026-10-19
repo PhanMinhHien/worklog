@@ -796,7 +796,19 @@ function updateDashboard() {
   const ids = new Set(
     [...normal, ...corr].map((x) => x.taskId).filter((id) => getTask(id)),
   );
-  $("statTodayTime").textContent = formatDuration(nm + cm);
+  const fm = state.tasks
+  .filter(
+    (task) =>
+      task.fixedMinutes > 0 &&
+      task.fixedDate === today()
+  )
+  .reduce(
+    (sum, task) =>
+      sum + (Number(task.fixedMinutes) || 0),
+    0
+  );
+$("statTodayTime").textContent =
+    formatDuration(nm + cm + fm);
   $("statTasksWorked").textContent = ids.size;
   $("statCorrections").textContent = corr.length;
   $("statOpenTasks").textContent = state.tasks.filter((t) =>
