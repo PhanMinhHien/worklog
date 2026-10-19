@@ -917,6 +917,14 @@ body {
   cursor: pointer
 }
 
+.field label.reason-option input{
+  width: auto;
+}
+
+.field label.reason-option span{
+  vertical-align: text-bottom;
+}
+
 .reason-option:has(input:checked) {
   border-color: #c4b5fd;
   background: #f5f3ff
