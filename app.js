@@ -34,6 +34,10 @@ const TASK_TYPES = [
   "Video creation, editing & upload request",
   "Web content editing",
 ];
+const FIXED_ASSET_TIMES = {
+  "Banner release": 15,
+  "Teaser creation": 30,
+};
 const STATUS = {
   OPEN: "open",
   IN_PROGRESS: "in_progress",
@@ -925,6 +929,35 @@ const meta={
   if(page==="work-hours")renderWorkHours();
 }
 
+function updateAssetTimePreview() {
+  const type = $("taskType").value;
+  const amount = Math.max(
+    0,
+    Number($("taskAssetAmount").value) || 0
+  );
+
+  const minutesPerAsset = FIXED_ASSET_TIMES[type];
+
+  if (!minutesPerAsset) {
+    $("assetAmountField").style.display = "none";
+    $("assetTimePreview").textContent = "Fixed time: —";
+    return;
+  }
+
+  $("assetAmountField").style.display = "";
+
+  if (!amount) {
+    $("assetTimePreview").textContent =
+      `Fixed time: ${minutesPerAsset}m per asset`;
+    return;
+  }
+
+  const totalMinutes = amount * minutesPerAsset;
+
+  $("assetTimePreview").textContent =
+    `Fixed time: ${amount} × ${minutesPerAsset}m = ${formatDuration(totalMinutes)}`;
+}
+
 function openTaskModal(task = null) {
   $("taskId").value = task?.id || "";
   $("taskModalTitle").textContent = task ? "Edit Task" : "New Task";
@@ -933,7 +966,13 @@ function openTaskModal(task = null) {
   $("taskType").value = task?.type || TASK_TYPES[0];
   $("taskStatus").value = task?.status || STATUS.OPEN;
   $("taskUrl").value = task?.url || "";
-  $("taskNote").value = task?.note || "Amount of Assets:";
+  $("taskNote").value = task?.note || "";
+
+  $("taskAssetAmount").value =
+    task?.assetAmount || 1;
+
+  updateAssetTimePreview();
+
   openModal("taskModal");
 }
 function openTimeModal(taskId) {
@@ -1019,34 +1058,111 @@ async function addActivity(taskId, action, metadata = {}) {
     createdAt: serverTimestamp(),
   });
 }
+// async function saveTask(e) {
+//   e.preventDefault();
+//   const id = $("taskId").value.trim(),
+//     data = {
+//       title: $("taskTitle").value.trim(),
+//       project: $("taskProject").value.trim(),
+//       type: $("taskType").value,
+//       status: $("taskStatus").value,
+//       url: $("taskUrl").value.trim(),
+//       note: $("taskNote").value.trim(),
+//       updatedAt: serverTimestamp(),
+//     };
+//   if (!data.title) return;
+//   try {
+//     if (id) {
+//       await updateDoc(doc(db, "tasks", id), data);
+//       await addActivity(id, "task_edited");
+//       notify("Task updated.");
+//     } else {
+//       data.createdAt = serverTimestamp();
+//       const ref = await addDoc(collection(db, "tasks"), data);
+//       await addActivity(ref.id, "task_created");
+//       notify("Task created.");
+//     }
+//     closeModal("taskModal");
+//     $("taskForm").reset();
+//   } catch (err) {
+//     notify(err.message || "Could not save task.", "error");
+//   }
+// }
+
 async function saveTask(e) {
   e.preventDefault();
-  const id = $("taskId").value.trim(),
-    data = {
-      title: $("taskTitle").value.trim(),
-      project: $("taskProject").value.trim(),
-      type: $("taskType").value,
-      status: $("taskStatus").value,
-      url: $("taskUrl").value.trim(),
-      note: $("taskNote").value.trim(),
-      updatedAt: serverTimestamp(),
-    };
+
+  const id = $("taskId").value.trim();
+  const type = $("taskType").value;
+
+  const assetAmount =
+    FIXED_ASSET_TIMES[type]
+      ? Math.max(0, Number($("taskAssetAmount").value) || 0)
+      : 0;
+
+  const fixedMinutes =
+    FIXED_ASSET_TIMES[type] && assetAmount > 0
+      ? assetAmount * FIXED_ASSET_TIMES[type]
+      : 0;
+
+  const data = {
+    title: $("taskTitle").value.trim(),
+    project: $("taskProject").value.trim(),
+    type,
+    status: $("taskStatus").value,
+    url: $("taskUrl").value.trim(),
+    note: $("taskNote").value.trim(),
+
+    // Asset-based fixed time
+    assetAmount,
+    fixedMinutes,
+
+    updatedAt: serverTimestamp(),
+  };
+
   if (!data.title) return;
+
+  if (FIXED_ASSET_TIMES[type] && assetAmount <= 0) {
+    return notify(
+      "Please enter the amount of assets.",
+      "warning"
+    );
+  }
+
   try {
     if (id) {
-      await updateDoc(doc(db, "tasks", id), data);
+      await updateDoc(
+        doc(db, "tasks", id),
+        data
+      );
+
       await addActivity(id, "task_edited");
+
       notify("Task updated.");
     } else {
       data.createdAt = serverTimestamp();
-      const ref = await addDoc(collection(db, "tasks"), data);
-      await addActivity(ref.id, "task_created");
+
+      const ref = await addDoc(
+        collection(db, "tasks"),
+        data
+      );
+
+      await addActivity(
+        ref.id,
+        "task_created"
+      );
+
       notify("Task created.");
     }
+
     closeModal("taskModal");
     $("taskForm").reset();
+
   } catch (err) {
-    notify(err.message || "Could not save task.", "error");
+    notify(
+      err.message || "Could not save task.",
+      "error"
+    );
   }
 }
 async function saveTime(e) {
@@ -1718,7 +1834,15 @@ function setConnection(online = true) {
 }
 window.addEventListener("online", () => setConnection(true));
 window.addEventListener("offline", () => setConnection(false));
+$("taskType").addEventListener(
+  "change",
+  updateAssetTimePreview
+);
 
+$("taskAssetAmount").addEventListener(
+  "input",
+  updateAssetTimePreview
+);
 fillSelects();
 initReportDates();
 bindActions();
