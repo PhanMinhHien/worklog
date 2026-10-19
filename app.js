@@ -42,15 +42,15 @@ const STATUS = {
   OPEN: "open",
   IN_PROGRESS: "in_progress",
   WAITING: "waiting",
-  BLOCKED: "blocked",
+  // BLOCKED: "blocked",
   COMPLETED: "completed",
   ARCHIVED: "archived",
 };
 const STATUS_META = {
-  open: { label: "Open", icon: "🟡", cls: "status-open" },
-  in_progress: { label: "In Progress", icon: "🔵", cls: "status-progress" },
+  open: { label: "New", icon: "🟡", cls: "status-open" },
+  in_progress: { label: "In Approval", icon: "🔵", cls: "status-progress" },
   waiting: { label: "Waiting", icon: "🟣", cls: "status-waiting" },
-  blocked: { label: "Blocked", icon: "🟠", cls: "status-blocked" },
+  // blocked: { label: "Blocked", icon: "🟠", cls: "status-blocked" },
   completed: { label: "Completed", icon: "🟢", cls: "status-completed" },
   archived: { label: "Archived", icon: "⚫", cls: "status-archived" },
 };
