@@ -933,7 +933,7 @@ function openTaskModal(task = null) {
   $("taskType").value = task?.type || TASK_TYPES[0];
   $("taskStatus").value = task?.status || STATUS.OPEN;
   $("taskUrl").value = task?.url || "";
-  $("taskNote").value = task?.note || "";
+  $("taskNote").value = task?.note || "Amount of Assets:";
   openModal("taskModal");
 }
 function openTimeModal(taskId) {
