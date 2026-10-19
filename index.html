@@ -390,7 +390,21 @@
               <select id="taskTypeFilter">
                 <option value="all">All types</option>
               </select>
+              <select id="taskDateFilter">
+  <option value="all">All dates</option>
+  <option value="today">Today</option>
+  <option value="yesterday">Yesterday</option>
+  <option value="this-week">This week</option>
+  <option value="last-week">Last week</option>
+  <option value="this-month">This month</option>
+  <option value="custom">Custom date</option>
+</select>
 
+<input
+  type="date"
+  id="taskCustomDate"
+  style="display: none;"
+/>
             </div>
 
             <div id="tasksList" class="task-list"></div>

@@ -264,10 +264,28 @@ function statusBadge(status) {
   const s = STATUS_META[status] || STATUS_META.open;
   return `<span class="status-badge ${s.cls}">${s.icon} ${s.label}</span>`;
 }
+// function taskDates(id) {
+//   const dates = [...state.workSessions, ...state.corrections]
+//     .filter((x) => x.taskId === id && x.date)
+//     .map((x) => x.date);
+//   return [...new Set(dates)].sort().reverse();
+// }
+
 function taskDates(id) {
-  const dates = [...state.workSessions, ...state.corrections]
+  const task = getTask(id);
+
+  const dates = [
+    ...state.workSessions,
+    ...state.corrections,
+  ]
     .filter((x) => x.taskId === id && x.date)
     .map((x) => x.date);
+
+  // Fixed-time task, e.g. Banner release
+  if (task?.fixedMinutes > 0 && task?.fixedDate) {
+    dates.push(task.fixedDate);
+  }
+
   return [...new Set(dates)].sort().reverse();
 }
 function lastActivity(id) {
@@ -291,8 +309,8 @@ function renderTask(task, compact = false) {
     s = STATUS_META[task.status] || STATUS_META.open;
 
   const worked = dates.length
-    ? dates.slice(0, 3).map(shortDate).join(" · ")
-    : "No time logged yet";
+  ? dates.slice(0, 3).map(shortDate).join(" · ")
+  : "No work date yet";
 
   return `<div class="task-row ${task.status === STATUS.ARCHIVED ? "is-archived" : ""}">
     <div class="task-main">
@@ -425,32 +443,232 @@ function renderTask(task, compact = false) {
 //     </div>
 //   </div>`;
 // }
-
 function renderTasks() {
   const q = ($("taskSearch").value || "").toLowerCase().trim();
-  const sf = $("taskStatusFilter").value,
-    tf = $("taskTypeFilter").value;
+
+  const sf = $("taskStatusFilter").value;
+  const tf = $("taskTypeFilter").value;
+
+  const df = $("taskDateFilter")?.value || "all";
+  const customDate = $("taskCustomDate")?.value || "";
+
   let tasks = state.tasks.filter(
-    (t) => state.showArchived || t.status !== STATUS.ARCHIVED,
+    (t) =>
+      state.showArchived ||
+      t.status !== STATUS.ARCHIVED
   );
-  if (sf !== "all") tasks = tasks.filter((t) => t.status === sf);
-  if (tf !== "all") tasks = tasks.filter((t) => t.type === tf);
-  if (q)
+
+  // Status
+  if (sf !== "all") {
+    tasks = tasks.filter(
+      (t) => t.status === sf
+    );
+  }
+
+  // Type
+  if (tf !== "all") {
+    tasks = tasks.filter(
+      (t) => t.type === tf
+    );
+  }
+
+  // Date
+  tasks = tasks.filter(
+    (t) =>
+      taskMatchesDateFilter(
+        t,
+        df,
+        customDate
+      )
+  );
+
+  // Search
+  if (q) {
     tasks = tasks.filter((t) =>
-      [t.title, t.project, t.note, t.type, t.url].some((v) =>
+      [
+        t.title,
+        t.project,
+        t.note,
+        t.type,
+        t.url,
+      ].some((v) =>
         String(v || "")
           .toLowerCase()
-          .includes(q),
-      ),
+          .includes(q)
+      )
     );
+  }
+
   tasks.sort(
     (a, b) =>
-      dateValue(b.updatedAt || b.createdAt) -
-      dateValue(a.updatedAt || a.createdAt),
+      dateValue(
+        b.updatedAt || b.createdAt
+      ) -
+      dateValue(
+        a.updatedAt || a.createdAt
+      )
   );
+
   $("tasksList").innerHTML = tasks.length
     ? tasks.map((t) => renderTask(t)).join("")
-    : `<div class="empty-state"><div class="empty-title">No tasks found</div><div class="empty-text">Try another filter or create a new task.</div></div>`;
+    : `
+      <div class="empty-state">
+        <div class="empty-title">
+          No tasks found
+        </div>
+        <div class="empty-text">
+          Try another filter or create a new task.
+        </div>
+      </div>
+    `;
+}
+// function renderTasks() {
+//   const q = ($("taskSearch").value || "").toLowerCase().trim();
+//   const sf = $("taskStatusFilter").value,
+//     tf = $("taskTypeFilter").value;
+//   let tasks = state.tasks.filter(
+//     (t) => state.showArchived || t.status !== STATUS.ARCHIVED,
+//   );
+//   if (sf !== "all") tasks = tasks.filter((t) => t.status === sf);
+//   if (tf !== "all") tasks = tasks.filter((t) => t.type === tf);
+//   if (q)
+//     tasks = tasks.filter((t) =>
+//       [t.title, t.project, t.note, t.type, t.url].some((v) =>
+//         String(v || "")
+//           .toLowerCase()
+//           .includes(q),
+//       ),
+//     );
+//   tasks.sort(
+//     (a, b) =>
+//       dateValue(b.updatedAt || b.createdAt) -
+//       dateValue(a.updatedAt || a.createdAt),
+//   );
+//   $("tasksList").innerHTML = tasks.length
+//     ? tasks.map((t) => renderTask(t)).join("")
+//     : `<div class="empty-state"><div class="empty-title">No tasks found</div><div class="empty-text">Try another filter or create a new task.</div></div>`;
+// }
+
+function startOfWeek(date) {
+  const d = new Date(date);
+  const day = d.getDay();
+
+  // Monday = first day of week
+  const diff = day === 0 ? -6 : 1 - day;
+
+  d.setDate(d.getDate() + diff);
+  d.setHours(0, 0, 0, 0);
+
+  return d;
+}
+
+function dateToLocalString(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+
+  return `${y}-${m}-${d}`;
+}
+
+function getTaskDateFilterRange(filter) {
+  const now = new Date();
+
+  if (filter === "today") {
+    const value = today();
+
+    return {
+      start: value,
+      end: value,
+    };
+  }
+
+  if (filter === "yesterday") {
+    const d = new Date(now);
+    d.setDate(d.getDate() - 1);
+
+    const value = dateToLocalString(d);
+
+    return {
+      start: value,
+      end: value,
+    };
+  }
+
+  if (filter === "this-week") {
+    const start = startOfWeek(now);
+
+    const end = new Date(start);
+    end.setDate(end.getDate() + 6);
+
+    return {
+      start: dateToLocalString(start),
+      end: dateToLocalString(end),
+    };
+  }
+
+  if (filter === "last-week") {
+    const start = startOfWeek(now);
+    start.setDate(start.getDate() - 7);
+
+    const end = new Date(start);
+    end.setDate(end.getDate() + 6);
+
+    return {
+      start: dateToLocalString(start),
+      end: dateToLocalString(end),
+    };
+  }
+
+  if (filter === "this-month") {
+    const start = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      1
+    );
+
+    const end = new Date(
+      now.getFullYear(),
+      now.getMonth() + 1,
+      0
+    );
+
+    return {
+      start: dateToLocalString(start),
+      end: dateToLocalString(end),
+    };
+  }
+
+  return null;
+}
+
+function taskMatchesDateFilter(task, filter, customDate = "") {
+  if (filter === "all") {
+    return true;
+  }
+
+  const dates = taskDates(task.id);
+
+  if (!dates.length) {
+    return false;
+  }
+
+  if (filter === "custom") {
+    return customDate
+      ? dates.includes(customDate)
+      : true;
+  }
+
+  const range = getTaskDateFilterRange(filter);
+
+  if (!range) {
+    return true;
+  }
+
+  return dates.some(
+    (date) =>
+      date >= range.start &&
+      date <= range.end
+  );
 }
 
 function renderDashboardTasks() {
@@ -1489,6 +1707,14 @@ async function saveTask(e) {
 
 const loggedMinutes =
   Math.round(loggedHours * 60);
+
+  const existingTask = id ? getTask(id) : null;
+
+const fixedDate =
+  FIXED_ASSET_TIMES[type] && fixedMinutes > 0
+    ? existingTask?.fixedDate || today()
+    : "";
+  
   
   const data = {
   title: $("taskTitle").value.trim(),
@@ -1500,13 +1726,16 @@ const loggedMinutes =
 
   // Asset-based fixed time
   assetAmount,
-  fixedMinutes,
+    fixedMinutes,
+    fixedDate,
+
 
   // Manually recorded time from external work system
   loggedMinutes,
 
   updatedAt: serverTimestamp(),
-};
+  };
+  
 
   if (!data.title) return;
 
@@ -2380,6 +2609,22 @@ $("taskAssetAmount").addEventListener(
 $("taskLoggedHours").addEventListener(
   "input",
   updateLoggedTimePreview
+);
+$("taskDateFilter")?.addEventListener(
+  "change",
+  () => {
+    const value = $("taskDateFilter").value;
+    const input = $("taskCustomDate");
+
+    if (!input) return;
+
+    input.style.display =
+      value === "custom"
+        ? ""
+        : "none";
+
+    renderTasks();
+  }
 );
 fillSelects();
 initReportDates();
