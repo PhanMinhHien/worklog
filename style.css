@@ -992,6 +992,9 @@ body {
   display: flex;
   flex-direction: column
 }
+.history-log>div.history-log-actions {
+  display: unset;
+}
 
 .history-dot {
   width: 8px;

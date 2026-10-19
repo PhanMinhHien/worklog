@@ -272,19 +272,12 @@ function statusBadge(status) {
 // }
 
 function taskDates(id) {
-  const task = getTask(id);
-
   const dates = [
     ...state.workSessions,
     ...state.corrections,
   ]
     .filter((x) => x.taskId === id && x.date)
     .map((x) => x.date);
-
-  // Fixed-time task, e.g. Banner release
-  if (task?.fixedMinutes > 0 && task?.fixedDate) {
-    dates.push(task.fixedDate);
-  }
 
   return [...new Set(dates)].sort().reverse();
 }
@@ -333,11 +326,6 @@ function renderTask(task, compact = false) {
       </div>
 
       <div class="task-context task-time-context">
-        ${
-          task.fixedMinutes > 0
-            ? `<span>Fixed: <strong>${formatDuration(task.fixedMinutes)}</strong></span>`
-            : ""
-        }
 
         ${
           total > 0
@@ -786,44 +774,108 @@ if (a.action === "time_deleted")
   return `WorkLog deleted · ${formatDuration(m.duration)} · ${m.date || ""}`;
   return "Task created";
 }
-
 function updateDashboard() {
-  const d = today(),
-    normal = state.workSessions.filter((x) => x.date === d),
-    corr = state.corrections.filter((x) => x.date === d);
-  const nm = normal.reduce((s, x) => s + (Number(x.duration) || 0), 0),
-    cm = corr.reduce((s, x) => s + (Number(x.duration) || 0), 0);
-  const ids = new Set(
-    [...normal, ...corr].map((x) => x.taskId).filter((id) => getTask(id)),
+  const d = today();
+
+  const normal = state.workSessions.filter(
+    (x) => x.date === d
   );
-  const fm = state.tasks
-  .filter(
-    (task) =>
-      task.fixedMinutes > 0 &&
-      task.fixedDate === today()
-  )
-  .reduce(
-    (sum, task) =>
-      sum + (Number(task.fixedMinutes) || 0),
+
+  const corr = state.corrections.filter(
+    (x) => x.date === d
+  );
+
+  const nm = normal.reduce(
+    (sum, x) =>
+      sum + (Number(x.duration) || 0),
     0
   );
-$("statTodayTime").textContent =
-    formatDuration(nm + cm + fm);
-  $("statTasksWorked").textContent = ids.size;
-  $("statCorrections").textContent = corr.length;
-  $("statOpenTasks").textContent = state.tasks.filter((t) =>
-    [STATUS.OPEN, STATUS.IN_PROGRESS, STATUS.WAITING, STATUS.BLOCKED].includes(
-      t.status,
-    ),
-  ).length;
-  $("summaryWorked").textContent = formatDuration(nm + cm);
-  $("summaryTasks").textContent = ids.size;
-  $("summaryCorrections").textContent = corr.length;
+
+  const cm = corr.reduce(
+    (sum, x) =>
+      sum + (Number(x.duration) || 0),
+    0
+  );
+
+  const total = nm + cm;
+
+  const ids = new Set(
+    [...normal, ...corr]
+      .map((x) => x.taskId)
+      .filter((id) => getTask(id))
+  );
+
+  $("statTodayTime").textContent =
+    formatDuration(total);
+
+  $("statTasksWorked").textContent =
+    ids.size;
+
+  $("statCorrections").textContent =
+    corr.length;
+
+  $("statOpenTasks").textContent =
+    state.tasks.filter((t) =>
+      [
+        STATUS.OPEN,
+        STATUS.IN_PROGRESS,
+        STATUS.WAITING,
+        STATUS.BLOCKED,
+      ].includes(t.status)
+    ).length;
+
+  $("summaryWorked").textContent =
+    formatDuration(total);
+
+  $("summaryTasks").textContent =
+    ids.size;
+
+  $("summaryCorrections").textContent =
+    corr.length;
+
   renderToday();
   renderDashboardTasks();
   renderRecentActivity();
   renderWorkHours();
 }
+
+// function updateDashboard() {
+//   const d = today(),
+//     normal = state.workSessions.filter((x) => x.date === d),
+//     corr = state.corrections.filter((x) => x.date === d);
+//   const nm = normal.reduce((s, x) => s + (Number(x.duration) || 0), 0),
+//     cm = corr.reduce((s, x) => s + (Number(x.duration) || 0), 0);
+//   const ids = new Set(
+//     [...normal, ...corr].map((x) => x.taskId).filter((id) => getTask(id)),
+//   );
+//   const fm = state.tasks
+//   .filter(
+//     (task) =>
+//       task.fixedMinutes > 0 &&
+//       task.fixedDate === today()
+//   )
+//   .reduce(
+//     (sum, task) =>
+//       sum + (Number(task.fixedMinutes) || 0),
+//     0
+//   );
+// $("statTodayTime").textContent =
+//     formatDuration(nm + cm + fm);
+//   $("statTasksWorked").textContent = ids.size;
+//   $("statCorrections").textContent = corr.length;
+//   $("statOpenTasks").textContent = state.tasks.filter((t) =>
+//     [STATUS.OPEN, STATUS.IN_PROGRESS, STATUS.WAITING, STATUS.BLOCKED].includes(
+//       t.status,
+//     ),
+//   ).length;
+//   $("summaryWorked").textContent = formatDuration(nm + cm);
+//   $("summaryTasks").textContent = ids.size;
+//   $("summaryCorrections").textContent = corr.length;
+//   renderToday();
+//   renderDashboardTasks();
+//   renderRecentActivity();
+//   renderWorkHours();
+// }
 function renderWorkHours() {
   const date = today();
   const day = getWorkDay(date);
@@ -1695,6 +1747,161 @@ async function addActivity(taskId, action, metadata = {}) {
 //     notify(err.message || "Could not save task.", "error");
 //   }
 // }
+let fixedMigrationRunning = false;
+let fixedMigrationDone = false;
+
+async function syncFixedWorkLog(taskId, fixedMinutes, fixedDate) {
+  if (!taskId) return;
+
+  const existingEntries = state.workSessions.filter(
+    (x) =>
+      x.source === "fixed" &&
+      x.fixedTaskId === taskId
+  );
+
+  // Task vẫn là Fixed
+  if (Number(fixedMinutes) > 0 && fixedDate) {
+    const data = {
+      taskId,
+      date: fixedDate,
+      duration: Number(fixedMinutes),
+      note: "Fixed task time",
+      type: "normal",
+      source: "fixed",
+      fixedTaskId: taskId,
+      updatedAt: serverTimestamp(),
+    };
+
+    // Không có → tạo mới
+    if (!existingEntries.length) {
+      await addDoc(
+        collection(db, "workSessions"),
+        {
+          ...data,
+          createdAt: serverTimestamp(),
+        }
+      );
+
+      return;
+    }
+
+    // Có rồi → update record đầu tiên
+    const [primary, ...duplicates] = existingEntries;
+
+    await updateDoc(
+      doc(db, "workSessions", primary.id),
+      data
+    );
+
+    // Xóa duplicate nếu có
+    for (const duplicate of duplicates) {
+      await deleteDoc(
+        doc(db, "workSessions", duplicate.id)
+      );
+    }
+
+    return;
+  }
+
+  // Task không còn Fixed → xóa toàn bộ Fixed WorkLog
+  for (const entry of existingEntries) {
+    await deleteDoc(
+      doc(db, "workSessions", entry.id)
+    );
+  }
+}
+
+
+async function migrateFixedTasksToWorkLogs() {
+  if (fixedMigrationRunning || fixedMigrationDone) {
+    return;
+  }
+
+  fixedMigrationRunning = true;
+
+  try {
+
+    const workSnap = await getDocs(
+      collection(db, "workSessions")
+    );
+
+    const workLogs = workSnap.docs.map((d) => ({
+      id: d.id,
+      ...d.data(),
+    }));
+
+    const fixedTasks = state.tasks.filter(
+      (task) =>
+        Number(task.fixedMinutes) > 0 &&
+        task.fixedDate
+    );
+
+    for (const task of fixedTasks) {
+      const entries = workLogs.filter(
+        (x) =>
+          x.source === "fixed" &&
+          x.fixedTaskId === task.id
+      );
+
+      const data = {
+        taskId: task.id,
+        date: task.fixedDate,
+        duration: Number(task.fixedMinutes),
+        note: "Fixed task time",
+        type: "normal",
+        source: "fixed",
+        fixedTaskId: task.id,
+        updatedAt: serverTimestamp(),
+      };
+
+      if (!entries.length) {
+        await addDoc(
+          collection(db, "workSessions"),
+          {
+            ...data,
+            createdAt: serverTimestamp(),
+          }
+        );
+
+        continue;
+      }
+
+      // Giữ lại record đầu tiên
+      const [primary, ...duplicates] = entries;
+
+      // Đồng bộ duration/date
+      if (
+        Number(primary.duration) !==
+          Number(task.fixedMinutes) ||
+        primary.date !== task.fixedDate
+      ) {
+        await updateDoc(
+          doc(db, "workSessions", primary.id),
+          data
+        );
+      }
+
+      for (const duplicate of duplicates) {
+        await deleteDoc(
+          doc(db, "workSessions", duplicate.id)
+        );
+      }
+    }
+
+    fixedMigrationDone = true;
+
+    console.log(
+      "Fixed → WorkLog migration completed."
+    );
+  } catch (err) {
+    console.error(
+      "Fixed → WorkLog migration failed:",
+      err
+    );
+  } finally {
+    fixedMigrationRunning = false;
+  }
+}
 
 async function saveTask(e) {
   e.preventDefault();
@@ -1704,54 +1911,59 @@ async function saveTask(e) {
 
   const assetAmount =
     FIXED_ASSET_TIMES[type]
-      ? Math.max(0, Number($("taskAssetAmount").value) || 0)
+      ? Math.max(
+          0,
+          Number($("taskAssetAmount").value) || 0
+        )
       : 0;
 
   const fixedMinutes =
-    FIXED_ASSET_TIMES[type] && assetAmount > 0
+    FIXED_ASSET_TIMES[type] &&
+    assetAmount > 0
       ? assetAmount * FIXED_ASSET_TIMES[type]
       : 0;
-  const loggedHours =
-  Math.max(
+
+  const loggedHours = Math.max(
     0,
     Number($("taskLoggedHours").value) || 0
   );
 
-const loggedMinutes =
-  Math.round(loggedHours * 60);
+  const loggedMinutes =
+    Math.round(loggedHours * 60);
 
-  const existingTask = id ? getTask(id) : null;
+  const existingTask =
+    id ? getTask(id) : null;
 
-const fixedDate =
-  FIXED_ASSET_TIMES[type] && fixedMinutes > 0
-    ? existingTask?.fixedDate || today()
-    : "";
-  
-  
+  const fixedDate =
+    FIXED_ASSET_TIMES[type] &&
+    fixedMinutes > 0
+      ? existingTask?.fixedDate || today()
+      : "";
+
   const data = {
-  title: $("taskTitle").value.trim(),
-  project: $("taskProject").value.trim(),
-  type,
-  status: $("taskStatus").value,
-  url: $("taskUrl").value.trim(),
-  note: $("taskNote").value.trim(),
+    title: $("taskTitle").value.trim(),
+    project: $("taskProject").value.trim(),
+    type,
+    status: $("taskStatus").value,
+    url: $("taskUrl").value.trim(),
+    note: $("taskNote").value.trim(),
 
-  // Asset-based fixed time
-  assetAmount,
+    assetAmount,
     fixedMinutes,
     fixedDate,
 
+    // External/manual logged time
+    loggedMinutes,
 
-  // Manually recorded time from external work system
-  loggedMinutes,
-
-  updatedAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
   };
-  
 
   if (!data.title) return;
 
-  if (FIXED_ASSET_TIMES[type] && assetAmount <= 0) {
+  if (
+    FIXED_ASSET_TIMES[type] &&
+    assetAmount <= 0
+  ) {
     return notify(
       "Please enter the amount of assets.",
       "warning"
@@ -1765,15 +1977,31 @@ const fixedDate =
         data
       );
 
-      await addActivity(id, "task_edited");
+      await syncFixedWorkLog(
+        id,
+        fixedMinutes,
+        fixedDate
+      );
+
+      await addActivity(
+        id,
+        "task_edited"
+      );
 
       notify("Task updated.");
     } else {
-      data.createdAt = serverTimestamp();
+      data.createdAt =
+        serverTimestamp();
 
       const ref = await addDoc(
         collection(db, "tasks"),
         data
+      );
+
+      await syncFixedWorkLog(
+        ref.id,
+        fixedMinutes,
+        fixedDate
       );
 
       await addActivity(
@@ -1789,11 +2017,110 @@ const fixedDate =
 
   } catch (err) {
     notify(
-      err.message || "Could not save task.",
+      err.message ||
+        "Could not save task.",
       "error"
     );
   }
 }
+// async function saveTask(e) {
+//   e.preventDefault();
+
+//   const id = $("taskId").value.trim();
+//   const type = $("taskType").value;
+
+//   const assetAmount =
+//     FIXED_ASSET_TIMES[type]
+//       ? Math.max(0, Number($("taskAssetAmount").value) || 0)
+//       : 0;
+
+//   const fixedMinutes =
+//     FIXED_ASSET_TIMES[type] && assetAmount > 0
+//       ? assetAmount * FIXED_ASSET_TIMES[type]
+//       : 0;
+//   const loggedHours =
+//   Math.max(
+//     0,
+//     Number($("taskLoggedHours").value) || 0
+//   );
+
+// const loggedMinutes =
+//   Math.round(loggedHours * 60);
+
+//   const existingTask = id ? getTask(id) : null;
+
+// const fixedDate =
+//   FIXED_ASSET_TIMES[type] && fixedMinutes > 0
+//     ? existingTask?.fixedDate || today()
+//     : "";
+  
+  
+//   const data = {
+//   title: $("taskTitle").value.trim(),
+//   project: $("taskProject").value.trim(),
+//   type,
+//   status: $("taskStatus").value,
+//   url: $("taskUrl").value.trim(),
+//   note: $("taskNote").value.trim(),
+
+//   // Asset-based fixed time
+//   assetAmount,
+//     fixedMinutes,
+//     fixedDate,
+
+
+//   // Manually recorded time from external work system
+//   loggedMinutes,
+
+//   updatedAt: serverTimestamp(),
+//   };
+  
+
+//   if (!data.title) return;
+
+//   if (FIXED_ASSET_TIMES[type] && assetAmount <= 0) {
+//     return notify(
+//       "Please enter the amount of assets.",
+//       "warning"
+//     );
+//   }
+
+//   try {
+//     if (id) {
+//       await updateDoc(
+//         doc(db, "tasks", id),
+//         data
+//       );
+
+//       await addActivity(id, "task_edited");
+
+//       notify("Task updated.");
+//     } else {
+//       data.createdAt = serverTimestamp();
+
+//       const ref = await addDoc(
+//         collection(db, "tasks"),
+//         data
+//       );
+
+//       await addActivity(
+//         ref.id,
+//         "task_created"
+//       );
+
+//       notify("Task created.");
+//     }
+
+//     closeModal("taskModal");
+//     $("taskForm").reset();
+
+//   } catch (err) {
+//     notify(
+//       err.message || "Could not save task.",
+//       "error"
+//     );
+//   }
+// }
 async function saveTime(e) {
   e.preventDefault();
 
@@ -2081,19 +2408,37 @@ async function clearAll() {
 }
 
 function reportEntries() {
-  const from = $("reportFrom").value,
-    to = $("reportTo").value,
-    project = $("reportProject").value;
+  const from =
+    $("reportFrom").value;
+
+  const to =
+    $("reportTo").value;
+
+  const project =
+    $("reportProject").value;
+
   return [
-    ...state.workSessions.map((x) => ({ ...x, kind: "normal" })),
-    ...state.corrections.map((x) => ({ ...x, kind: "correction" })),
+    ...state.workSessions.map((x) => ({
+      ...x,
+      kind: "normal",
+    })),
+
+    ...state.corrections.map((x) => ({
+      ...x,
+      kind: "correction",
+    })),
   ].filter((e) => {
     const t = getTask(e.taskId);
-    if (!t || (t.status === STATUS.ARCHIVED && false)) return false;
+
+    if (!t) return false;
+
     return (
       (!from || e.date >= from) &&
       (!to || e.date <= to) &&
-      (project === "all" || t.project === project)
+      (
+        project === "all" ||
+        t.project === project
+      )
     );
   });
 }
@@ -2276,73 +2621,208 @@ function populateProjects() {
       .join("");
   $("reportProject").value = projects.includes(current) ? current : "all";
 }
+
 function generateSummary() {
-  const d = today(),
-    entries = [
-      ...state.workSessions.map((x) => ({ ...x, kind: "normal" })),
-      ...state.corrections.map((x) => ({ ...x, kind: "correction" })),
-    ].filter((x) => x.date === d && getTask(x.taskId));
-  const total = entries.reduce((s, x) => s + x.duration, 0),
-    corrections = entries.filter((x) => x.kind === "correction").length,
-    ids = [...new Set(entries.map((x) => x.taskId))];
+  const d = today();
+
+  const entries = [
+    ...state.workSessions.map((x) => ({
+      ...x,
+      kind: "normal",
+    })),
+
+    ...state.corrections.map((x) => ({
+      ...x,
+      kind: "correction",
+    })),
+  ].filter(
+    (x) =>
+      x.date === d &&
+      getTask(x.taskId)
+  );
+
+  const total = entries.reduce(
+    (s, x) =>
+      s + (Number(x.duration) || 0),
+    0
+  );
+
+  const corrections =
+    entries.filter(
+      (x) => x.kind === "correction"
+    ).length;
+
+  const ids = [
+    ...new Set(
+      entries.map((x) => x.taskId)
+    ),
+  ];
+
   const grouped = ids
     .map((id) => ({
       task: getTask(id),
+
       mins: entries
-        .filter((x) => x.taskId === id)
-        .reduce((s, x) => s + x.duration, 0),
-    }))
-    .sort((a, b) => b.mins - a.mins);
-  const completed = state.tasks
-    .filter(
-      (t) =>
-        t.status === STATUS.COMPLETED &&
-        state.activities.some(
-          (a) =>
-            a.taskId === t.id &&
-            a.action === "status_changed" &&
-            a.metadata?.to === STATUS.COMPLETED &&
-            timeAgo(a.createdAt).includes("ago"),
+        .filter(
+          (x) => x.taskId === id
+        )
+        .reduce(
+          (s, x) =>
+            s +
+            (Number(x.duration) || 0),
+          0
         ),
-    )
-    .slice(0, 6);
-  const active = state.tasks
-    .filter(
-      (t) =>
-        [
-          STATUS.OPEN,
-          STATUS.IN_PROGRESS,
-          STATUS.WAITING,
-          STATUS.BLOCKED,
-        ].includes(t.status) && taskMinutes(t.id) > 0,
-    )
-    .sort((a, b) => taskMinutes(b.id) - taskMinutes(a.id))
-    .slice(0, 6);
+    }))
+    .sort(
+      (a, b) => b.mins - a.mins
+    );
+
+  const completed =
+    state.tasks
+      .filter(
+        (t) =>
+          t.status === STATUS.COMPLETED &&
+          ids.includes(t.id)
+      )
+      .sort((a, b) =>
+        String(
+          a.title || ""
+        ).localeCompare(
+          String(b.title || "")
+        )
+      );
+
+  const active =
+    state.tasks
+      .filter(
+        (t) =>
+          ids.includes(t.id) &&
+          t.status !== STATUS.COMPLETED &&
+          t.status !== STATUS.ARCHIVED
+      )
+      .sort((a, b) =>
+        String(
+          a.title || ""
+        ).localeCompare(
+          String(b.title || "")
+        )
+      );
+
   const lines = [
     dateLabel(d),
     "",
+
     `Worked: ${formatDuration(total)}`,
     `Tasks: ${ids.length}`,
     `Corrections: ${corrections}`,
+
     "",
+
     "Main work:",
+
     ...grouped
       .slice(0, 6)
-      .map((x) => `• ${x.task.title} — ${formatDuration(x.mins)}`),
+      .map(
+        (x) =>
+          `• ${x.task.title} — ${formatDuration(x.mins)}`
+      ),
+
     "",
+
     "Completed:",
+
     ...(completed.length
-      ? completed.map((t) => `✓ ${t.title}`)
+      ? completed.map(
+          (t) => `✓ ${t.title}`
+        )
       : ["• None recorded today"]),
+
     "",
+
     "Open:",
-    ...(active.length ? active.map((t) => `• ${t.title}`) : ["• None"]),
+
+    ...(active.length
+      ? active.map(
+          (t) => `• ${t.title}`
+        )
+      : ["• None"]),
   ];
+
   $("summaryModalSubtitle").textContent =
     `${dateLabel(d)} · ${formatDuration(total)}`;
-  $("summaryText").value = lines.join("\n");
+
+  $("summaryText").value =
+    lines.join("\n");
+
   openModal("summaryModal");
 }
+// function generateSummary() {
+//   const d = today(),
+//     entries = [
+//       ...state.workSessions.map((x) => ({ ...x, kind: "normal" })),
+//       ...state.corrections.map((x) => ({ ...x, kind: "correction" })),
+//     ].filter((x) => x.date === d && getTask(x.taskId));
+//   const total = entries.reduce((s, x) => s + x.duration, 0),
+//     corrections = entries.filter((x) => x.kind === "correction").length,
+//     ids = [...new Set(entries.map((x) => x.taskId))];
+//   const grouped = ids
+//     .map((id) => ({
+//       task: getTask(id),
+//       mins: entries
+//         .filter((x) => x.taskId === id)
+//         .reduce((s, x) => s + x.duration, 0),
+//     }))
+//     .sort((a, b) => b.mins - a.mins);
+//   const completed = state.tasks
+//     .filter(
+//       (t) =>
+//         t.status === STATUS.COMPLETED &&
+//         state.activities.some(
+//           (a) =>
+//             a.taskId === t.id &&
+//             a.action === "status_changed" &&
+//             a.metadata?.to === STATUS.COMPLETED &&
+//             timeAgo(a.createdAt).includes("ago"),
+//         ),
+//     )
+//     .slice(0, 6);
+//   const active = state.tasks
+//     .filter(
+//       (t) =>
+//         [
+//           STATUS.OPEN,
+//           STATUS.IN_PROGRESS,
+//           STATUS.WAITING,
+//           STATUS.BLOCKED,
+//         ].includes(t.status) && taskMinutes(t.id) > 0,
+//     )
+//     .sort((a, b) => taskMinutes(b.id) - taskMinutes(a.id))
+//     .slice(0, 6);
+//   const lines = [
+//     dateLabel(d),
+//     "",
+//     `Worked: ${formatDuration(total)}`,
+//     `Tasks: ${ids.length}`,
+//     `Corrections: ${corrections}`,
+//     "",
+//     "Main work:",
+//     ...grouped
+//       .slice(0, 6)
+//       .map((x) => `• ${x.task.title} — ${formatDuration(x.mins)}`),
+//     "",
+//     "Completed:",
+//     ...(completed.length
+//       ? completed.map((t) => `✓ ${t.title}`)
+//       : ["• None recorded today"]),
+//     "",
+//     "Open:",
+//     ...(active.length ? active.map((t) => `• ${t.title}`) : ["• None"]),
+//   ];
+//   $("summaryModalSubtitle").textContent =
+//     `${dateLabel(d)} · ${formatDuration(total)}`;
+//   $("summaryText").value = lines.join("\n");
+//   openModal("summaryModal");
+// }
 async function copySummary() {
   try {
     await navigator.clipboard.writeText($("summaryText").value);
@@ -2571,37 +3051,80 @@ async function importDoc(col, id, data) {
 }
 
 function subscribe() {
-  onSnapshot(collection(db, "tasks"), (snap) => {
-    state.tasks = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-    populateProjects();
-    renderTasks();
-    updateDashboard();
-  });
-  onSnapshot(collection(db, "workSessions"), (snap) => {
-    state.workSessions = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-    updateDashboard();
-    renderTasks();
-  });
-  onSnapshot(collection(db, "corrections"), (snap) => {
-    state.corrections = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-    updateDashboard();
-    renderTasks();
-  });
-  onSnapshot(collection(db, "activityLogs"), (snap) => {
-    state.activities = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-    updateDashboard();
-    renderTasks();
-  });
-  onSnapshot(collection(db,"workDays"),snap=>{
-  state.workDays =
-    snap.docs.map(d=>({
-      id:d.id,
-      ...d.data()
-    }));
+  onSnapshot(
+    collection(db, "tasks"),
+    async (snap) => {
+      state.tasks = snap.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+      }));
 
-  updateDashboard();
-  renderWorkHours();
-});
+      populateProjects();
+      renderTasks();
+      updateDashboard();
+
+      try {
+        await migrateFixedTasksToWorkLogs();
+      } catch (err) {
+        console.error(
+          "Fixed → WorkLog migration failed:",
+          err
+        );
+      }
+    }
+  );
+
+  onSnapshot(
+    collection(db, "workSessions"),
+    (snap) => {
+      state.workSessions = snap.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+      }));
+
+      updateDashboard();
+      renderTasks();
+    }
+  );
+
+  onSnapshot(
+    collection(db, "corrections"),
+    (snap) => {
+      state.corrections = snap.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+      }));
+
+      updateDashboard();
+      renderTasks();
+    }
+  );
+
+  onSnapshot(
+    collection(db, "activityLogs"),
+    (snap) => {
+      state.activities = snap.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+      }));
+
+      updateDashboard();
+      renderTasks();
+    }
+  );
+
+  onSnapshot(
+    collection(db, "workDays"),
+    (snap) => {
+      state.workDays = snap.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+      }));
+
+      updateDashboard();
+      renderWorkHours();
+    }
+  );
 }
 function setConnection(online = true) {
   $("connectionDot").classList.toggle("offline", !online);
