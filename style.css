@@ -1400,7 +1400,7 @@ body {
 .time-input-with-suffix input {
   flex: 1;
 }
-
+ 
 .time-input-with-suffix span {
   color: var(--text-muted);
   font-size: 11px;

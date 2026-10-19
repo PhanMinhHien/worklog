@@ -1712,7 +1712,7 @@ function openHistory(taskId) {
 async function addActivity(taskId, action, metadata = {}) {
   await addDoc(collection(db, "activityLogs"), {
     taskId,
-    action,
+    action, 
     metadata,
     createdAt: serverTimestamp(),
   });
