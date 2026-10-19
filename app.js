@@ -1759,7 +1759,6 @@ async function syncFixedWorkLog(taskId, fixedMinutes, fixedDate) {
       x.fixedTaskId === taskId
   );
 
-  // Task vẫn là Fixed
   if (Number(fixedMinutes) > 0 && fixedDate) {
     const data = {
       taskId,
@@ -1772,7 +1771,6 @@ async function syncFixedWorkLog(taskId, fixedMinutes, fixedDate) {
       updatedAt: serverTimestamp(),
     };
 
-    // Không có → tạo mới
     if (!existingEntries.length) {
       await addDoc(
         collection(db, "workSessions"),
@@ -1785,7 +1783,6 @@ async function syncFixedWorkLog(taskId, fixedMinutes, fixedDate) {
       return;
     }
 
-    // Có rồi → update record đầu tiên
     const [primary, ...duplicates] = existingEntries;
 
     await updateDoc(
@@ -1793,7 +1790,6 @@ async function syncFixedWorkLog(taskId, fixedMinutes, fixedDate) {
       data
     );
 
-    // Xóa duplicate nếu có
     for (const duplicate of duplicates) {
       await deleteDoc(
         doc(db, "workSessions", duplicate.id)
@@ -1803,7 +1799,6 @@ async function syncFixedWorkLog(taskId, fixedMinutes, fixedDate) {
     return;
   }
 
-  // Task không còn Fixed → xóa toàn bộ Fixed WorkLog
   for (const entry of existingEntries) {
     await deleteDoc(
       doc(db, "workSessions", entry.id)
@@ -1866,10 +1861,8 @@ async function migrateFixedTasksToWorkLogs() {
         continue;
       }
 
-      // Giữ lại record đầu tiên
       const [primary, ...duplicates] = entries;
 
-      // Đồng bộ duration/date
       if (
         Number(primary.duration) !==
           Number(task.fixedMinutes) ||
