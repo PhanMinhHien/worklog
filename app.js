@@ -47,7 +47,7 @@ const state = {
   workDays: [],
   workSettings: {
     dailyTargetMinutes: 480,
-    openingFlexiMinutes: 0
+    openingFlexiMinutes: 10461
   },
   activePage: "dashboard",
   showArchived: false,
