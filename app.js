@@ -14,14 +14,25 @@ import {
 const $ = (id) => document.getElementById(id);
 
 const TASK_TYPES = [
-  "Development",
-  "Email/MJML",
-  "QA/QC",
-  "Design",
-  "Content",
-  "Meeting",
-  "Admin",
-  "Other",
+  "Article page creation",
+  "Article page versioning",
+  "Banner release",
+  "Dynamic Banner Creation",
+  "Dynamic Banner Versioning",
+  "Graphics Production",
+  "Landing page creation",
+  "Landing page versioning",
+  "Newsletter creation",
+  "Newsletter repetition",
+  "Newsletter versioning",
+  "PDF production & editing request",
+  "Print material design request",
+  "Static Banner Creation",
+  "Static Banner Versioning",
+  "TODAY Newsletter",
+  "Teaser creation",
+  "Video creation, editing & upload request",
+  "Web content editing",
 ];
 const STATUS = {
   OPEN: "open",
@@ -918,7 +929,7 @@ function openTaskModal(task = null) {
   $("taskId").value = task?.id || "";
   $("taskModalTitle").textContent = task ? "Edit Task" : "New Task";
   $("taskTitle").value = task?.title || "";
-  $("taskProject").value = task?.project || "";
+  $("taskProject").value = task?.project || "ALSO";
   $("taskType").value = task?.type || TASK_TYPES[0];
   $("taskStatus").value = task?.status || STATUS.OPEN;
   $("taskUrl").value = task?.url || "";
