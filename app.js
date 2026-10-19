@@ -295,7 +295,35 @@ function renderTask(task, compact = false) {
     : "No time logged yet";
   return `<div class="task-row ${task.status === STATUS.ARCHIVED ? "is-archived" : ""}">
     <div class="task-main">
-      <div class="task-title-line"><div class="task-title">${escapeHtml(task.title)}</div><strong class="task-total">${formatDuration(total)}</strong></div>
+<div class="task-title-line">
+  <div class="task-title">${escapeHtml(task.title)}</div>
+
+  <div class="task-time-summary">
+    ${
+      task.loggedMinutes
+        ? `<strong class="task-total">
+            Logged ${formatDuration(task.loggedMinutes)}
+          </strong>`
+        : ""
+    }
+
+    ${
+      task.fixedMinutes
+        ? `<span class="task-fixed-time">
+            Fixed ${formatDuration(task.fixedMinutes)}
+          </span>`
+        : ""
+    }
+
+    ${
+      total
+        ? `<span class="task-recorded-time">
+            WorkLog ${formatDuration(total)}
+          </span>`
+        : ""
+    }
+  </div>
+</div>
       <div class="task-meta"><span>${escapeHtml(task.project || "No project")}</span><span>•</span><span>${escapeHtml(task.type || "Other")}</span>${statusBadge(task.status)}</div>
       <div class="task-context"><span>Worked: ${escapeHtml(worked)}</span><span>•</span><span>Last activity: ${escapeHtml(lastActivity(task.id))}</span></div>
       ${!compact && task.note ? `<div class="task-note">${escapeHtml(task.note)}</div>` : ""}
@@ -958,6 +986,18 @@ function updateAssetTimePreview() {
     `Fixed time: ${amount} × ${minutesPerAsset}m = ${formatDuration(totalMinutes)}`;
 }
 
+function updateLoggedTimePreview() {
+  const hours = Math.max(
+    0,
+    Number($("taskLoggedHours").value) || 0
+  );
+
+  const loggedMinutes = Math.round(hours * 60);
+
+  $("loggedTimePreview").textContent =
+    `Logged: ${formatDuration(loggedMinutes)}`;
+}
+
 function openTaskModal(task = null) {
   $("taskId").value = task?.id || "";
   $("taskModalTitle").textContent = task ? "Edit Task" : "New Task";
@@ -971,10 +1011,33 @@ function openTaskModal(task = null) {
   $("taskAssetAmount").value =
     task?.assetAmount || 1;
 
+  $("taskLoggedHours").value =
+    task?.loggedMinutes
+      ? Number(task.loggedMinutes) / 60
+      : 0;
+
   updateAssetTimePreview();
+  updateLoggedTimePreview();
 
   openModal("taskModal");
 }
+// function openTaskModal(task = null) {
+//   $("taskId").value = task?.id || "";
+//   $("taskModalTitle").textContent = task ? "Edit Task" : "New Task";
+//   $("taskTitle").value = task?.title || "";
+//   $("taskProject").value = task?.project || "ALSO";
+//   $("taskType").value = task?.type || TASK_TYPES[0];
+//   $("taskStatus").value = task?.status || STATUS.OPEN;
+//   $("taskUrl").value = task?.url || "";
+//   $("taskNote").value = task?.note || "";
+
+//   $("taskAssetAmount").value =
+//     task?.assetAmount || 1;
+
+//   updateAssetTimePreview();
+
+//   openModal("taskModal");
+// }
 function openTimeModal(taskId) {
   const t = getTask(taskId);
   if (!t) return;
@@ -1024,7 +1087,10 @@ function openHistory(taskId) {
   $("historySubtitle").textContent =
     `${t.project || "No project"} · ${t.type || "Other"}`;
   $("historySummary").innerHTML =
-    `<div><span>Total</span><strong>${formatDuration(taskMinutes(taskId))}</strong></div><div><span>Normal</span><strong>${formatDuration(normalMinutes(taskId))}</strong></div><div><span>Corrections</span><strong>${formatDuration(correctionMinutes(taskId))}</strong></div><div><span>Status</span><strong>${escapeHtml(STATUS_META[t.status]?.label || t.status)}</strong></div>`;
+    `<div><span>Total</span><strong>${formatDuration(taskMinutes(taskId))}</strong></div><div><span>Normal</span><strong>${formatDuration(normalMinutes(taskId))}</strong></div><div><span>Corrections</span><strong>${formatDuration(correctionMinutes(taskId))}</strong></div><div><span>Status</span><strong>${escapeHtml(STATUS_META[t.status]?.label || t.status)}</strong></div><div>
+  <span>Logged Time</span>
+  <strong>${formatDuration(t.loggedMinutes || 0)}</strong>
+</div>`;
   const activityHtml = acts.length
     ? `<div class="history-section"><h3>Activity</h3>${acts.map((a) => `<div class="history-item"><span class="history-dot"></span><div><strong>${escapeHtml(activityLabel(a))}</strong><small>${escapeHtml(a.createdAt?.toDate ? a.createdAt.toDate().toLocaleString() : dateLabel(a.metadata?.date))}</small></div></div>`).join("")}</div>`
     : "";
@@ -1104,21 +1170,32 @@ async function saveTask(e) {
     FIXED_ASSET_TIMES[type] && assetAmount > 0
       ? assetAmount * FIXED_ASSET_TIMES[type]
       : 0;
+  const loggedHours =
+  Math.max(
+    0,
+    Number($("taskLoggedHours").value) || 0
+  );
 
+const loggedMinutes =
+  Math.round(loggedHours * 60);
+  
   const data = {
-    title: $("taskTitle").value.trim(),
-    project: $("taskProject").value.trim(),
-    type,
-    status: $("taskStatus").value,
-    url: $("taskUrl").value.trim(),
-    note: $("taskNote").value.trim(),
+  title: $("taskTitle").value.trim(),
+  project: $("taskProject").value.trim(),
+  type,
+  status: $("taskStatus").value,
+  url: $("taskUrl").value.trim(),
+  note: $("taskNote").value.trim(),
 
-    // Asset-based fixed time
-    assetAmount,
-    fixedMinutes,
+  // Asset-based fixed time
+  assetAmount,
+  fixedMinutes,
 
-    updatedAt: serverTimestamp(),
-  };
+  // Manually recorded time from external work system
+  loggedMinutes,
+
+  updatedAt: serverTimestamp(),
+};
 
   if (!data.title) return;
 
@@ -1842,6 +1919,10 @@ $("taskType").addEventListener(
 $("taskAssetAmount").addEventListener(
   "input",
   updateAssetTimePreview
+);
+$("taskLoggedHours").addEventListener(
+  "input",
+  updateLoggedTimePreview
 );
 fillSelects();
 initReportDates();
