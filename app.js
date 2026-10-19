@@ -285,49 +285,62 @@ function dateValue(ts) {
 function sortNewest(a, b) {
   return dateValue(b.createdAt) - dateValue(a.createdAt);
 }
-
 function renderTask(task, compact = false) {
   const total = taskMinutes(task.id),
     dates = taskDates(task.id),
     s = STATUS_META[task.status] || STATUS_META.open;
+
   const worked = dates.length
     ? dates.slice(0, 3).map(shortDate).join(" · ")
     : "No time logged yet";
+
   return `<div class="task-row ${task.status === STATUS.ARCHIVED ? "is-archived" : ""}">
     <div class="task-main">
-<div class="task-title-line">
-  <div class="task-title">${escapeHtml(task.title)}</div>
 
-  <div class="task-time-summary">
-    ${
-      task.loggedMinutes
-        ? `<strong class="task-total">
-            Logged ${formatDuration(task.loggedMinutes)}
-          </strong>`
-        : ""
-    }
+      <div class="task-title-line">
+        <div class="task-title">${escapeHtml(task.title)}</div>
+      </div>
 
-    ${
-      task.fixedMinutes
-        ? `<span class="task-fixed-time">
-            Fixed ${formatDuration(task.fixedMinutes)}
-          </span>`
-        : ""
-    }
+      <div class="task-meta">
+        <span>${escapeHtml(task.project || "No project")}</span>
+        <span>•</span>
+        <span>${escapeHtml(task.type || "Other")}</span>
+        ${statusBadge(task.status)}
+      </div>
 
-    ${
-      total
-        ? `<span class="task-recorded-time">
-            WorkLog ${formatDuration(total)}
-          </span>`
+      <div class="task-context">
+        <span>Worked: ${escapeHtml(worked)}</span>
+        <span>•</span>
+        <span>Last activity: ${escapeHtml(lastActivity(task.id))}</span>
+      </div>
+
+      <div class="task-context task-time-context">
+        ${
+          task.fixedMinutes > 0
+            ? `<span>Fixed: <strong>${formatDuration(task.fixedMinutes)}</strong></span>`
+            : ""
+        }
+
+        ${
+          total > 0
+            ? `<span>WorkLog: <strong>${formatDuration(total)}</strong></span>`
+            : ""
+        }
+
+        ${
+          task.loggedMinutes > 0
+            ? `<span>Logged: <strong>${formatDuration(task.loggedMinutes)}</strong></span>`
+            : ""
+        }
+      </div>
+
+      ${!compact && task.note
+        ? `<div class="task-note">${escapeHtml(task.note)}</div>`
         : ""
-    }
-  </div>
-</div>
-      <div class="task-meta"><span>${escapeHtml(task.project || "No project")}</span><span>•</span><span>${escapeHtml(task.type || "Other")}</span>${statusBadge(task.status)}</div>
-      <div class="task-context"><span>Worked: ${escapeHtml(worked)}</span><span>•</span><span>Last activity: ${escapeHtml(lastActivity(task.id))}</span></div>
-      ${!compact && task.note ? `<div class="task-note">${escapeHtml(task.note)}</div>` : ""}
+      }
+
     </div>
+
     <div class="task-actions">
       ${
         compact
@@ -340,14 +353,78 @@ function renderTask(task, compact = false) {
         ${
           task.status === STATUS.ARCHIVED
             ? `<button class="task-action" data-action="unarchive" data-task-id="${task.id}">Unarchive</button>`
-            : `<button class="task-action" data-action="status-next" data-task-id="${task.id}">${task.status === STATUS.COMPLETED ? "Reopen" : "Status"}</button>
-           <button class="task-action danger" data-action="archive" data-task-id="${task.id}">Archive</button>`
+            : `<button class="task-action" data-action="status-next" data-task-id="${task.id}">
+                ${task.status === STATUS.COMPLETED ? "Reopen" : "Status"}
+              </button>
+              <button class="task-action danger" data-action="archive" data-task-id="${task.id}">Archive</button>`
         }
       `
       }
     </div>
   </div>`;
 }
+// function renderTask(task, compact = false) {
+//   const total = taskMinutes(task.id),
+//     dates = taskDates(task.id),
+//     s = STATUS_META[task.status] || STATUS_META.open;
+//   const worked = dates.length
+//     ? dates.slice(0, 3).map(shortDate).join(" · ")
+//     : "No time logged yet";
+//   return `<div class="task-row ${task.status === STATUS.ARCHIVED ? "is-archived" : ""}">
+//     <div class="task-main">
+// <div class="task-title-line">
+//   <div class="task-title">${escapeHtml(task.title)}</div>
+
+//   <div class="task-time-summary">
+//     ${
+//       task.loggedMinutes
+//         ? `<strong class="task-total">
+//             Logged ${formatDuration(task.loggedMinutes)}
+//           </strong>`
+//         : ""
+//     }
+
+//     ${
+//       task.fixedMinutes
+//         ? `<span class="task-fixed-time">
+//             Fixed ${formatDuration(task.fixedMinutes)}
+//           </span>`
+//         : ""
+//     }
+
+//     ${
+//       total
+//         ? `<span class="task-recorded-time">
+//             WorkLog ${formatDuration(total)}
+//           </span>`
+//         : ""
+//     }
+//   </div>
+// </div>
+//       <div class="task-meta"><span>${escapeHtml(task.project || "No project")}</span><span>•</span><span>${escapeHtml(task.type || "Other")}</span>${statusBadge(task.status)}</div>
+//       <div class="task-context"><span>Worked: ${escapeHtml(worked)}</span><span>•</span><span>Last activity: ${escapeHtml(lastActivity(task.id))}</span></div>
+//       ${!compact && task.note ? `<div class="task-note">${escapeHtml(task.note)}</div>` : ""}
+//     </div>
+//     <div class="task-actions">
+//       ${
+//         compact
+//           ? `<button class="task-action" data-action="history" data-task-id="${task.id}">History</button>`
+//           : `
+//         <button class="task-action" data-action="add-time" data-task-id="${task.id}">+ Time</button>
+//         <button class="task-action" data-action="correction" data-task-id="${task.id}">Correction</button>
+//         <button class="task-action" data-action="history" data-task-id="${task.id}">History</button>
+//         <button class="task-action" data-action="edit" data-task-id="${task.id}">Edit</button>
+//         ${
+//           task.status === STATUS.ARCHIVED
+//             ? `<button class="task-action" data-action="unarchive" data-task-id="${task.id}">Unarchive</button>`
+//             : `<button class="task-action" data-action="status-next" data-task-id="${task.id}">${task.status === STATUS.COMPLETED ? "Reopen" : "Status"}</button>
+//            <button class="task-action danger" data-action="archive" data-task-id="${task.id}">Archive</button>`
+//         }
+//       `
+//       }
+//     </div>
+//   </div>`;
+// }
 
 function renderTasks() {
   const q = ($("taskSearch").value || "").toLowerCase().trim();
@@ -463,6 +540,8 @@ function activityIcon(a) {
     {
       task_created: "＋",
       time_added: "⏱",
+      time_updated: "✎",
+      time_deleted: "×",
       correction_added: "↻",
       status_changed: "●",
       task_edited: "✎",
@@ -482,6 +561,11 @@ function activityLabel(a) {
   if (a.action === "task_archived") return "Task archived";
   if (a.action === "task_unarchived") return "Task unarchived";
   if (a.action === "task_edited") return "Task updated";
+  if (a.action === "time_updated")
+  return `WorkLog updated · ${formatDuration(m.duration)} · ${m.date || ""}`;
+
+if (a.action === "time_deleted")
+  return `WorkLog deleted · ${formatDuration(m.duration)} · ${m.date || ""}`;
   return "Task created";
 }
 
@@ -1038,17 +1122,49 @@ function openTaskModal(task = null) {
 
 //   openModal("taskModal");
 // }
-function openTimeModal(taskId) {
+
+function openTimeModal(taskId, entry = null) {
   const t = getTask(taskId);
   if (!t) return;
+
   $("timeTaskId").value = taskId;
   $("timeModalTaskName").textContent = t.title;
-  $("timeDate").value = today();
-  $("timeHours").value = 0;
-  $("timeMinutes").value = 0;
-  $("timeNote").value = "";
+
+  $("timeEntryId").value = entry?.id || "";
+
+  $("timeDate").value =
+    entry?.date || today();
+
+  const duration = Number(entry?.duration) || 0;
+
+  $("timeHours").value =
+    Math.floor(duration / 60);
+
+  $("timeMinutes").value =
+    duration % 60;
+
+  $("timeNote").value =
+    entry?.note || "";
+
+  const title = $("timeModalTitle");
+  if (title) {
+    title.textContent =
+      entry ? "Edit WorkLog" : "Add WorkLog";
+  }
+
   openModal("timeModal");
 }
+// function openTimeModal(taskId) {
+//   const t = getTask(taskId);
+//   if (!t) return;
+//   $("timeTaskId").value = taskId;
+//   $("timeModalTaskName").textContent = t.title;
+//   $("timeDate").value = today();
+//   $("timeHours").value = 0;
+//   $("timeMinutes").value = 0;
+//   $("timeNote").value = "";
+//   openModal("timeModal");
+// }
 function openCorrectionModal(taskId) {
   const t = getTask(taskId);
   if (!t) return;
@@ -1063,9 +1179,11 @@ function openCorrectionModal(taskId) {
   ).checked = true;
   openModal("correctionModal");
 }
+
 function openHistory(taskId) {
   const t = getTask(taskId);
   if (!t) return;
+
   const normal = state.workSessions
     .filter((x) => x.taskId === taskId)
     .sort(
@@ -1073,6 +1191,7 @@ function openHistory(taskId) {
         String(b.date).localeCompare(String(a.date)) ||
         dateValue(b.createdAt) - dateValue(a.createdAt),
     );
+
   const corr = state.corrections
     .filter((x) => x.taskId === taskId)
     .sort(
@@ -1080,39 +1199,231 @@ function openHistory(taskId) {
         String(b.date).localeCompare(String(a.date)) ||
         dateValue(b.createdAt) - dateValue(a.createdAt),
     );
+
   const acts = state.activities
     .filter((x) => x.taskId === taskId)
     .sort(sortNewest);
+
   $("historyTitle").textContent = t.title;
+
   $("historySubtitle").textContent =
     `${t.project || "No project"} · ${t.type || "Other"}`;
-  $("historySummary").innerHTML =
-    `<div><span>Total</span><strong>${formatDuration(taskMinutes(taskId))}</strong></div><div><span>Normal</span><strong>${formatDuration(normalMinutes(taskId))}</strong></div><div><span>Corrections</span><strong>${formatDuration(correctionMinutes(taskId))}</strong></div><div><span>Status</span><strong>${escapeHtml(STATUS_META[t.status]?.label || t.status)}</strong></div><div>
-  <span>Logged Time</span>
-  <strong>${formatDuration(t.loggedMinutes || 0)}</strong>
-</div>`;
+
+  $("historySummary").innerHTML = `
+    <div>
+      <span>Total</span>
+      <strong>${formatDuration(taskMinutes(taskId))}</strong>
+    </div>
+
+    <div>
+      <span>Normal</span>
+      <strong>${formatDuration(normalMinutes(taskId))}</strong>
+    </div>
+
+    <div>
+      <span>Corrections</span>
+      <strong>${formatDuration(correctionMinutes(taskId))}</strong>
+    </div>
+
+    <div>
+      <span>Fixed Time</span>
+      <strong>${formatDuration(t.fixedMinutes || 0)}</strong>
+    </div>
+
+    <div>
+      <span>Logged Time</span>
+      <strong>${formatDuration(t.loggedMinutes || 0)}</strong>
+    </div>
+
+    <div>
+      <span>Status</span>
+      <strong>${escapeHtml(
+        STATUS_META[t.status]?.label || t.status
+      )}</strong>
+    </div>
+  `;
+
   const activityHtml = acts.length
-    ? `<div class="history-section"><h3>Activity</h3>${acts.map((a) => `<div class="history-item"><span class="history-dot"></span><div><strong>${escapeHtml(activityLabel(a))}</strong><small>${escapeHtml(a.createdAt?.toDate ? a.createdAt.toDate().toLocaleString() : dateLabel(a.metadata?.date))}</small></div></div>`).join("")}</div>`
+    ? `
+      <div class="history-section">
+        <h3>Activity</h3>
+
+        ${acts
+          .map(
+            (a) => `
+              <div class="history-item">
+                <span class="history-dot"></span>
+
+                <div>
+                  <strong>${escapeHtml(
+                    activityLabel(a)
+                  )}</strong>
+
+                  <small>
+                    ${escapeHtml(
+                      a.createdAt?.toDate
+                        ? a.createdAt.toDate().toLocaleString()
+                        : dateLabel(a.metadata?.date)
+                    )}
+                  </small>
+                </div>
+              </div>
+            `,
+          )
+          .join("")}
+      </div>
+    `
     : "";
+
   const entries = [
-    ...normal.map((x) => ({ ...x, kind: "Normal" })),
-    ...corr.map((x) => ({ ...x, kind: "Correction" })),
+    ...normal.map((x) => ({
+      ...x,
+      kind: "Normal",
+      source: "workSession",
+    })),
+
+    ...corr.map((x) => ({
+      ...x,
+      kind: "Correction",
+      source: "correction",
+    })),
   ].sort(
     (a, b) =>
       String(b.date).localeCompare(String(a.date)) ||
       dateValue(b.createdAt) - dateValue(a.createdAt),
   );
+
+  const timeLogHtml = entries.length
+    ? entries
+        .map((e) => {
+          const isWorkLog = e.source === "workSession";
+
+          return `
+            <div class="history-log">
+
+              <div>
+                <strong>
+                  ${escapeHtml(
+                    e.date ? dateLabel(e.date) : "No date"
+                  )}
+                </strong>
+
+                <span class="badge ${
+                  e.kind === "Correction"
+                    ? "correction"
+                    : "normal"
+                }">
+                  ${e.kind === "Normal" ? "WorkLog" : "Correction"}
+                </span>
+              </div>
+
+              <div>
+                <strong>${formatDuration(e.duration)}</strong>
+
+                <small>
+                  ${escapeHtml(e.note || "No note")}
+                </small>
+              </div>
+
+              ${
+                isWorkLog
+                  ? `
+                    <div class="history-log-actions">
+
+                      <button
+                        type="button"
+                        class="task-action"
+                        data-history-action="edit-worklog"
+                        data-entry-id="${e.id}"
+                        data-task-id="${taskId}"
+                      >
+                        Edit
+                      </button>
+
+                      <button
+                        type="button"
+                        class="task-action danger"
+                        data-history-action="delete-worklog"
+                        data-entry-id="${e.id}"
+                        data-task-id="${taskId}"
+                      >
+                        Delete
+                      </button>
+
+                    </div>
+                  `
+                  : ""
+              }
+
+            </div>
+          `;
+        })
+        .join("")
+    : `<div class="empty-state">No time entries yet.</div>`;
+
   $("historyContent").innerHTML =
     activityHtml +
-    `<div class="history-section"><h3>Time Log</h3>${entries.length ? entries.map((e) => `<div class="history-log"><div><strong>${escapeHtml(e.date ? dateLabel(e.date) : "No date")}</strong><span class="badge ${e.kind === "Correction" ? "correction" : "normal"}">${e.kind}</span></div><div><strong>${formatDuration(e.duration)}</strong><small>${escapeHtml(e.note || "No note")}</small></div></div>`).join("") : `<div class="empty-state">No time entries yet.</div>`}</div>`;
+    `
+      <div class="history-section">
+        <h3>Time Log</h3>
+        ${timeLogHtml}
+      </div>
+    `;
+
+  /*
+   * WorkLog actions
+   */
+  $("historyContent")
+    .querySelectorAll(
+      '[data-history-action="edit-worklog"]'
+    )
+    .forEach((button) => {
+      button.addEventListener("click", () => {
+        const entryId = button.dataset.entryId;
+
+        const entry = state.workSessions.find(
+          (x) => x.id === entryId
+        );
+
+        if (!entry) {
+          return notify(
+            "WorkLog entry not found.",
+            "error"
+          );
+        }
+
+        closeModal("historyModal");
+
+        openTimeModal(taskId, entry);
+      });
+    });
+
+  $("historyContent")
+    .querySelectorAll(
+      '[data-history-action="delete-worklog"]'
+    )
+    .forEach((button) => {
+      button.addEventListener("click", () => {
+        deleteWorkLog(button.dataset.entryId);
+      });
+    });
+
+  /*
+   * Add WorkLog
+   */
   $("historyAddTimeBtn").onclick = () => {
     closeModal("historyModal");
     openTimeModal(taskId);
   };
+
+  /*
+   * Add Correction
+   */
   $("historyCorrectionBtn").onclick = () => {
     closeModal("historyModal");
     openCorrectionModal(taskId);
   };
+
   openModal("historyModal");
 }
 
@@ -1244,28 +1555,174 @@ const loggedMinutes =
 }
 async function saveTime(e) {
   e.preventDefault();
-  const taskId = $("timeTaskId").value,
-    duration = minutes($("timeHours").value, $("timeMinutes").value),
-    date = $("timeDate").value;
-  if (!taskId || !date || duration <= 0)
-    return notify("Enter a valid duration.", "warning");
+
+  const taskId = $("timeTaskId").value;
+  const entryId = $("timeEntryId").value.trim();
+
+  const duration = minutes(
+    $("timeHours").value,
+    $("timeMinutes").value
+  );
+
+  const date = $("timeDate").value;
+  const note = $("timeNote").value.trim();
+
+  if (!taskId || !date || duration <= 0) {
+    return notify(
+      "Enter a valid duration.",
+      "warning"
+    );
+  }
+
   try {
-    await addDoc(collection(db, "workSessions"), {
+    const data = {
       taskId,
       date,
       duration,
-      note: $("timeNote").value.trim(),
+      note,
       type: "normal",
-      createdAt: serverTimestamp(),
-    });
-    await updateDoc(doc(db, "tasks", taskId), { updatedAt: serverTimestamp() });
-    await addActivity(taskId, "time_added", { duration, date });
+      updatedAt: serverTimestamp(),
+    };
+
+    // EDIT EXISTING WORKLOG
+    if (entryId) {
+      await updateDoc(
+        doc(db, "workSessions", entryId),
+        data
+      );
+
+      await updateDoc(
+        doc(db, "tasks", taskId),
+        {
+          updatedAt: serverTimestamp()
+        }
+      );
+
+      await addActivity(
+        taskId,
+        "time_updated",
+        {
+          duration,
+          date
+        }
+      );
+
+      closeModal("timeModal");
+
+      notify("WorkLog updated.");
+      return;
+    }
+
+    // ADD NEW WORKLOG
+    data.createdAt = serverTimestamp();
+
+    await addDoc(
+      collection(db, "workSessions"),
+      data
+    );
+
+    await updateDoc(
+      doc(db, "tasks", taskId),
+      {
+        updatedAt: serverTimestamp()
+      }
+    );
+
+    await addActivity(
+      taskId,
+      "time_added",
+      {
+        duration,
+        date
+      }
+    );
+
     closeModal("timeModal");
-    notify("Time added.");
+
+    notify("WorkLog added.");
+
   } catch (err) {
-    notify(err.message || "Could not add time.", "error");
+    notify(
+      err.message || "Could not save WorkLog.",
+      "error"
+    );
   }
 }
+
+async function deleteWorkLog(entryId) {
+  const entry = state.workSessions.find(
+    (x) => x.id === entryId
+  );
+
+  if (!entry) return;
+
+  const task = getTask(entry.taskId);
+
+  confirmAction(
+    "Delete WorkLog?",
+    `Delete ${formatDuration(entry.duration)} from "${task?.title || "this task"}"? This cannot be undone.`,
+    "",
+    "Delete"
+  );
+
+  state.pendingConfirm = async () => {
+    try {
+      await deleteDoc(
+        doc(db, "workSessions", entryId)
+      );
+
+      if (task) {
+        await updateDoc(
+          doc(db, "tasks", entry.taskId),
+          {
+            updatedAt: serverTimestamp()
+          }
+        );
+
+        await addActivity(
+          entry.taskId,
+          "time_deleted",
+          {
+            duration: entry.duration,
+            date: entry.date
+          }
+        );
+      }
+
+      notify("WorkLog deleted.");
+
+    } catch (err) {
+      notify(
+        err.message || "Could not delete WorkLog.",
+        "error"
+      );
+    }
+  };
+}
+// async function saveTime(e) {
+//   e.preventDefault();
+//   const taskId = $("timeTaskId").value,
+//     duration = minutes($("timeHours").value, $("timeMinutes").value),
+//     date = $("timeDate").value;
+//   if (!taskId || !date || duration <= 0)
+//     return notify("Enter a valid duration.", "warning");
+//   try {
+//     await addDoc(collection(db, "workSessions"), {
+//       taskId,
+//       date,
+//       duration,
+//       note: $("timeNote").value.trim(),
+//       type: "normal",
+//       createdAt: serverTimestamp(),
+//     });
+//     await updateDoc(doc(db, "tasks", taskId), { updatedAt: serverTimestamp() });
+//     await addActivity(taskId, "time_added", { duration, date });
+//     closeModal("timeModal");
+//     notify("Time added.");
+//   } catch (err) {
+//     notify(err.message || "Could not add time.", "error");
+//   }
+// }
 async function saveCorrection(e) {
   e.preventDefault();
   const taskId = $("correctionTaskId").value,
