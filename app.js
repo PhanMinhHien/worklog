@@ -55,15 +55,12 @@ const STATUS_META = {
   archived: { label: "Archived", icon: "⚫", cls: "status-archived" },
 };
 const state = {
+    clients: [],
   tasks: [],
   workSessions: [],
   corrections: [],
   activities: [],
   workDays: [],
-  workSettings: {
-    dailyTargetMinutes: 480,
-    openingFlexiMinutes: 10461
-  },
   activePage: "dashboard",
   showArchived: false,
   pendingConfirm: null
@@ -118,6 +115,103 @@ const timeAgo = (ts) => {
   return `${Math.floor(hr / 24)}d ago`;
 };
 const getTask = (id) => state.tasks.find((t) => t.id === id);
+function getClient(clientId) {
+  return state.clients.find(
+    (client) => client.id === clientId
+  );
+}
+
+function getClientTypes(clientId) {
+  const client = getClient(clientId);
+
+  return Array.isArray(client?.types)
+    ? client.types
+    : [];
+}
+function getClientFixedTimes(clientId) {
+  const client = getClient(clientId);
+
+  if (
+    !client ||
+    !client.fixedTimeTypes ||
+    typeof client.fixedTimeTypes !== "object"
+  ) {
+    return {};
+  }
+
+  return client.fixedTimeTypes;
+}
+
+function getFixedMinutesPerAsset(clientId, type) {
+  if (!clientId || !type) return 0;
+
+  const client = getClient(clientId);
+
+  if (!client) return 0;
+
+  /*
+   * New Client-specific configuration.
+   *
+   * Important:
+   * An existing fixedTimeTypes object is authoritative.
+   * If the type is not inside it, it is NOT fixed time.
+   */
+  if (
+    client.fixedTimeTypes &&
+    typeof client.fixedTimeTypes === "object"
+  ) {
+    if (
+      Object.prototype.hasOwnProperty.call(
+        client.fixedTimeTypes,
+        type
+      )
+    ) {
+      return Math.max(
+        0,
+        Number(client.fixedTimeTypes[type]) || 0
+      );
+    }
+
+    return 0;
+  }
+
+  /*
+   * Legacy fallback.
+   *
+   * Old Clients do not have fixedTimeTypes yet,
+   * so keep the old global configuration working.
+   */
+  return Math.max(
+    0,
+    Number(FIXED_ASSET_TIMES[type]) || 0
+  );
+}
+
+function getClientName(clientId) {
+  return getClient(clientId)?.name || "";
+}
+
+function getClientByName(name) {
+  if (!name) return null;
+
+  return state.clients.find(
+    (client) =>
+      String(client.name || "").trim().toLowerCase() ===
+      String(name || "").trim().toLowerCase()
+  );
+}
+
+function getAllClientTypes() {
+  return [
+    ...new Set(
+      state.clients.flatMap((client) =>
+        Array.isArray(client.types)
+          ? client.types
+          : []
+      )
+    ),
+  ].sort();
+}
 const taskMinutes = (id) =>
   state.workSessions
     .filter((x) => x.taskId === id)
@@ -138,7 +232,7 @@ const correctionMinutes = (id) =>
 ========================= */
 
 const DAILY_TARGET_MINUTES = 480;
-
+const OPENING_FLEXI_MINUTES = 10461;
 function localDateString(date = new Date()) {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, "0");
@@ -180,8 +274,7 @@ function calculateWorkDay(checkIn, checkOut, lunchMinutes = 0) {
   }
 
   const actual = Math.max(0, gross - lunch);
-  const target = Number(state.workSettings.dailyTargetMinutes) || DAILY_TARGET_MINUTES;
-
+const target = DAILY_TARGET_MINUTES;
   return {
     actualMinutes: actual,
     normalMinutes: Math.min(actual, target),
@@ -239,8 +332,9 @@ function weekActualMinutes(date = today()) {
 
 function availableFlexiMinutes(date = today()) {
   return (
-    Number(state.workSettings.openingFlexiMinutes) || 0
-  ) + weekFlexiMinutes(date);
+    OPENING_FLEXI_MINUTES +
+    weekFlexiMinutes(date)
+  );
 }
 
 function formatFlexi(mins = 0) {
@@ -902,8 +996,8 @@ function renderWorkHours() {
   $("workWeekActual").textContent =
     formatDuration(weekActualMinutes(date));
 
-  $("flexiOpening").textContent =
-    formatFlexi(state.workSettings.openingFlexiMinutes);
+ $("flexiOpening").textContent =
+  formatFlexi(OPENING_FLEXI_MINUTES);
 
   $("flexiWeekAdded").textContent =
     formatFlexi(weekFlexiMinutes(date));
@@ -915,7 +1009,7 @@ function renderWorkHours() {
     formatFlexi(availableFlexiMinutes(date));
 
   $("workFlexiHelper").textContent =
-    `${formatFlexi(state.workSettings.openingFlexiMinutes)} opening + ${formatFlexi(weekFlexiMinutes(date))} this week`;
+  `${formatFlexi(OPENING_FLEXI_MINUTES)} opening + ${formatFlexi(weekFlexiMinutes(date))} this week`;
 
   $("workWeekFlexi").textContent =
     `${formatFlexi(weekFlexiMinutes(date))} flexi`;
@@ -1018,11 +1112,11 @@ function renderWorkWeekTable(date = today()) {
     const dateObj = new Date(`${d}T00:00:00`);
 
     const flexiClass =
-      calc.flexiMinutes > 0
-        ? "flexi-positive"
-        : calc.actualMinutes < (state.workSettings.dailyTargetMinutes || 480)
-          ? "below-target"
-          : "";
+  calc.flexiMinutes > 0
+    ? "flexi-positive"
+    : calc.actualMinutes < DAILY_TARGET_MINUTES
+      ? "below-target"
+      : "";
 
     return `
       <tr>
@@ -1089,8 +1183,7 @@ function updateWorkDayPreview() {
     return;
   }
 
-  const target =
-    Number(state.workSettings.dailyTargetMinutes) || 480;
+  const target = DAILY_TARGET_MINUTES;
 
   $("workDayPreview").innerHTML = `
     <div>
@@ -1182,105 +1275,814 @@ async function saveWorkDay(e) {
     );
   }
 }
-async function saveWorkSettings() {
-  const dailyTargetHours =
-    Number($("settingsDailyTarget").value);
 
-  const openingFlexiMinutes =
-    Math.max(
-      0,
-      Number($("settingsOpeningFlexi").value) || 0
-    );
+let clientTypesDraft = [];
+let clientFixedTimesDraft = {};
 
-  if (!dailyTargetHours || dailyTargetHours <= 0) {
+function populateTaskClients(selectedClientId = "") {
+  const select = $("taskClient");
+
+  if (!select) return;
+
+  const clients = [...state.clients].sort((a, b) =>
+    String(a.name || "").localeCompare(
+      String(b.name || "")
+    )
+  );
+
+  select.innerHTML =
+    `<option value="">Select client</option>` +
+    clients
+      .map(
+        (client) =>
+          `<option value="${escapeHtml(client.id)}">
+            ${escapeHtml(client.name)}
+          </option>`
+      )
+      .join("");
+
+  if (
+    selectedClientId &&
+    clients.some((client) => client.id === selectedClientId)
+  ) {
+    select.value = selectedClientId;
+  }
+}
+
+function populateTaskTypes(
+  clientId,
+  selectedType = ""
+) {
+  const select = $("taskType");
+
+  if (!select) return;
+
+  if (!clientId) {
+    select.innerHTML =
+      `<option value="">Select client first</option>`;
+
+    updateAssetTimePreview();
+    return;
+  }
+
+  const types = getClientTypes(clientId);
+
+  /*
+   * Keep an old task's type visible even if that type
+   * was removed from the client's current configuration.
+   */
+  if (
+    selectedType &&
+    !types.includes(selectedType)
+  ) {
+    types.push(selectedType);
+  }
+
+  select.innerHTML =
+    `<option value="">Select type</option>` +
+    types
+      .map(
+        (type) =>
+          `<option value="${escapeHtml(type)}">
+            ${escapeHtml(type)}
+          </option>`
+      )
+      .join("");
+
+  if (selectedType) {
+    select.value = selectedType;
+  }
+
+  updateAssetTimePreview();
+}
+
+function populateTaskTypeFilter() {
+  const select = $("taskTypeFilter");
+
+  if (!select) return;
+
+  /*
+   * Include configured client types
+   * + legacy types still used by old tasks.
+   */
+  const types = [
+    ...new Set([
+      ...getAllClientTypes(),
+      ...state.tasks
+        .map((task) => task.type)
+        .filter(Boolean),
+    ]),
+  ].sort();
+
+  select.innerHTML =
+    `<option value="all">All types</option>` +
+    types
+      .map(
+        (type) =>
+          `<option value="${escapeHtml(type)}">
+            ${escapeHtml(type)}
+          </option>`
+      )
+      .join("");
+}
+
+function renderClients() {
+  const container = $("clientsList");
+
+  if (!container) return;
+
+  if (!state.clients.length) {
+    container.innerHTML = `
+      <div class="empty-state">
+        No clients configured yet.
+      </div>
+    `;
+
+    return;
+  }
+
+  const clients = [...state.clients].sort((a, b) =>
+    String(a.name || "").localeCompare(
+      String(b.name || "")
+    )
+  );
+
+  container.innerHTML = clients
+    .map((client) => {
+      const types = Array.isArray(client.types)
+        ? client.types
+        : [];
+
+      return `
+        <div class="client-card">
+
+          <div class="client-card-header">
+
+            <div class="client-card-name">
+              ${escapeHtml(client.name || "Unnamed Client")}
+            </div>
+
+            <div class="client-card-actions">
+
+              <button
+                type="button"
+                class="btn btn-secondary"
+                data-client-action="edit"
+                data-client-id="${escapeHtml(client.id)}"
+              >
+                Edit
+              </button>
+
+              <button
+                type="button"
+                class="btn btn-danger"
+                data-client-action="delete"
+                data-client-id="${escapeHtml(client.id)}"
+              >
+                Delete
+              </button>
+
+            </div>
+
+          </div>
+
+          <div class="client-type-list">
+
+            ${
+              types.length
+                ? types
+  .map((type) => {
+    const fixedMinutes =
+      getFixedMinutesPerAsset(
+        client.id,
+        type
+      );
+
+    return `
+      <span class="client-type-chip">
+        ${escapeHtml(type)}
+
+        ${
+          fixedMinutes > 0
+            ? `<span class="client-type-fixed-badge">
+                ${fixedMinutes}m / asset
+              </span>`
+            : ""
+        }
+      </span>
+    `;
+  })
+  .join("")
+                : `
+                    <span class="field-helper">
+                      No task types configured.
+                    </span>
+                  `
+            }
+
+          </div>
+
+        </div>
+      `;
+    })
+    .join("");
+
+  container
+    .querySelectorAll(
+      '[data-client-action="edit"]'
+    )
+    .forEach((button) => {
+      button.onclick = () => {
+        const client = getClient(
+          button.dataset.clientId
+        );
+
+        if (client) {
+          openClientModal(client);
+        }
+      };
+    });
+
+  container
+    .querySelectorAll(
+      '[data-client-action="delete"]'
+    )
+    .forEach((button) => {
+      button.onclick = () => {
+        deleteClient(button.dataset.clientId);
+      };
+    });
+}
+
+function renderClientTypeDraft() {
+  const container = $("clientTypesList");
+
+  if (!container) return;
+
+  if (!clientTypesDraft.length) {
+    container.innerHTML = `
+      <div class="field-helper">
+        No task types added yet.
+      </div>
+    `;
+
+    return;
+  }
+
+  container.innerHTML = clientTypesDraft
+    .map((type, index) => {
+      const fixedEnabled =
+        Object.prototype.hasOwnProperty.call(
+          clientFixedTimesDraft,
+          type
+        );
+
+      const minutes =
+        Number(clientFixedTimesDraft[type]) || 0;
+
+      return `
+        <div class="client-type-editor-row">
+          
+          <div class="client-type-editor-main">
+            
+            <div class="client-type-editor-name">
+              ${escapeHtml(type)}
+            </div>
+
+            <label class="fixed-time-toggle">
+              <input
+                type="checkbox"
+                data-fixed-time-toggle="${escapeHtml(type)}"
+                ${fixedEnabled ? "checked" : ""}
+              />
+
+              <span>Fixed Time</span>
+            </label>
+
+            <div
+              class="fixed-time-config ${
+                fixedEnabled ? "" : "hidden"
+              }"
+            >
+              <input
+                type="number"
+                min="1"
+                step="1"
+                value="${minutes || ""}"
+                placeholder="Minutes"
+                data-fixed-time-minutes="${escapeHtml(type)}"
+              />
+
+              <span>min / asset</span>
+            </div>
+
+          </div>
+
+          <button
+            type="button"
+            class="client-type-editor-remove"
+            data-remove-client-type="${index}"
+            title="Remove type"
+          >
+            ×
+          </button>
+
+        </div>
+      `;
+    })
+    .join("");
+
+  /*
+   * Remove type
+   */
+  container
+    .querySelectorAll("[data-remove-client-type]")
+    .forEach((button) => {
+      button.onclick = () => {
+        const index = Number(
+          button.dataset.removeClientType
+        );
+
+        const type = clientTypesDraft[index];
+
+        clientTypesDraft.splice(index, 1);
+
+        /*
+         * Important:
+         * Removing a Task Type also removes its
+         * Fixed Time configuration.
+         */
+        if (type) {
+          delete clientFixedTimesDraft[type];
+        }
+
+        renderClientTypeDraft();
+      };
+    });
+
+  /*
+   * Enable / disable Fixed Time
+   */
+  container
+    .querySelectorAll("[data-fixed-time-toggle]")
+    .forEach((checkbox) => {
+      checkbox.onchange = () => {
+        const type =
+          checkbox.dataset.fixedTimeToggle;
+
+        if (!type) return;
+
+        if (checkbox.checked) {
+          /*
+           * Keep existing value if available.
+           *
+           * For legacy types, use the old global
+           * Fixed Time value as the initial value.
+           */
+          if (
+            !Object.prototype.hasOwnProperty.call(
+              clientFixedTimesDraft,
+              type
+            )
+          ) {
+            clientFixedTimesDraft[type] =
+              Number(FIXED_ASSET_TIMES[type]) || 0;
+          }
+        } else {
+          delete clientFixedTimesDraft[type];
+        }
+
+        renderClientTypeDraft();
+      };
+    });
+
+  /*
+   * Fixed minutes input
+   */
+  container
+    .querySelectorAll("[data-fixed-time-minutes]")
+    .forEach((input) => {
+      input.oninput = () => {
+        const type =
+          input.dataset.fixedTimeMinutes;
+
+        if (!type) return;
+
+        clientFixedTimesDraft[type] =
+          Math.max(
+            0,
+            Number(input.value) || 0
+          );
+      };
+    });
+}
+
+function openClientModal(client = null) {
+  $("clientId").value =
+    client?.id || "";
+
+  $("clientModalTitle").textContent =
+    client
+      ? "Edit Client"
+      : "New Client";
+
+  $("clientName").value =
+    client?.name || "";
+
+  clientTypesDraft =
+    Array.isArray(client?.types)
+      ? [...client.types]
+      : [];
+
+  /*
+   * Load Client-specific Fixed Time settings.
+   *
+   * If this is an old Client without fixedTimeTypes,
+   * automatically migrate the legacy global settings
+   * into the editor visually.
+   */
+  clientFixedTimesDraft = {};
+
+  if (
+    client &&
+    client.fixedTimeTypes &&
+    typeof client.fixedTimeTypes === "object"
+  ) {
+    Object.entries(client.fixedTimeTypes)
+      .forEach(([type, value]) => {
+        if (clientTypesDraft.includes(type)) {
+          const minutes =
+            Math.max(
+              0,
+              Number(value) || 0
+            );
+
+          if (minutes > 0) {
+            clientFixedTimesDraft[type] =
+              minutes;
+          }
+        }
+      });
+  } else {
+    /*
+     * Legacy fallback.
+     */
+    clientTypesDraft.forEach((type) => {
+      const minutes =
+        Number(FIXED_ASSET_TIMES[type]) || 0;
+
+      if (minutes > 0) {
+        clientFixedTimesDraft[type] =
+          minutes;
+      }
+    });
+  }
+
+  $("clientTypeInput").value = "";
+
+  renderClientTypeDraft();
+
+  openModal("clientModal");
+}
+
+function addClientType() {
+  const input = $("clientTypeInput");
+
+  if (!input) return;
+
+  const value = input.value.trim();
+
+  if (!value) {
     return notify(
-      "Please enter a valid daily target.",
+      "Enter a task type first.",
       "warning"
     );
   }
 
-  try {
-    await updateDoc(
-      doc(db, "settings", "workHours"),
-      {
-        dailyTargetMinutes:
-          Math.round(dailyTargetHours * 60),
+  const exists = clientTypesDraft.some(
+    (type) =>
+      type.toLowerCase() === value.toLowerCase()
+  );
 
-        openingFlexiMinutes,
-
-        updatedAt: serverTimestamp()
-      }
+  if (exists) {
+    return notify(
+      "This task type already exists.",
+      "warning"
     );
+  }
 
-    state.workSettings.dailyTargetMinutes =
-      Math.round(dailyTargetHours * 60);
+  clientTypesDraft.push(value);
 
-    state.workSettings.openingFlexiMinutes =
-      openingFlexiMinutes;
+  input.value = "";
 
-    notify("Work hours settings saved.");
+  renderClientTypeDraft();
 
-    renderWorkHours();
+  input.focus();
+}
+
+async function saveClient(e) {
+  e.preventDefault();
+
+  const id = $("clientId").value.trim();
+
+  const name =
+    $("clientName").value.trim();
+
+  if (!name) {
+    return notify(
+      "Please enter a client name.",
+      "warning"
+    );
+  }
+
+  if (!clientTypesDraft.length) {
+    return notify(
+      "Please add at least one task type.",
+      "warning"
+    );
+  }
+
+  const duplicate = state.clients.find(
+    (client) =>
+      client.id !== id &&
+      String(client.name || "")
+        .trim()
+        .toLowerCase() === name.toLowerCase()
+  );
+
+  if (duplicate) {
+    return notify(
+      "A client with this name already exists.",
+      "warning"
+    );
+  }
+
+  const existingClient =
+    id ? getClient(id) : null;
+
+  /*
+   * Close immediately so the UI feels responsive,
+   * even while Firebase is saving.
+   */
+  const cleanedFixedTimeTypes = {};
+
+for (const type of clientTypesDraft) {
+  if (
+    Object.prototype.hasOwnProperty.call(
+      clientFixedTimesDraft,
+      type
+    )
+  ) {
+    const minutes =
+      Math.max(
+        0,
+        Number(clientFixedTimesDraft[type]) || 0
+      );
+
+    if (minutes <= 0) {
+      return notify(
+        `Please enter Fixed Time for "${type}".`,
+        "warning"
+      );
+    }
+
+    cleanedFixedTimeTypes[type] =
+      minutes;
+  }
+}
+  closeModal("clientModal");
+  $("clientForm").reset();
+
+  try {
+    const data = {
+  name,
+  types: [...clientTypesDraft],
+
+  /*
+   * Only Fixed Time task types are stored here.
+   *
+   * Example:
+   * {
+   *   "Banner release": 15,
+   *   "Newsletter creation": 30
+   * }
+   */
+  fixedTimeTypes:
+    cleanedFixedTimeTypes,
+
+  updatedAt: serverTimestamp(),
+};
+
+    if (id) {
+      await updateDoc(
+        doc(db, "clients", id),
+        data
+      );
+
+      /*
+       * Keep the legacy `project` field in tasks
+       * synchronized with the Client name.
+       */
+      if (
+        existingClient &&
+        existingClient.name !== name
+      ) {
+        const affectedTasks =
+          state.tasks.filter(
+            (task) =>
+              task.clientId === id ||
+              (
+                !task.clientId &&
+                String(task.project || "")
+                  .trim()
+                  .toLowerCase() ===
+                  String(existingClient.name || "")
+                    .trim()
+                    .toLowerCase()
+              )
+          );
+
+        for (const task of affectedTasks) {
+          await updateDoc(
+            doc(db, "tasks", task.id),
+            {
+              clientId: id,
+              project: name,
+              updatedAt: serverTimestamp(),
+            }
+          );
+        }
+      }
+
+      notify("Client updated.");
+    } else {
+      await addDoc(
+        collection(db, "clients"),
+        {
+          ...data,
+          createdAt: serverTimestamp(),
+        }
+      );
+
+      notify("Client created.");
+    }
+
+    renderClients();
+    populateTaskClients(
+      $("taskClient")?.value || ""
+    );
+    populateTaskTypeFilter();
 
   } catch (err) {
     notify(
-      err.message || "Could not save settings.",
+      err.message ||
+        "Could not save client.",
       "error"
     );
   }
 }
 
-async function loadWorkSettings() {
-  try {
-    const snap = await getDocs(
-      collection(db, "settings")
+// async function deleteClient(clientId) {
+//   const client = getClient(clientId);
+
+//   if (!client) return;
+
+//   const affectedTasks =
+//     state.tasks.filter(
+//       (task) =>
+//         task.clientId === clientId ||
+//         (
+//           !task.clientId &&
+//           String(task.project || "")
+//             .trim()
+//             .toLowerCase() ===
+//             String(client.name || "")
+//               .trim()
+//               .toLowerCase()
+//         )
+//     );
+
+//   if (affectedTasks.length) {
+//     return notify(
+//       `Cannot delete "${client.name}" because ${affectedTasks.length} task(s) are using this client.`,
+//       "warning"
+//     );
+//   }
+
+//   showConfirm({
+//     title: "Delete Client",
+//     message:
+//       `Delete "${client.name}" and all of its task type settings?`,
+//     confirmText: "Delete",
+//     danger: true,
+//   }, async () => {
+//     try {
+//       await deleteDoc(
+//         doc(db, "clients", clientId)
+//       );
+
+//       notify("Client deleted.");
+
+//       renderClients();
+//       populateTaskClients("");
+//       populateTaskTypeFilter();
+
+//     } catch (err) {
+//       notify(
+//         err.message ||
+//           "Could not delete client.",
+//         "error"
+//       );
+//     }
+//   });
+// }
+async function deleteClient(clientId) {
+  const client = getClient(clientId);
+
+  if (!client) return;
+
+  const affectedTasks =
+    state.tasks.filter(
+      (task) =>
+        task.clientId === clientId ||
+        (
+          !task.clientId &&
+          String(task.project || "")
+            .trim()
+            .toLowerCase() ===
+            String(client.name || "")
+              .trim()
+              .toLowerCase()
+        )
     );
 
-    const docData =
-      snap.docs.find(d => d.id === "workHours");
+  if (affectedTasks.length) {
+    return notify(
+      `Cannot delete "${client.name}" because ${affectedTasks.length} task(s) are using this client.`,
+      "warning"
+    );
+  }
 
-    if (!docData) {
-      return;
+  state.pendingConfirm = async () => {
+    try {
+      await deleteDoc(
+        doc(db, "clients", clientId)
+      );
+
+      notify("Client deleted.");
+
+      renderClients();
+      populateTaskClients("");
+      populateTaskTypeFilter();
+
+    } catch (err) {
+      notify(
+        err.message ||
+          "Could not delete client.",
+        "error"
+      );
     }
+  };
 
-    const data = docData.data();
-
-    state.workSettings = {
-      dailyTargetMinutes:
-        Number(data.dailyTargetMinutes) || 480,
-
-      openingFlexiMinutes:
-        Number(data.openingFlexiMinutes) || 0
-    };
-
-  } catch (err) {
-    console.warn(
-      "Could not load work settings:",
-      err
-    );
-  }
-
-  if ($("settingsDailyTarget")) {
-    $("settingsDailyTarget").value =
-      state.workSettings.dailyTargetMinutes / 60;
-
-    $("settingsOpeningFlexi").value =
-      state.workSettings.openingFlexiMinutes;
-  }
+  showConfirm({
+    title: "Delete Client",
+    message:
+      `Delete "${client.name}" and all of its task type settings?`,
+    confirmText: "Delete",
+    danger: true,
+  });
 }
+// function fillSelects() {
+//   $("taskType").innerHTML = TASK_TYPES.map(
+//     (x) => `<option value="${escapeHtml(x)}">${escapeHtml(x)}</option>`,
+//   ).join("");
+//   $("taskTypeFilter").innerHTML =
+//     `<option value="all">All types</option>` +
+//     TASK_TYPES.map(
+//       (x) => `<option value="${escapeHtml(x)}">${escapeHtml(x)}</option>`,
+//     ).join("");
+//   $("taskStatus").innerHTML = Object.entries(STATUS_META)
+//     .filter(([k]) => k !== STATUS.ARCHIVED)
+//     .map(([k, v]) => `<option value="${k}">${v.icon} ${v.label}</option>`)
+//     .join("");
+// }
 function fillSelects() {
-  $("taskType").innerHTML = TASK_TYPES.map(
-    (x) => `<option value="${escapeHtml(x)}">${escapeHtml(x)}</option>`,
-  ).join("");
-  $("taskTypeFilter").innerHTML =
-    `<option value="all">All types</option>` +
-    TASK_TYPES.map(
-      (x) => `<option value="${escapeHtml(x)}">${escapeHtml(x)}</option>`,
-    ).join("");
-  $("taskStatus").innerHTML = Object.entries(STATUS_META)
-    .filter(([k]) => k !== STATUS.ARCHIVED)
-    .map(([k, v]) => `<option value="${k}">${v.icon} ${v.label}</option>`)
-    .join("");
+  populateTaskClients("");
+  populateTaskTypes("");
+  populateTaskTypeFilter();
+
+  $("taskStatus").innerHTML =
+    Object.entries(STATUS_META)
+      .filter(
+        ([k]) => k !== STATUS.ARCHIVED
+      )
+      .map(
+        ([k, v]) =>
+          `<option value="${k}">
+            ${v.icon} ${v.label}
+          </option>`
+      )
+      .join("");
 }
 function setPage(page) {
   state.activePage = page;
@@ -1324,29 +2126,47 @@ const meta={
 }
 
 function updateAssetTimePreview() {
-  const type = $("taskType").value;
+  const clientId =
+    $("taskClient")?.value || "";
+
+  const type =
+    $("taskType")?.value || "";
+
   const amount = Math.max(
     0,
-    Number($("taskAssetAmount").value) || 0
+    Number(
+      $("taskAssetAmount")?.value
+    ) || 0
   );
 
-  const minutesPerAsset = FIXED_ASSET_TIMES[type];
+  const minutesPerAsset =
+    getFixedMinutesPerAsset(
+      clientId,
+      type
+    );
 
   if (!minutesPerAsset) {
-    $("assetAmountField").style.display = "none";
-    $("assetTimePreview").textContent = "Fixed time: —";
+    $("assetAmountField").style.display =
+      "none";
+
+    $("assetTimePreview").textContent =
+      "Fixed time: —";
+
     return;
   }
 
-  $("assetAmountField").style.display = "";
+  $("assetAmountField").style.display =
+    "";
 
   if (!amount) {
     $("assetTimePreview").textContent =
       `Fixed time: ${minutesPerAsset}m per asset`;
+
     return;
   }
 
-  const totalMinutes = amount * minutesPerAsset;
+  const totalMinutes =
+    amount * minutesPerAsset;
 
   $("assetTimePreview").textContent =
     `Fixed time: ${amount} × ${minutesPerAsset}m = ${formatDuration(totalMinutes)}`;
@@ -1364,15 +2184,73 @@ function updateLoggedTimePreview() {
     `Logged: ${formatDuration(loggedMinutes)}`;
 }
 
+// function openTaskModal(task = null) {
+//   $("taskId").value = task?.id || "";
+//   $("taskModalTitle").textContent = task ? "Edit Task" : "New Task";
+//   $("taskTitle").value = task?.title || "";
+//   $("taskProject").value = task?.project || "ALSO";
+//   $("taskType").value = task?.type || TASK_TYPES[0];
+//   $("taskStatus").value = task?.status || STATUS.OPEN;
+//   $("taskUrl").value = task?.url || "";
+//   $("taskNote").value = task?.note || "";
+
+//   $("taskAssetAmount").value =
+//     task?.assetAmount || 1;
+
+//   $("taskLoggedHours").value =
+//     task?.loggedMinutes
+//       ? Number(task.loggedMinutes) / 60
+//       : 0;
+
+//   updateAssetTimePreview();
+//   updateLoggedTimePreview();
+
+//   openModal("taskModal");
+// }
+
 function openTaskModal(task = null) {
-  $("taskId").value = task?.id || "";
-  $("taskModalTitle").textContent = task ? "Edit Task" : "New Task";
-  $("taskTitle").value = task?.title || "";
-  $("taskProject").value = task?.project || "ALSO";
-  $("taskType").value = task?.type || TASK_TYPES[0];
-  $("taskStatus").value = task?.status || STATUS.OPEN;
-  $("taskUrl").value = task?.url || "";
-  $("taskNote").value = task?.note || "";
+  $("taskId").value =
+    task?.id || "";
+
+  $("taskModalTitle").textContent =
+    task
+      ? "Edit Task"
+      : "New Task";
+
+  $("taskTitle").value =
+    task?.title || "";
+
+  /*
+   * New task:
+   *   no client selected.
+   *
+   * Existing task:
+   *   use clientId if available.
+   *   otherwise try to match legacy `project`.
+   */
+  const inferredClient =
+    task?.clientId
+      ? getClient(task.clientId)
+      : getClientByName(task?.project);
+
+  const clientId =
+    inferredClient?.id || "";
+
+  populateTaskClients(clientId);
+
+  populateTaskTypes(
+    clientId,
+    task?.type || ""
+  );
+
+  $("taskStatus").value =
+    task?.status || STATUS.OPEN;
+
+  $("taskUrl").value =
+    task?.url || "";
+
+  $("taskNote").value =
+    task?.note || "";
 
   $("taskAssetAmount").value =
     task?.assetAmount || 1;
@@ -1896,72 +2774,270 @@ async function migrateFixedTasksToWorkLogs() {
   }
 }
 
+// async function saveTask(e) {
+//   e.preventDefault();
+
+//   const id = $("taskId").value.trim();
+//   const type = $("taskType").value;
+
+//   const assetAmount =
+//     FIXED_ASSET_TIMES[type]
+//       ? Math.max(
+//           0,
+//           Number($("taskAssetAmount").value) || 0
+//         )
+//       : 0;
+
+//   const fixedMinutes =
+//     FIXED_ASSET_TIMES[type] &&
+//     assetAmount > 0
+//       ? assetAmount * FIXED_ASSET_TIMES[type]
+//       : 0;
+
+//   const loggedHours = Math.max(
+//     0,
+//     Number($("taskLoggedHours").value) || 0
+//   );
+
+//   const loggedMinutes =
+//     Math.round(loggedHours * 60);
+
+//   const existingTask =
+//     id ? getTask(id) : null;
+
+//   const fixedDate =
+//     FIXED_ASSET_TIMES[type] &&
+//     fixedMinutes > 0
+//       ? existingTask?.fixedDate || today()
+//       : "";
+
+//   const data = {
+//     title: $("taskTitle").value.trim(),
+//     project: $("taskProject").value.trim(),
+//     type,
+//     status: $("taskStatus").value,
+//     url: $("taskUrl").value.trim(),
+//     note: $("taskNote").value.trim(),
+
+//     assetAmount,
+//     fixedMinutes,
+//     fixedDate,
+
+//     // External/manual logged time
+//     loggedMinutes,
+
+//     updatedAt: serverTimestamp(),
+//   };
+
+//   if (!data.title) return;
+
+//   if (
+//     FIXED_ASSET_TIMES[type] &&
+//     assetAmount <= 0
+//   ) {
+//     return notify(
+//       "Please enter the amount of assets.",
+//       "warning"
+//     );
+//   }
+
+//   try {
+//     if (id) {
+//       await updateDoc(
+//         doc(db, "tasks", id),
+//         data
+//       );
+
+//       await syncFixedWorkLog(
+//         id,
+//         fixedMinutes,
+//         fixedDate
+//       );
+
+//       await addActivity(
+//         id,
+//         "task_edited"
+//       );
+
+//       notify("Task updated.");
+//     } else {
+//       data.createdAt =
+//         serverTimestamp();
+
+//       const ref = await addDoc(
+//         collection(db, "tasks"),
+//         data
+//       );
+
+//       await syncFixedWorkLog(
+//         ref.id,
+//         fixedMinutes,
+//         fixedDate
+//       );
+
+//       await addActivity(
+//         ref.id,
+//         "task_created"
+//       );
+
+//       notify("Task created.");
+//     }
+
+//     closeModal("taskModal");
+//     $("taskForm").reset();
+
+//   } catch (err) {
+//     notify(
+//       err.message ||
+//         "Could not save task.",
+//       "error"
+//     );
+//   }
+// }
 async function saveTask(e) {
   e.preventDefault();
 
-  const id = $("taskId").value.trim();
-  const type = $("taskType").value;
+  const id =
+    $("taskId").value.trim();
 
-  const assetAmount =
-    FIXED_ASSET_TIMES[type]
-      ? Math.max(
-          0,
-          Number($("taskAssetAmount").value) || 0
-        )
-      : 0;
+  const clientId =
+    $("taskClient").value;
 
-  const fixedMinutes =
-    FIXED_ASSET_TIMES[type] &&
-    assetAmount > 0
-      ? assetAmount * FIXED_ASSET_TIMES[type]
-      : 0;
+  const type =
+    $("taskType").value;
 
-  const loggedHours = Math.max(
-    0,
-    Number($("taskLoggedHours").value) || 0
+  const client =
+    getClient(clientId);
+
+  if (!clientId || !client) {
+    return notify(
+      "Please select a client.",
+      "warning"
+    );
+  }
+
+  if (!type) {
+    return notify(
+      "Please select a task type.",
+      "warning"
+    );
+  }
+
+ const minutesPerAsset =
+  getFixedMinutesPerAsset(
+    clientId,
+    type
   );
 
+const assetAmount =
+  minutesPerAsset > 0
+    ? Math.max(
+        0,
+        Number(
+          $("taskAssetAmount").value
+        ) || 0
+      )
+    : 0;
+
+const fixedMinutes =
+  minutesPerAsset > 0 &&
+  assetAmount > 0
+    ? assetAmount *
+      minutesPerAsset
+    : 0;
+
+  const loggedHours =
+    Math.max(
+      0,
+      Number(
+        $("taskLoggedHours").value
+      ) || 0
+    );
+
   const loggedMinutes =
-    Math.round(loggedHours * 60);
+    Math.round(
+      loggedHours * 60
+    );
 
   const existingTask =
-    id ? getTask(id) : null;
+    id
+      ? getTask(id)
+      : null;
 
   const fixedDate =
-    FIXED_ASSET_TIMES[type] &&
-    fixedMinutes > 0
-      ? existingTask?.fixedDate || today()
-      : "";
+  minutesPerAsset > 0 &&
+  fixedMinutes > 0
+    ? existingTask?.fixedDate ||
+      today()
+    : "";
 
   const data = {
-    title: $("taskTitle").value.trim(),
-    project: $("taskProject").value.trim(),
+    title:
+      $("taskTitle")
+        .value
+        .trim(),
+
+    /*
+     * NEW
+     */
+    clientId,
+
+    /*
+     * Keep the old field so Reports,
+     * CSV export, old data, etc. continue
+     * to work exactly as before.
+     */
+    project:
+      client.name,
+
     type,
-    status: $("taskStatus").value,
-    url: $("taskUrl").value.trim(),
-    note: $("taskNote").value.trim(),
+
+    status:
+      $("taskStatus").value,
+
+    url:
+      $("taskUrl")
+        .value
+        .trim(),
+
+    note:
+      $("taskNote")
+        .value
+        .trim(),
 
     assetAmount,
     fixedMinutes,
     fixedDate,
 
-    // External/manual logged time
     loggedMinutes,
 
-    updatedAt: serverTimestamp(),
+    updatedAt:
+      serverTimestamp(),
   };
 
-  if (!data.title) return;
-
-  if (
-    FIXED_ASSET_TIMES[type] &&
-    assetAmount <= 0
-  ) {
+  if (!data.title) {
     return notify(
-      "Please enter the amount of assets.",
+      "Please enter a task title.",
       "warning"
     );
   }
+
+  if (
+  minutesPerAsset > 0 &&
+  assetAmount <= 0
+) {
+  return notify(
+    "Please enter the amount of assets.",
+    "warning"
+  );
+}
+
+  /*
+   * Close immediately.
+   * Firebase saving continues in the background.
+   */
+  closeModal("taskModal");
+  $("taskForm").reset();
 
   try {
     if (id) {
@@ -1982,14 +3058,16 @@ async function saveTask(e) {
       );
 
       notify("Task updated.");
+
     } else {
       data.createdAt =
         serverTimestamp();
 
-      const ref = await addDoc(
-        collection(db, "tasks"),
-        data
-      );
+      const ref =
+        await addDoc(
+          collection(db, "tasks"),
+          data
+        );
 
       await syncFixedWorkLog(
         ref.id,
@@ -2004,9 +3082,6 @@ async function saveTask(e) {
 
       notify("Task created.");
     }
-
-    closeModal("taskModal");
-    $("taskForm").reset();
 
   } catch (err) {
     notify(
@@ -2835,6 +3910,24 @@ function bindActions() {
     .querySelectorAll("[data-page-link]")
     .forEach((b) => (b.onclick = () => setPage(b.dataset.pageLink)));
   $("newTaskBtn").onclick = () => openTaskModal();
+  $("addClientBtn").onclick =
+  () => openClientModal();
+
+$("clientForm").onsubmit =
+  saveClient;
+
+$("addClientTypeBtn").onclick =
+  addClientType;
+
+$("clientTypeInput").addEventListener(
+  "keydown",
+  (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      addClientType();
+    }
+  }
+);
   $("editWorkDayBtn").onclick =
   () => openWorkDayModal(today());
 
@@ -2850,11 +3943,21 @@ $("workDayCheckOut").oninput =
 $("workDayLunch").oninput =
   updateWorkDayPreview;
 
-$("saveWorkSettingsBtn").onclick =
-  saveWorkSettings;
   $("generateSummaryBtn").onclick = generateSummary;
   $("copySummaryBtn").onclick = copySummary;
   $("taskForm").onsubmit = saveTask;
+  $("taskClient").onchange = () => {
+  const clientId =
+    $("taskClient").value;
+
+  populateTaskTypes(clientId);
+};
+
+$("taskType").onchange =
+  updateAssetTimePreview;
+
+$("taskAssetAmount").oninput =
+  updateAssetTimePreview;
   $("timeForm").onsubmit = saveTime;
   $("correctionForm").onsubmit = saveCorrection;
   $("taskSearch").oninput = renderTasks;
@@ -2967,9 +4070,7 @@ const data={
   corrections:state.corrections,
   activityLogs:state.activities,
 
-  workDays:state.workDays,
-
-  workSettings:state.workSettings
+  workDays:state.workDays
 };
   const blob = new Blob([JSON.stringify(data, null, 2)], {
       type: "application/json",
@@ -3017,20 +4118,6 @@ async function restoreJson(e) {
   await importDoc("workDays",id,copy);
 }
 
-if(data.workSettings){
-  await updateDoc(
-    doc(db,"settings","workHours"),
-    {
-      dailyTargetMinutes:
-        Number(data.workSettings.dailyTargetMinutes) || 480,
-
-      openingFlexiMinutes:
-        Number(data.workSettings.openingFlexiMinutes) || 0,
-
-      updatedAt:serverTimestamp()
-    }
-  );
-}
     notify("Backup restored.");
     e.target.value = "";
   } catch (err) {
@@ -3045,16 +4132,45 @@ async function importDoc(col, id, data) {
 
 function subscribe() {
   onSnapshot(
-    collection(db, "tasks"),
-    async (snap) => {
-      state.tasks = snap.docs.map((d) => ({
+  collection(db, "clients"),
+  (snap) => {
+    state.clients =
+      snap.docs.map((d) => ({
         id: d.id,
         ...d.data(),
       }));
 
-      populateProjects();
-      renderTasks();
-      updateDashboard();
+    renderClients();
+
+    populateTaskClients(
+      $("taskClient")?.value || ""
+    );
+
+    populateTaskTypeFilter();
+
+    const currentClientId =
+      $("taskClient")?.value || "";
+
+    if (currentClientId) {
+      populateTaskTypes(
+        currentClientId,
+        $("taskType")?.value || ""
+      );
+    }
+  }
+);
+  onSnapshot(
+    collection(db, "tasks"),
+    async (snap) => {
+      state.tasks = snap.docs.map((d) => ({
+  id: d.id,
+  ...d.data(),
+}));
+
+populateProjects();
+populateTaskTypeFilter();
+renderTasks();
+updateDashboard();
 
       try {
         await migrateFixedTasksToWorkLogs();
@@ -3129,7 +4245,14 @@ $("taskType").addEventListener(
   "change",
   updateAssetTimePreview
 );
-
+$("taskClient")?.addEventListener(
+  "change",
+  () => {
+    populateTaskTypes(
+      $("taskClient").value
+    );
+  }
+);
 $("taskAssetAmount").addEventListener(
   "input",
   updateAssetTimePreview
@@ -3159,7 +4282,6 @@ initReportDates();
 bindActions();
 setConnection(navigator.onLine);
 
-await loadWorkSettings();
 
 subscribe();
 

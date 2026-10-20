@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="./style.css" />
   </head>
 
-  <body> 
+  <body>
     <div id="loadingScreen" class="loading-screen">
       <div class="loading-spinner"></div>
       <div>Loading WorkLog...</div>
@@ -62,7 +62,6 @@
 
       <!-- ==================== MAIN ==================== -->
       <main class="main-content">
-
         <!-- TOPBAR -->
         <header class="topbar">
           <div>
@@ -73,16 +72,12 @@
             </p>
           </div>
 
-          <button id="newTaskBtn" class="btn btn-primary">
-            + New Task
-          </button>
+          <button id="newTaskBtn" class="btn btn-primary">+ New Task</button>
         </header>
 
         <!-- ==================== DASHBOARD ==================== -->
         <section id="page-dashboard" class="page active">
-
           <div class="stats-grid">
-
             <div class="stat-card">
               <div class="stat-label">TODAY TRACKED</div>
               <div id="statTodayTime" class="stat-value">0m</div>
@@ -106,11 +101,9 @@
               <div id="statOpenTasks" class="stat-value">0</div>
               <div class="stat-helper">Active + waiting</div>
             </div>
-
           </div>
 
           <div class="dashboard-grid">
-
             <div class="panel timeline-panel">
               <div class="panel-header">
                 <div>
@@ -133,21 +126,16 @@
                   <p>Your latest work journal events.</p>
                 </div>
 
-                <button
-                  class="btn btn-ghost btn-small"
-                  data-page-link="tasks"
-                >
+                <button class="btn btn-ghost btn-small" data-page-link="tasks">
                   View all
                 </button>
               </div>
 
               <div id="recentActivityList" class="activity-list"></div>
             </div>
-
           </div>
 
           <div class="dashboard-grid dashboard-grid-bottom">
-
             <div class="panel">
               <div class="panel-header">
                 <div>
@@ -163,14 +151,11 @@
               <div class="panel-header">
                 <div>
                   <h2>Daily Summary</h2>
-                  <p>
-                    Turn today's work into a report-ready update.
-                  </p>
+                  <p>Turn today's work into a report-ready update.</p>
                 </div>
               </div>
 
               <div class="summary-preview">
-
                 <div>
                   <span>Worked</span>
                   <strong id="summaryWorked">0m</strong>
@@ -185,27 +170,18 @@
                   <span>Corrections</span>
                   <strong id="summaryCorrections">0</strong>
                 </div>
-
               </div>
 
-              <button
-                id="generateSummaryBtn"
-                class="btn btn-primary btn-block"
-              >
+              <button id="generateSummaryBtn" class="btn btn-primary btn-block">
                 Generate Daily Summary
               </button>
             </div>
-
           </div>
-
         </section>
-
 
         <!-- ==================== WORK HOURS ==================== -->
         <section id="page-work-hours" class="page">
-
           <div class="stats-grid work-hours-stats">
-
             <div class="stat-card">
               <div class="stat-label">TODAY WORKED</div>
               <div id="workTodayActual" class="stat-value">0m</div>
@@ -231,42 +207,27 @@
                 Opening + this week
               </div>
             </div>
-
           </div>
 
-
           <div class="dashboard-grid">
-
             <!-- TODAY -->
             <div class="panel">
-
               <div class="panel-header">
                 <div>
                   <h2>Today's Work Hours</h2>
-                  <p>
-                    Record your office arrival and departure.
-                  </p>
+                  <p>Record your office arrival and departure.</p>
                 </div>
 
-                <button
-                  id="editWorkDayBtn"
-                  class="btn btn-primary"
-                >
+                <button id="editWorkDayBtn" class="btn btn-primary">
                   Edit Today
                 </button>
               </div>
 
-              <div
-                id="todayWorkDayCard"
-                class="work-day-card"
-              ></div>
-
+              <div id="todayWorkDayCard" class="work-day-card"></div>
             </div>
-
 
             <!-- FLEXI -->
             <div class="panel">
-
               <div class="panel-header">
                 <div>
                   <h2>Flexi Balance</h2>
@@ -275,7 +236,6 @@
               </div>
 
               <div class="flexi-balance-card">
-
                 <div class="flexi-row">
                   <span>Opening balance</span>
                   <strong id="flexiOpening">0m</strong>
@@ -292,40 +252,23 @@
                   <span>Available flexi</span>
                   <strong id="flexiAvailable">0m</strong>
                 </div>
-
               </div>
-
             </div>
-
           </div>
-
 
           <!-- WEEK -->
           <div class="panel work-week-panel">
-
             <div class="panel-header">
-
               <div>
                 <h2>This Week</h2>
-                <p id="workWeekLabel">
-                  Monday → Sunday
-                </p>
+                <p id="workWeekLabel">Monday → Sunday</p>
               </div>
 
-              <strong
-                id="workWeekFlexi"
-                class="panel-total"
-              >
-                0m flexi
-              </strong>
-
+              <strong id="workWeekFlexi" class="panel-total"> 0m flexi </strong>
             </div>
 
-
             <div class="work-week-table-wrapper">
-
               <table class="work-week-table">
-
                 <thead>
                   <tr>
                     <th>Date</th>
@@ -340,38 +283,26 @@
                 </thead>
 
                 <tbody id="workWeekTableBody"></tbody>
-
               </table>
-
             </div>
-
           </div>
-
         </section>
-
 
         <!-- ==================== TASKS ==================== -->
         <section id="page-tasks" class="page">
-
           <div class="panel">
-
             <div class="panel-header">
               <div>
                 <h2>Tasks</h2>
                 <p>Work items, time history, and status.</p>
               </div>
 
-              <button
-                id="showArchivedBtn"
-                class="btn btn-ghost btn-small"
-              >
+              <button id="showArchivedBtn" class="btn btn-ghost btn-small">
                 Show Archived
               </button>
             </div>
 
-
             <div class="task-filters">
-
               <input
                 id="taskSearch"
                 placeholder="Search tasks, projects, notes..."
@@ -380,7 +311,7 @@
               <select id="taskStatusFilter">
                 <option value="all">All statuses</option>
                 <option value="open">🟡 New</option>
-                <option value="in_progress">🔵  In Approval</option>
+                <option value="in_progress">🔵 In Approval</option>
                 <option value="waiting">🟣 Waiting</option>
                 <!-- <option value="blocked">🟠 Blocked</option> -->
                 <option value="completed">🟢 Completed</option>
@@ -391,46 +322,33 @@
                 <option value="all">All types</option>
               </select>
               <select id="taskDateFilter">
-  <option value="all">All dates</option>
-  <option value="today">Today</option>
-  <option value="yesterday">Yesterday</option>
-  <option value="this-week">This week</option>
-  <option value="last-week">Last week</option>
-  <option value="this-month">This month</option>
-  <option value="custom">Custom date</option>
-</select>
+                <option value="all">All dates</option>
+                <option value="today">Today</option>
+                <option value="yesterday">Yesterday</option>
+                <option value="this-week">This week</option>
+                <option value="last-week">Last week</option>
+                <option value="this-month">This month</option>
+                <option value="custom">Custom date</option>
+              </select>
 
-<input
-  type="date"
-  id="taskCustomDate"
-  style="display: none;"
-/>
+              <input type="date" id="taskCustomDate" style="display: none" />
             </div>
 
             <div id="tasksList" class="task-list"></div>
-
           </div>
-
         </section>
-
 
         <!-- ==================== REPORTS ==================== -->
         <section id="page-reports" class="page">
-
           <div class="panel">
-
             <div class="panel-header">
               <div>
                 <h2>Reports</h2>
-                <p>
-                  Review time by task, project, and work type.
-                </p>
+                <p>Review time by task, project, and work type.</p>
               </div>
             </div>
 
-
             <div class="report-filters">
-
               <div class="field">
                 <label for="reportFrom">From</label>
                 <input id="reportFrom" type="date" />
@@ -450,28 +368,17 @@
               </div>
 
               <div class="report-actions">
-
-                <button
-                  id="refreshReportBtn"
-                  class="btn btn-secondary"
-                >
+                <button id="refreshReportBtn" class="btn btn-secondary">
                   Refresh
                 </button>
 
-                <button
-                  id="exportCsvBtn"
-                  class="btn btn-secondary"
-                >
+                <button id="exportCsvBtn" class="btn btn-secondary">
                   Export CSV
                 </button>
-
               </div>
-
             </div>
 
-
             <div class="report-summary">
-
               <div class="summary-card">
                 <span>Normal time</span>
                 <strong id="reportNormalTime">0m</strong>
@@ -491,12 +398,9 @@
                 <span>Correction rate</span>
                 <strong id="reportCorrectionRate">0%</strong>
               </div>
-
             </div>
 
-
             <div class="report-breakdowns">
-
               <div class="breakdown-card">
                 <h3>By Project</h3>
                 <div id="reportByProject"></div>
@@ -506,14 +410,10 @@
                 <h3>By Type</h3>
                 <div id="reportByType"></div>
               </div>
-
             </div>
 
-
             <div class="table-wrapper">
-
               <table class="report-table">
-
                 <thead>
                   <tr>
                     <th>Date</th>
@@ -527,46 +427,29 @@
                 </thead>
 
                 <tbody id="reportTableBody"></tbody>
-
               </table>
-
             </div>
-
           </div>
-
         </section>
-
 
         <!-- ==================== SETTINGS ==================== -->
         <section id="page-settings" class="page">
-
           <div class="settings-grid">
-
             <!-- BACKUP -->
             <div class="panel">
-
               <div class="panel-header">
                 <div>
                   <h2>Backup</h2>
-                  <p>
-                    Export or restore your WorkLog data.
-                  </p>
+                  <p>Export or restore your WorkLog data.</p>
                 </div>
               </div>
 
               <div class="settings-actions">
-
-                <button
-                  id="exportJsonBtn"
-                  class="btn btn-secondary"
-                >
+                <button id="exportJsonBtn" class="btn btn-secondary">
                   Export JSON
                 </button>
 
-                <button
-                  id="restoreJsonBtn"
-                  class="btn btn-secondary"
-                >
+                <button id="restoreJsonBtn" class="btn btn-secondary">
                   Restore JSON
                 </button>
 
@@ -576,15 +459,11 @@
                   accept=".json,application/json"
                   hidden
                 />
-
               </div>
-
             </div>
-
 
             <!-- DATA MODEL -->
             <div class="panel">
-
               <div class="panel-header">
                 <div>
                   <h2>Data model</h2>
@@ -593,7 +472,6 @@
               </div>
 
               <div class="collection-list">
-
                 <div class="collection-item">
                   <code>tasks</code>
                   <span>Task information</span>
@@ -623,226 +501,204 @@
                   <code>settings</code>
                   <span>Work hours configuration</span>
                 </div>
-
               </div>
-
             </div>
 
 
-            <!-- WORK HOURS SETTINGS -->
-            <div class="panel">
-
+            <!-- ==================== CLIENTS & TASK TYPES ==================== -->
+            <div class="panel full-width">
               <div class="panel-header">
                 <div>
-                  <h2>Work Hours</h2>
-                  <p>
-                    Configure your weekly flexi calculation.
-                  </p>
-                </div>
-              </div>
-
-
-              <div class="form-grid">
-
-                <div class="field">
-
-                  <label for="settingsDailyTarget">
-                    Daily target
-                  </label>
-
-                  <div class="time-input-with-suffix">
-
-                    <input
-                      id="settingsDailyTarget"
-                      type="number"
-                      min="1"
-                      max="24"
-                      step="0.5"
-                      value="8"
-                    />
-
-                    <span>hours</span>
-
-                  </div>
-
+                  <h2>Clients &amp; Task Types</h2>
+                  <p>Manage which task types are available for each client.</p>
                 </div>
 
-
-                <div class="field">
-
-                  <label for="settingsOpeningFlexi">
-                    Opening flexi balance
-                  </label>
-
-                  <div class="time-input-with-suffix">
-
-                    <input
-                      id="settingsOpeningFlexi"
-                      type="number"
-                      min="0"
-                      max="9999"
-                      value="0"
-                    />
-
-                    <span>minutes</span>
-
-                  </div>
-
-                </div>
-
-              </div>
-
-
-              <div class="settings-actions">
-
-                <button
-                  id="saveWorkSettingsBtn"
-                  class="btn btn-primary"
-                >
-                  Save Work Hours Settings
+                <button id="addClientBtn" class="btn btn-primary" type="button">
+                  + Add Client
                 </button>
-
               </div>
 
+              <div id="clientsList" class="clients-list">
+                <div class="empty-state">No clients configured yet.</div>
+              </div>
             </div>
-
-
             <!-- DANGER ZONE -->
             <div class="panel danger-panel">
-
               <div class="panel-header">
-
                 <div>
                   <h2>Danger Zone</h2>
-                  <p>
-                    Permanently delete all WorkLog data.
-                  </p>
+                  <p>Permanently delete all WorkLog data.</p>
                 </div>
-
               </div>
-
 
               <div class="danger-box">
-
                 <div>
-
-                  <strong>
-                    Clear all WorkLog data
-                  </strong>
+                  <strong> Clear all WorkLog data </strong>
 
                   <p>
-                    Deletes tasks, normal time, corrections,
-                    work hours, and activity logs.
+                    Deletes tasks, normal time, corrections, work hours, and
+                    activity logs.
                   </p>
-
                 </div>
 
-                <button
-                  id="clearAllBtn"
-                  class="btn btn-danger"
-                >
+                <button id="clearAllBtn" class="btn btn-danger">
                   Clear All Data
                 </button>
-
               </div>
-
             </div>
-
           </div>
-
         </section>
-
       </main>
     </div>
-
-
-    <!-- ==================== WORK DAY MODAL ==================== -->
-    <div
-      id="workDayModal"
-      class="modal-overlay hidden"
-    >
-
-      <div class="modal modal-small">
-
+    <!-- ==================== CLIENT MODAL ==================== -->
+    <div id="clientModal" class="modal-overlay hidden">
+      <div class="modal">
         <div class="modal-header">
-
           <div>
-            <h2 id="workDayModalTitle">
-              Work Hours
-            </h2>
+            <h2 id="clientModalTitle">New Client</h2>
 
-            <p>
-              Record your working hours for the selected day.
-            </p>
+            <p>Configure the task types available for this client.</p>
           </div>
 
           <button
             class="modal-close"
-            data-close-modal="workDayModal"
+            data-close-modal="clientModal"
+            type="button"
           >
             ×
           </button>
-
         </div>
 
+        <form id="clientForm">
+
+  <input
+    id="clientId"
+    type="hidden"
+  />
+
+  <div class="client-form-body">
+
+    <!-- CLIENT NAME -->
+
+    <div class="field">
+      <label for="clientName">
+        Client name *
+      </label>
+
+      <input
+        id="clientName"
+        required
+        placeholder="e.g. WorkingMinds"
+      />
+    </div>
+
+
+    <!-- TASK TYPES -->
+
+    <div class="field client-task-types-field">
+
+      <label>
+        Task Types
+      </label>
+
+      <div class="field-helper client-types-helper">
+        Enable <strong>Fixed Time</strong> for task types
+        that are calculated by asset quantity.
+      </div>
+
+      <div
+        id="clientTypesList"
+        class="client-types-list"
+      ></div>
+
+    </div>
+
+
+    <!-- ADD TASK TYPE -->
+
+    <div class="client-add-type-row">
+
+      <input
+        id="clientTypeInput"
+        type="text"
+        placeholder="e.g. Email Development"
+      />
+
+      <button
+        id="addClientTypeBtn"
+        type="button"
+        class="btn btn-secondary"
+      >
+        + Add Type
+      </button>
+
+    </div>
+
+  </div>
+
+
+  <!-- FOOTER -->
+
+  <div class="modal-footer">
+
+    <button
+      type="button"
+      class="btn btn-secondary"
+      data-close-modal="clientModal"
+    >
+      Cancel
+    </button>
+
+    <button
+      type="submit"
+      class="btn btn-primary"
+    >
+      Save Client
+    </button>
+
+  </div>
+
+</form>
+      </div>
+    </div>
+
+    <!-- ==================== WORK DAY MODAL ==================== -->
+    <div id="workDayModal" class="modal-overlay hidden">
+      <div class="modal modal-small">
+        <div class="modal-header">
+          <div>
+            <h2 id="workDayModalTitle">Work Hours</h2>
+
+            <p>Record your working hours for the selected day.</p>
+          </div>
+
+          <button class="modal-close" data-close-modal="workDayModal">×</button>
+        </div>
 
         <form id="workDayForm">
-
           <div class="form-grid">
-
             <div class="field field-full">
+              <label for="workDayDate"> Date * </label>
 
-              <label for="workDayDate">
-                Date *
-              </label>
-
-              <input
-                id="workDayDate"
-                type="date"
-                required
-              />
-
+              <input id="workDayDate" type="date" required />
             </div>
 
-
             <div class="field">
+              <label for="workDayCheckIn"> Check-in * </label>
 
-              <label for="workDayCheckIn">
-                Check-in *
-              </label>
-
-              <input
-                id="workDayCheckIn"
-                type="time"
-                required
-              />
-
+              <input id="workDayCheckIn" type="time" required />
             </div>
 
-
             <div class="field">
+              <label for="workDayCheckOut"> Check-out * </label>
 
-              <label for="workDayCheckOut">
-                Check-out *
-              </label>
-
-              <input
-                id="workDayCheckOut"
-                type="time"
-                required
-              />
-
+              <input id="workDayCheckOut" type="time" required />
             </div>
 
-
             <div class="field">
-
-              <label for="workDayLunch">
-                Lunch break
-              </label>
+              <label for="workDayLunch"> Lunch break </label>
 
               <div class="time-input-with-suffix">
-
                 <input
                   id="workDayLunch"
                   type="number"
@@ -852,28 +708,17 @@
                 />
 
                 <span>minutes</span>
-
               </div>
-
             </div>
-
 
             <div class="field field-full">
-
-              <div
-                id="workDayPreview"
-                class="work-day-preview"
-              >
+              <div id="workDayPreview" class="work-day-preview">
                 Enter your working hours to see the calculation.
               </div>
-
             </div>
-
           </div>
 
-
           <div class="modal-footer">
-
             <button
               type="button"
               class="btn btn-secondary"
@@ -882,192 +727,123 @@
               Cancel
             </button>
 
-            <button
-              type="submit"
-              class="btn btn-primary"
-            >
+            <button type="submit" class="btn btn-primary">
               Save Work Hours
             </button>
-
           </div>
-
         </form>
-
       </div>
-
     </div>
 
-
     <!-- ==================== TASK MODAL ==================== -->
-    <div
-      id="taskModal"
-      class="modal-overlay hidden"
-    >
-
+    <div id="taskModal" class="modal-overlay hidden">
       <div class="modal">
-
         <div class="modal-header">
-
           <div>
             <h2 id="taskModalTitle">New Task</h2>
             <p>Create a work item to track.</p>
           </div>
 
-          <button
-            class="modal-close"
-            data-close-modal="taskModal"
-          >
-            ×
-          </button>
-
+          <button class="modal-close" data-close-modal="taskModal">×</button>
         </div>
 
-
         <form id="taskForm">
-
-          <input
-            id="taskId"
-            type="hidden"
-          />
+          <input id="taskId" type="hidden" />
 
           <div class="form-grid">
-
             <div class="field field-full">
-
-              <label for="taskTitle">
-                Task title *
-              </label>
+              <label for="taskTitle"> Task title * </label>
 
               <input
                 id="taskTitle"
                 required
                 placeholder="e.g. Fix email Outlook layout"
               />
-
             </div>
 
-
             <div class="field">
+              <label for="taskClient"> Client * </label>
 
-              <label for="taskProject">
-                Project / Client
-              </label>
-
-              <input
-                id="taskProject"
-                placeholder="e.g. WorkingMinds"
-              />
-
+              <select id="taskClient" required>
+                <option value="">Select client</option>
+              </select>
             </div>
 
-
             <div class="field">
-
-              <label for="taskType">
-                Type
-              </label>
+              <label for="taskType"> Type </label>
 
               <select id="taskType"></select>
-
             </div>
 
-            <div
-  class="field"
-  id="assetAmountField"
-  style="display: none;"
->
-  <label for="taskAssetAmount">
-    Amount of Assets
-  </label>
-
-  <input
-    id="taskAssetAmount"
-    type="number"
-    min="1"
-    step="1"
-    value="1"
-    placeholder="e.g. 5"
-  />
-
-  <div
-    id="assetTimePreview"
-    class="field-helper"
-    style="margin-top: 6px;"
-  >
-    Fixed time: —
-  </div>
-</div>
-<div class="field">
-  <label for="taskLoggedHours">Logged Time (hours)</label>
-
-  <div class="time-input-row">
-    <input
-      id="taskLoggedHours"
-      type="number"
-      min="0"
-      step="0.25"
-      value="0"
-      placeholder="Hours"
-    />
-
-    <!-- <span class="time-input-unit">hours</span> -->
-  </div>
-
-  <div
-    id="loggedTimePreview"
-    class="field-helper"
-    style="margin-top: 6px;"
-  >
-    Logged: 0m
-  </div>
-</div>
-
-
-
-            <div class="field">
-
-              <label for="taskStatus">
-                Status
-              </label>
-
-              <select id="taskStatus"></select>
-
-            </div>
-
-
-            <div class="field field-full">
-
-              <label for="taskUrl">
-                Ticket / Link
-              </label>
+            <div class="field" id="assetAmountField" style="display: none">
+              <label for="taskAssetAmount"> Amount of Assets </label>
 
               <input
-                id="taskUrl"
-                placeholder="https://..."
+                id="taskAssetAmount"
+                type="number"
+                min="1"
+                step="1"
+                value="1"
+                placeholder="e.g. 5"
               />
 
+              <div
+                id="assetTimePreview"
+                class="field-helper"
+                style="margin-top: 6px"
+              >
+                Fixed time: —
+              </div>
+            </div>
+            <div class="field">
+              <label for="taskLoggedHours">Logged Time (hours)</label>
+
+              <div class="time-input-row">
+                <input
+                  id="taskLoggedHours"
+                  type="number"
+                  min="0"
+                  step="0.25"
+                  value="0"
+                  placeholder="Hours"
+                />
+
+                <!-- <span class="time-input-unit">hours</span> -->
+              </div>
+
+              <div
+                id="loggedTimePreview"
+                class="field-helper"
+                style="margin-top: 6px"
+              >
+                Logged: 0m
+              </div>
             </div>
 
+            <div class="field">
+              <label for="taskStatus"> Status </label>
+
+              <select id="taskStatus"></select>
+            </div>
 
             <div class="field field-full">
+              <label for="taskUrl"> Ticket / Link </label>
 
-              <label for="taskNote">
-                Notes
-              </label>
+              <input id="taskUrl" placeholder="https://..." />
+            </div>
+
+            <div class="field field-full">
+              <label for="taskNote"> Notes </label>
 
               <textarea
                 id="taskNote"
                 rows="3"
                 placeholder="Context, scope, or useful notes..."
               ></textarea>
-
             </div>
-
           </div>
 
-
           <div class="modal-footer">
-
             <button
               type="button"
               class="btn btn-secondary"
@@ -1076,79 +852,38 @@
               Cancel
             </button>
 
-            <button
-              type="submit"
-              class="btn btn-primary"
-            >
-              Save Task
-            </button>
-
+            <button type="submit" class="btn btn-primary">Save Task</button>
           </div>
-
         </form>
-
       </div>
-
     </div>
 
-
     <!-- ==================== TIME MODAL ==================== -->
-    <div
-      id="timeModal"
-      class="modal-overlay hidden"
-    >
-
+    <div id="timeModal" class="modal-overlay hidden">
       <div class="modal">
-
         <div class="modal-header">
-
           <div>
             <h2 id="timeModalTitle">Add WorkLog</h2>
-            <input type="hidden" id="timeEntryId">
+            <input type="hidden" id="timeEntryId" />
             <p id="timeModalTaskName">Task</p>
           </div>
 
-          <button
-            class="modal-close"
-            data-close-modal="timeModal"
-          >
-            ×
-          </button>
-
+          <button class="modal-close" data-close-modal="timeModal">×</button>
         </div>
 
-
         <form id="timeForm">
-
-          <input
-            id="timeTaskId"
-            type="hidden"
-          />
+          <input id="timeTaskId" type="hidden" />
 
           <div class="form-grid">
-
             <div class="field">
+              <label for="timeDate"> Date * </label>
 
-              <label for="timeDate">
-                Date *
-              </label>
-
-              <input
-                id="timeDate"
-                type="date"
-                required
-              />
-
+              <input id="timeDate" type="date" required />
             </div>
 
-
             <div class="time-row">
-
               <div class="field">
-
-                <label for="timeHours">
-                  Hours
-                </label>
+                <label for="timeHours"> Hours </label>
 
                 <input
                   id="timeHours"
@@ -1157,15 +892,10 @@
                   max="999"
                   value="0"
                 />
-
               </div>
 
-
               <div class="field">
-
-                <label for="timeMinutes">
-                  Minutes
-                </label>
+                <label for="timeMinutes"> Minutes </label>
 
                 <input
                   id="timeMinutes"
@@ -1174,68 +904,39 @@
                   max="59"
                   value="0"
                 />
-
               </div>
-
             </div>
 
-
             <div class="quick-times">
-
-              <button
-                type="button"
-                class="quick-time"
-                data-time-preset="15"
-              >
+              <button type="button" class="quick-time" data-time-preset="15">
                 15m
               </button>
 
-              <button
-                type="button"
-                class="quick-time"
-                data-time-preset="30"
-              >
+              <button type="button" class="quick-time" data-time-preset="30">
                 30m
               </button>
 
-              <button
-                type="button"
-                class="quick-time"
-                data-time-preset="60"
-              >
+              <button type="button" class="quick-time" data-time-preset="60">
                 1h
               </button>
 
-              <button
-                type="button"
-                class="quick-time"
-                data-time-preset="120"
-              >
+              <button type="button" class="quick-time" data-time-preset="120">
                 2h
               </button>
-
             </div>
 
-
             <div class="field field-full">
-
-              <label for="timeNote">
-                Note
-              </label>
+              <label for="timeNote"> Note </label>
 
               <textarea
                 id="timeNote"
                 rows="3"
                 placeholder="What did you work on?"
               ></textarea>
-
             </div>
-
           </div>
 
-
           <div class="modal-footer">
-
             <button
               type="button"
               class="btn btn-secondary"
@@ -1244,77 +945,40 @@
               Cancel
             </button>
 
-            <button
-              type="submit"
-              class="btn btn-primary"
-            >
-              Add Time
-            </button>
-
+            <button type="submit" class="btn btn-primary">Add Time</button>
           </div>
-
         </form>
-
       </div>
-
     </div>
 
-
     <!-- ==================== CORRECTION MODAL ==================== -->
-    <div
-      id="correctionModal"
-      class="modal-overlay hidden"
-    >
-
+    <div id="correctionModal" class="modal-overlay hidden">
       <div class="modal">
-
         <div class="modal-header">
-
           <div>
             <h2>Add Correction</h2>
             <p id="correctionModalTaskName">Task</p>
           </div>
 
-          <button
-            class="modal-close"
-            data-close-modal="correctionModal"
-          >
+          <button class="modal-close" data-close-modal="correctionModal">
             ×
           </button>
-
         </div>
 
-
         <form id="correctionForm">
-
-          <input
-            id="correctionTaskId"
-            type="hidden"
-          />
+          <input id="correctionTaskId" type="hidden" />
 
           <div class="form-grid">
-
             <div class="field">
+              <label for="correctionDate"> Date * </label>
 
-              <label for="correctionDate">
-                Date *
-              </label>
-
-              <input
-                id="correctionDate"
-                type="date"
-                required
-              />
-
+              <input id="correctionDate" type="date" required />
             </div>
 
-
             <div class="field field-full">
-
               <label>Reason</label>
 
               <div class="reason-grid">
-
                 <label class="reason-option">
                   <input
                     type="radio"
@@ -1353,26 +1017,15 @@
                 </label>
 
                 <label class="reason-option">
-                  <input
-                    type="radio"
-                    name="correctionReason"
-                    value="other"
-                  />
+                  <input type="radio" name="correctionReason" value="other" />
                   <span>Other</span>
                 </label>
-
               </div>
-
             </div>
 
-
             <div class="time-row">
-
               <div class="field">
-
-                <label for="correctionHours">
-                  Hours
-                </label>
+                <label for="correctionHours"> Hours </label>
 
                 <input
                   id="correctionHours"
@@ -1381,15 +1034,10 @@
                   max="999"
                   value="0"
                 />
-
               </div>
 
-
               <div class="field">
-
-                <label for="correctionMinutes">
-                  Minutes
-                </label>
+                <label for="correctionMinutes"> Minutes </label>
 
                 <input
                   id="correctionMinutes"
@@ -1398,14 +1046,10 @@
                   max="59"
                   value="0"
                 />
-
               </div>
-
             </div>
 
-
             <div class="quick-times">
-
               <button
                 type="button"
                 class="quick-time"
@@ -1437,15 +1081,10 @@
               >
                 2h
               </button>
-
             </div>
 
-
             <div class="field field-full">
-
-              <label for="correctionNote">
-                Description *
-              </label>
+              <label for="correctionNote"> Description * </label>
 
               <textarea
                 id="correctionNote"
@@ -1453,14 +1092,10 @@
                 required
                 placeholder="What needed to be corrected?"
               ></textarea>
-
             </div>
-
           </div>
 
-
           <div class="modal-footer">
-
             <button
               type="button"
               class="btn btn-secondary"
@@ -1469,115 +1104,58 @@
               Cancel
             </button>
 
-            <button
-              type="submit"
-              class="btn btn-warning"
-            >
+            <button type="submit" class="btn btn-warning">
               Save Correction
             </button>
-
           </div>
-
         </form>
-
       </div>
-
     </div>
 
-
     <!-- ==================== HISTORY MODAL ==================== -->
-    <div
-      id="historyModal"
-      class="modal-overlay hidden"
-    >
-
+    <div id="historyModal" class="modal-overlay hidden">
       <div class="modal modal-large">
-
         <div class="modal-header">
-
           <div>
             <h2 id="historyTitle">Task History</h2>
             <p id="historySubtitle"></p>
           </div>
 
-          <button
-            class="modal-close"
-            data-close-modal="historyModal"
-          >
-            ×
-          </button>
-
+          <button class="modal-close" data-close-modal="historyModal">×</button>
         </div>
 
-        <div
-          id="historySummary"
-          class="history-summary"
-        ></div>
+        <div id="historySummary" class="history-summary"></div>
 
-        <div
-          id="historyContent"
-          class="history-content"
-        ></div>
+        <div id="historyContent" class="history-content"></div>
 
         <div class="modal-footer">
-
-          <button
-            id="historyAddTimeBtn"
-            class="btn btn-secondary"
-          >
+          <button id="historyAddTimeBtn" class="btn btn-secondary">
             + Add Time
           </button>
 
-          <button
-            id="historyCorrectionBtn"
-            class="btn btn-warning"
-          >
+          <button id="historyCorrectionBtn" class="btn btn-warning">
             Add Correction
           </button>
-
         </div>
-
       </div>
-
     </div>
 
-
     <!-- ==================== SUMMARY MODAL ==================== -->
-    <div
-      id="summaryModal"
-      class="modal-overlay hidden"
-    >
-
+    <div id="summaryModal" class="modal-overlay hidden">
       <div class="modal modal-large">
-
         <div class="modal-header">
-
           <div>
             <h2>Daily Summary</h2>
             <p id="summaryModalSubtitle"></p>
           </div>
 
-          <button
-            class="modal-close"
-            data-close-modal="summaryModal"
-          >
-            ×
-          </button>
-
+          <button class="modal-close" data-close-modal="summaryModal">×</button>
         </div>
 
-        <textarea
-          id="summaryText"
-          class="summary-text"
-          readonly
-        ></textarea>
+        <textarea id="summaryText" class="summary-text" readonly></textarea>
 
         <div class="modal-footer">
-
-          <button
-            id="copySummaryBtn"
-            class="btn btn-primary"
-          >
+          <button id="copySummaryBtn" class="btn btn-primary">
             Copy Summary
           </button>
 
@@ -1588,73 +1166,35 @@
           >
             Close
           </button>
-
         </div>
-
       </div>
-
     </div>
 
-
     <!-- ==================== CONFIRM MODAL ==================== -->
-    <div
-      id="confirmModal"
-      class="modal-overlay hidden"
-    >
-
+    <div id="confirmModal" class="modal-overlay hidden">
       <div class="modal modal-small">
-
         <div class="modal-header">
-
           <div>
             <h2 id="confirmTitle">Confirm</h2>
             <p id="confirmMessage"></p>
           </div>
 
-          <button
-            class="modal-close"
-            data-close-modal="confirmModal"
-          >
-            ×
-          </button>
-
+          <button class="modal-close" data-close-modal="confirmModal">×</button>
         </div>
 
-
         <div class="modal-footer">
-
-          <button
-            id="confirmCancelBtn"
-            class="btn btn-secondary"
-          >
+          <button id="confirmCancelBtn" class="btn btn-secondary">
             Cancel
           </button>
 
-          <button
-            id="confirmOkBtn"
-            class="btn btn-danger"
-          >
-            Confirm
-          </button>
-
+          <button id="confirmOkBtn" class="btn btn-danger">Confirm</button>
         </div>
-
       </div>
-
     </div>
 
-
     <!-- ==================== TOAST ==================== -->
-    <div
-      id="toastContainer"
-      class="toast-container"
-    ></div>
+    <div id="toastContainer" class="toast-container"></div>
 
-
-    <script
-      type="module"
-      src="./app.js"
-    ></script>
-
+    <script type="module" src="./app.js"></script>
   </body>
 </html>
