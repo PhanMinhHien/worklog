@@ -2790,16 +2790,19 @@ async function syncFixedWorkLog(taskId, fixedMinutes, fixedDate) {
 
     const [primary, ...duplicates] = existingEntries;
 
-    await updateDoc(
-      doc(db, "workSessions", primary.id),
-      data
-    );
+await updateDoc(
+  doc(db, "workSessions", primary.id),
+  {
+    duration: Number(fixedMinutes),
+    updatedAt: serverTimestamp(),
+  }
+);
 
-    for (const duplicate of duplicates) {
-      await deleteDoc(
-        doc(db, "workSessions", duplicate.id)
-      );
-    }
+for (const duplicate of duplicates) {
+  await deleteDoc(
+    doc(db, "workSessions", duplicate.id)
+  );
+}
 
     return;
   }
@@ -2869,15 +2872,17 @@ async function migrateFixedTasksToWorkLogs() {
       const [primary, ...duplicates] = entries;
 
       if (
-        Number(primary.duration) !==
-          Number(task.fixedMinutes) ||
-        primary.date !== task.fixedDate
-      ) {
-        await updateDoc(
-          doc(db, "workSessions", primary.id),
-          data
-        );
-      }
+  Number(primary.duration) !==
+  Number(task.fixedMinutes)
+) {
+  await updateDoc(
+    doc(db, "workSessions", primary.id),
+    {
+      duration: Number(task.fixedMinutes),
+      updatedAt: serverTimestamp(),
+    }
+  );
+}
 
       for (const duplicate of duplicates) {
         await deleteDoc(
