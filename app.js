@@ -525,6 +525,7 @@ function renderTask(task, compact = false) {
 //     </div>
 //   </div>`;
 // }
+
 function renderTasks() {
   const q = ($("taskSearch").value || "").toLowerCase().trim();
 
@@ -723,7 +724,11 @@ function getTaskDateFilterRange(filter) {
   return null;
 }
 
-function taskMatchesDateFilter(task, filter, customDate = "") {
+function taskMatchesDateFilter(
+  task,
+  filter,
+  customDate = ""
+) {
   if (filter === "all") {
     return true;
   }
@@ -737,7 +742,7 @@ function taskMatchesDateFilter(task, filter, customDate = "") {
   if (filter === "custom") {
     return customDate
       ? dates.includes(customDate)
-      : true;
+      : false;
   }
 
   const range = getTaskDateFilterRange(filter);
@@ -4269,11 +4274,23 @@ $("taskDateFilter")?.addEventListener(
 
     if (!input) return;
 
-    input.style.display =
-      value === "custom"
-        ? ""
-        : "none";
+    const isCustom = value === "custom";
 
+    input.style.display = isCustom
+      ? ""
+      : "none";
+
+    if (!isCustom) {
+      input.value = "";
+    }
+
+    renderTasks();
+  }
+);
+
+$("taskCustomDate")?.addEventListener(
+  "change",
+  () => {
     renderTasks();
   }
 );
