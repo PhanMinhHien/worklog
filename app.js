@@ -3530,6 +3530,18 @@ function renderBars(target, map) {
         .join("")
     : `<div class="empty-small">No data for this period.</div>`;
 }
+function firstWorkLogDate(taskId) {
+  const dates = state.workSessions
+    .filter(
+      (x) =>
+        x.taskId === taskId &&
+        x.date
+    )
+    .map((x) => x.date)
+    .sort();
+
+  return dates[0] || "";
+}
 function renderReport() {
   const entries = reportEntries();
 
@@ -3557,57 +3569,55 @@ function renderReport() {
   const byP = new Map();
   const byT = new Map();
 
-  // Report rows are grouped by:
-  // Date + Task
-  const rows = new Map();
+// Report rows are grouped by Task.
+// Date = first WorkLog date for that task.
+const rows = new Map();
 
-  for (const e of entries) {
-    const task = getTask(e.taskId);
+for (const e of entries) {
+  const task = getTask(e.taskId);
 
-    // Ignore orphan entries whose task no longer exists.
-    // Keep the underlying Firebase data untouched.
-    if (!task) continue;
+  if (!task) continue;
 
-    const project = task.project?.trim() || "No project";
-    const type = task.type?.trim() || "Other";
+  const project = task.project?.trim() || "No project";
+  const type = task.type?.trim() || "Other";
 
-    // By Project
-    byP.set(
-      project,
-      (byP.get(project) || 0) + e.duration
-    );
+  // By Project
+  byP.set(
+    project,
+    (byP.get(project) || 0) + e.duration
+  );
 
-    // By Type
-    byT.set(
-      type,
-      (byT.get(type) || 0) + e.duration
-    );
+  // By Type
+  byT.set(
+    type,
+    (byT.get(type) || 0) + e.duration
+  );
 
-    // One row per Date + Task
-    const key = `${e.date}|${e.taskId}`;
+  // One row per Task
+  const key = e.taskId;
 
-    let row = rows.get(key);
+  let row = rows.get(key);
 
-    if (!row) {
-      row = {
-        date: e.date,
-        taskId: e.taskId,
-        task,
-        normal: 0,
-        correction: 0
-      };
+  if (!row) {
+    row = {
+      date: firstWorkLogDate(e.taskId),
+      taskId: e.taskId,
+      task,
+      normal: 0,
+      correction: 0
+    };
 
-      rows.set(key, row);
-    }
-
-    if (e.kind === "normal") {
-      row.normal += e.duration;
-    }
-
-    if (e.kind === "correction") {
-      row.correction += e.duration;
-    }
+    rows.set(key, row);
   }
+
+  if (e.kind === "normal") {
+    row.normal += e.duration;
+  }
+
+  if (e.kind === "correction") {
+    row.correction += e.duration;
+  }
+}
 
   // Charts / breakdowns
   renderBars("reportByProject", byP);
