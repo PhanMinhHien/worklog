@@ -3779,16 +3779,28 @@ function renderBars(target, map) {
     : `<div class="empty-small">No data for this period.</div>`;
 }
 function firstWorkLogDate(taskId) {
-  const dates = state.workSessions
+  const logs = state.workSessions
     .filter(
       (x) =>
         x.taskId === taskId &&
-        x.date
+        x.createdAt
     )
-    .map((x) => x.date)
-    .sort();
+    .sort(
+      (a, b) =>
+        dateValue(a.createdAt) -
+        dateValue(b.createdAt)
+    );
 
-  return dates[0] || "";
+  const first = logs[0];
+
+  if (!first) return "";
+
+  const created =
+    first.createdAt?.toDate
+      ? first.createdAt.toDate()
+      : new Date(first.createdAt);
+
+  return localDateString(created);
 }
 function renderReport() {
   const entries = reportEntries();
