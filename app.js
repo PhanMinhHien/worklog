@@ -392,11 +392,15 @@ function sortNewest(a, b) {
 }
 function renderTask(task, compact = false) {
   const total = taskMinutes(task.id),
-    dates = taskDates(task.id),
-    s = STATUS_META[task.status] || STATUS_META.open;
+  dates = taskDates(task.id),
+  s = STATUS_META[task.status] || STATUS_META.open;
 
-  const worked = dates.length
-  ? dates.slice(0, 3).map(shortDate).join(" · ")
+const firstWorkDate = dates.length
+  ? dates[dates.length - 1]
+  : "";
+
+const worked = firstWorkDate
+  ? shortDate(firstWorkDate)
   : "No work date yet";
 
   return `<div class="task-row ${task.status === STATUS.ARCHIVED ? "is-archived" : ""}">
