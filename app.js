@@ -3783,7 +3783,7 @@ function firstWorkLogDate(taskId) {
     .filter(
       (x) =>
         x.taskId === taskId &&
-        x.createdAt
+        x.createdAt 
     )
     .sort(
       (a, b) =>
