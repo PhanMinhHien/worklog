@@ -3379,8 +3379,8 @@ async function saveCorrection(e) {
     reason =
       document.querySelector('input[name="correctionReason"]:checked')?.value ||
       "other";
-  if (!taskId || !date || duration <= 0 || !$("correctionNote").value.trim())
-    return notify("Enter a duration and description.", "warning");
+  if (!taskId || !date || duration <= 0)
+    return notify("Enter a duration.", "warning");
   try {
     await addDoc(collection(db, "corrections"), {
       taskId,
