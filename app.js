@@ -856,6 +856,8 @@ function activityIcon(a) {
       task_edited: "✎",
       task_archived: "⚫",
       task_unarchived: "↩",
+      correction_updated: "✎",
+correction_deleted: "×",
     }[a] || "•"
   );
 }
@@ -865,6 +867,11 @@ function activityLabel(a) {
     return `Time logged · ${formatDuration(m.duration)} · ${m.date || ""}`;
   if (a.action === "correction_added")
     return `Correction · ${formatDuration(m.duration)} · ${m.reason || "Other"}`;
+  if (a.action === "correction_updated")
+  return `Correction updated · ${formatDuration(m.duration)} · ${m.reason || "Other"}`;
+
+if (a.action === "correction_deleted")
+  return `Correction deleted · ${formatDuration(m.duration)} · ${m.reason || "Other"}`;
   if (a.action === "status_changed")
     return `Status: ${STATUS_META[m.from]?.label || m.from} → ${STATUS_META[m.to]?.label || m.to}`;
   if (a.action === "task_archived") return "Task archived";
@@ -2334,18 +2341,60 @@ function openTimeModal(taskId, entry = null) {
 //   $("timeNote").value = "";
 //   openModal("timeModal");
 // }
-function openCorrectionModal(taskId) {
+function openCorrectionModal(taskId, entry = null) {
   const t = getTask(taskId);
+
   if (!t) return;
+
   $("correctionTaskId").value = taskId;
+  $("correctionEntryId").value = entry?.id || "";
+
   $("correctionModalTaskName").textContent = t.title;
-  $("correctionDate").value = today();
-  $("correctionHours").value = 0;
-  $("correctionMinutes").value = 0;
-  $("correctionNote").value = "";
-  document.querySelector(
-    'input[name="correctionReason"][value="client_feedback"]',
-  ).checked = true;
+
+  $("correctionDate").value =
+    entry?.date || today();
+
+  const duration = Number(entry?.duration) || 0;
+
+  $("correctionHours").value =
+    Math.floor(duration / 60);
+
+  $("correctionMinutes").value =
+    duration % 60;
+
+  $("correctionNote").value =
+    entry?.note || "";
+
+  const reason =
+    entry?.reason || "client_feedback";
+
+  const reasonInput = document.querySelector(
+    `input[name="correctionReason"][value="${reason}"]`
+  );
+
+  if (reasonInput) {
+    reasonInput.checked = true;
+  }
+
+  const title = $("correctionModalTitle");
+
+  if (title) {
+    title.textContent =
+      entry
+        ? "Edit Correction"
+        : "Add Correction";
+  }
+
+  const submitBtn =
+    $("correctionSubmitBtn");
+
+  if (submitBtn) {
+    submitBtn.textContent =
+      entry
+        ? "Update Correction"
+        : "Save Correction";
+  }
+
   openModal("correctionModal");
 }
 
@@ -2495,34 +2544,58 @@ function openHistory(taskId) {
               </div>
 
               ${
-                isWorkLog
-                  ? `
-                    <div class="history-log-actions">
+  isWorkLog
+    ? `
+      <div class="history-log-actions">
 
-                      <button
-                        type="button"
-                        class="task-action"
-                        data-history-action="edit-worklog"
-                        data-entry-id="${e.id}"
-                        data-task-id="${taskId}"
-                      >
-                        Edit
-                      </button>
+        <button
+          type="button"
+          class="task-action"
+          data-history-action="edit-worklog"
+          data-entry-id="${e.id}"
+          data-task-id="${taskId}"
+        >
+          Edit
+        </button>
 
-                      <button
-                        type="button"
-                        class="task-action danger"
-                        data-history-action="delete-worklog"
-                        data-entry-id="${e.id}"
-                        data-task-id="${taskId}"
-                      >
-                        Delete
-                      </button>
+        <button
+          type="button"
+          class="task-action danger"
+          data-history-action="delete-worklog"
+          data-entry-id="${e.id}"
+          data-task-id="${taskId}"
+        >
+          Delete
+        </button>
 
-                    </div>
-                  `
-                  : ""
-              }
+      </div>
+    `
+    : `
+      <div class="history-log-actions">
+
+        <button
+          type="button"
+          class="task-action"
+          data-history-action="edit-correction"
+          data-entry-id="${e.id}"
+          data-task-id="${taskId}"
+        >
+          Edit
+        </button>
+
+        <button
+          type="button"
+          class="task-action danger"
+          data-history-action="delete-correction"
+          data-entry-id="${e.id}"
+          data-task-id="${taskId}"
+        >
+          Delete
+        </button>
+
+      </div>
+    `
+}
 
             </div>
           `;
@@ -2576,7 +2649,52 @@ function openHistory(taskId) {
         deleteWorkLog(button.dataset.entryId);
       });
     });
+  /*
+ * Correction actions
+ */
 
+$("historyContent")
+  .querySelectorAll(
+    '[data-history-action="edit-correction"]'
+  )
+  .forEach((button) => {
+    button.addEventListener("click", () => {
+
+      const entryId =
+        button.dataset.entryId;
+
+      const entry =
+        state.corrections.find(
+          (x) => x.id === entryId
+        );
+
+      if (!entry) {
+        return notify(
+          "Correction entry not found.",
+          "error"
+        );
+      }
+
+      closeModal("historyModal");
+
+      openCorrectionModal(
+        taskId,
+        entry
+      );
+    });
+  });
+
+  $("historyContent")
+  .querySelectorAll(
+    '[data-history-action="delete-correction"]'
+  )
+  .forEach((button) => {
+    button.addEventListener("click", () => {
+      deleteCorrection(
+        button.dataset.entryId
+      );
+    });
+  });
   /*
    * Add WorkLog
    */
@@ -2590,7 +2708,7 @@ function openHistory(taskId) {
    */
   $("historyCorrectionBtn").onclick = () => {
     closeModal("historyModal");
-    openCorrectionModal(taskId);
+    openCorrectionModal(taskId, entry);
   };
 
   openModal("historyModal");
@@ -3344,6 +3462,57 @@ async function deleteWorkLog(entryId) {
     }
   };
 }
+
+async function deleteCorrection(entryId) {
+  const entry =
+    state.corrections.find(
+      (x) => x.id === entryId
+    );
+
+  if (!entry) return;
+
+  const task =
+    getTask(entry.taskId);
+
+  confirmAction(
+    "Delete Correction?",
+    `Delete ${formatDuration(entry.duration)} from "${task?.title || "this task"}"? This cannot be undone.`,
+    "",
+    "Delete"
+  );
+
+  state.pendingConfirm = async () => {
+    try {
+
+      await deleteDoc(
+        doc(db, "corrections", entryId)
+      );
+
+      await addActivity(
+        entry.taskId,
+        "correction_deleted",
+        {
+          duration: entry.duration,
+          date: entry.date,
+          reason: entry.reason || "other",
+        }
+      );
+
+      notify(
+        "Correction deleted."
+      );
+
+    } catch (err) {
+
+      notify(
+        err.message ||
+          "Could not delete correction.",
+        "error"
+      );
+
+    }
+  };
+}
 // async function saveTime(e) {
 //   e.preventDefault();
 //   const taskId = $("timeTaskId").value,
@@ -3370,33 +3539,107 @@ async function deleteWorkLog(entryId) {
 // }
 async function saveCorrection(e) {
   e.preventDefault();
-  const taskId = $("correctionTaskId").value,
-    duration = minutes(
-      $("correctionHours").value,
-      $("correctionMinutes").value,
-    ),
-    date = $("correctionDate").value,
-    reason =
-      document.querySelector('input[name="correctionReason"]:checked')?.value ||
-      "other";
-  if (!taskId || !date || duration <= 0)
-    return notify("Enter a duration.", "warning");
+
+  const taskId =
+    $("correctionTaskId").value;
+
+  const entryId =
+    $("correctionEntryId").value.trim();
+
+  const duration = minutes(
+    $("correctionHours").value,
+    $("correctionMinutes").value
+  );
+
+  const date =
+    $("correctionDate").value;
+
+  const note =
+    $("correctionNote").value.trim();
+
+  const reason =
+    document.querySelector(
+      'input[name="correctionReason"]:checked'
+    )?.value || "other";
+
+  if (!taskId || !date || duration <= 0) {
+    return notify(
+      "Enter a duration.",
+      "warning"
+    );
+  }
+
   try {
-    await addDoc(collection(db, "corrections"), {
+
+    // =========================
+    // EDIT EXISTING CORRECTION
+    // =========================
+    if (entryId) {
+      await updateDoc(
+        doc(db, "corrections", entryId),
+        {
+          date,
+          duration,
+          note,
+          reason,
+          type: "correction",
+          updatedAt: serverTimestamp(),
+        }
+      );
+
+      await addActivity(
+        taskId,
+        "correction_updated",
+        {
+          duration,
+          date,
+          reason,
+        }
+      );
+
+      closeModal("correctionModal");
+
+      notify("Correction updated.");
+
+      return;
+    }
+
+    // =========================
+    // ADD NEW CORRECTION
+    // =========================
+    await addDoc(
+      collection(db, "corrections"),
+      {
+        taskId,
+        date,
+        duration,
+        note,
+        reason,
+        type: "correction",
+        createdAt: serverTimestamp(),
+      }
+    );
+
+    await addActivity(
       taskId,
-      date,
-      duration,
-      note: $("correctionNote").value.trim(),
-      reason,
-      type: "correction",
-      createdAt: serverTimestamp(),
-    });
-    await updateDoc(doc(db, "tasks", taskId), { updatedAt: serverTimestamp() });
-    await addActivity(taskId, "correction_added", { duration, date, reason });
+      "correction_added",
+      {
+        duration,
+        date,
+        reason,
+      }
+    );
+
     closeModal("correctionModal");
+
     notify("Correction saved.");
+
   } catch (err) {
-    notify(err.message || "Could not save correction.", "error");
+    notify(
+      err.message ||
+        "Could not save correction.",
+      "error"
+    );
   }
 }
 function nextStatus(current) {

@@ -956,8 +956,8 @@
       <div class="modal">
         <div class="modal-header">
           <div>
-            <h2>Add Correction</h2>
-            <p id="correctionModalTaskName">Task</p>
+            <h2 id="correctionModalTitle">Add Correction</h2>
+<p id="correctionModalTaskName">Task</p>
           </div>
 
           <button class="modal-close" data-close-modal="correctionModal">
@@ -966,7 +966,15 @@
         </div>
 
         <form id="correctionForm">
-          <input id="correctionTaskId" type="hidden" />
+          <input
+  id="correctionTaskId"
+  type="hidden"
+/>
+
+<input
+  id="correctionEntryId"
+  type="hidden"
+/>
 
           <div class="form-grid">
             <div class="field">
@@ -1103,9 +1111,13 @@
               Cancel
             </button>
 
-            <button type="submit" class="btn btn-warning">
-              Save Correction
-            </button>
+            <button
+  id="correctionSubmitBtn"
+  type="submit"
+  class="btn btn-warning"
+>
+  Save Correction
+</button>
           </div>
         </form>
       </div>
