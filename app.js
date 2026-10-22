@@ -614,21 +614,21 @@ function renderTasks() {
   }
 
   // Logging
-if (lf !== "all") {
-  tasks = tasks.filter((t) => {
-    const minutes = taskMinutes(t.id);
+// if (lf !== "all") {
+//   tasks = tasks.filter((t) => {
+//     const minutes = taskMinutes(t.id);
 
-    if (lf === "logged") {
-      return minutes > 0;
-    }
+//     if (lf === "logged") {
+//       return minutes > 0;
+//     }
 
-    if (lf === "not-logged") {
-      return minutes <= 0;
-    }
+//     if (lf === "not-logged") {
+//       return minutes <= 0;
+//     }
 
-    return true;
-  });
-}
+//     return true;
+//   });
+// }
 
   // Date
   tasks = tasks.filter(
