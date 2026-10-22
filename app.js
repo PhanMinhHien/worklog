@@ -587,7 +587,7 @@ function renderTasks() {
 
   const sf = $("taskStatusFilter").value;
   const tf = $("taskTypeFilter").value;
-  const lf = $("taskLogFilter")?.value || "all";
+  // const lf = $("taskLogFilter")?.value || "all";
 
   const df = $("taskDateFilter")?.value || "all";
   const customDate = $("taskCustomDate")?.value || "";
@@ -4326,7 +4326,7 @@ $("taskAssetAmount").oninput =
   $("taskSearch").oninput = renderTasks;
   $("taskStatusFilter").onchange = renderTasks;
   $("taskTypeFilter").onchange = renderTasks;
-  $("taskLogFilter").onchange = renderTasks;
+  // $("taskLogFilter").onchange = renderTasks;
   $("showArchivedBtn").onclick = () => {
     state.showArchived = !state.showArchived;
     $("showArchivedBtn").textContent = state.showArchived
