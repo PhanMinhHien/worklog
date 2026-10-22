@@ -585,11 +585,11 @@ const worked = firstWorkDate
 function renderTasks() {
   const q = ($("taskSearch").value || "").toLowerCase().trim();
 
-  const sf = $("taskStatusFilter").value;
-  const tf = $("taskTypeFilter").value;
-  const lf = $("taskLogFilter")?.value || "all";
+ const sf = $("taskStatusFilter").value;
+const tf = $("taskTypeFilter").value;
+const lf = $("taskLogFilter")?.value || "all";
 
-  const df = $("taskDateFilter")?.value || "all";
+const df = $("taskDateFilter")?.value || "all";
   const customDate = $("taskCustomDate")?.value || "";
 
   let tasks = state.tasks.filter(
@@ -611,20 +611,14 @@ function renderTasks() {
       (t) => t.type === tf
     );
   }
-  // Logging
+ // Logging
 if (lf !== "all") {
   tasks = tasks.filter((t) => {
-    const loggedMinutes = taskMinutes(t.id);
+    const minutes = taskMinutes(t.id);
 
-    if (lf === "logged") {
-      return loggedMinutes > 0;
-    }
-
-    if (lf === "not-logged") {
-      return loggedMinutes <= 0;
-    }
-
-    return true;
+    return lf === "logged"
+      ? minutes > 0
+      : minutes === 0;
   });
 }
 
