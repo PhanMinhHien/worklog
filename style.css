@@ -2088,6 +2088,19 @@ html[data-theme="dark"] .nav-item.active {
 }
 
 
+/* ---------- Dark work hours ---------- */
+
+html[data-theme="dark"] .work-day-metric {
+      background: var(--panel);
+    border-color: var(--border);
+}
+
+html[data-theme="dark"] .work-week-table th {
+      background: var(--panel);
+    border-color: var(--border);
+}
+
+
 /* ---------- Text / separators ---------- */
 
 html[data-theme="dark"] .panel-header,
