@@ -20,6 +20,35 @@
   --shadow: 0 8px 30px rgba(15, 23, 42, .06)
 }
 
+html {
+  color-scheme: light;
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg: #0f172a;
+  --panel: #111827;
+  --text: #e5e7eb;
+  --text-soft: #9ca3af;
+  --text-muted: #64748b;
+  --border: #263244;
+
+  --primary: #818cf8;
+  --primary-soft: #1e1b4b;
+
+  --success: #22c55e;
+  --success-soft: #052e16;
+
+  --warning: #f59e0b;
+  --warning-soft: #431407;
+
+  --danger: #f87171;
+  --danger-soft: #450a0a;
+
+  --shadow: 0 8px 30px rgba(0, 0, 0, .25);
+}
+
 body {
   margin: 0;
   background: var(--bg);
@@ -1800,4 +1829,291 @@ body {
   font-weight: 750;
 
   white-space: nowrap;
+}
+
+/* =========================================================
+   DARK MODE
+   ========================================================= */
+
+html[data-theme="dark"] body {
+  background: var(--bg);
+  color: var(--text);
+}
+
+html[data-theme="dark"] .main-content {
+  background: var(--bg);
+}
+
+/* ---------- Buttons ---------- */
+
+html[data-theme="dark"] .btn {
+  background: #1e293b;
+  color: var(--text);
+  border-color: var(--border);
+}
+
+html[data-theme="dark"] .btn:hover {
+  background: #273449;
+  color: #fff;
+  border-color: #475569;
+}
+
+html[data-theme="dark"] .btn-primary {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #111827;
+}
+
+html[data-theme="dark"] .btn-primary:hover {
+  background: #6366f1;
+  border-color: #6366f1;
+  color: #fff;
+}
+
+html[data-theme="dark"] .btn-secondary {
+  background: #1e293b;
+}
+
+html[data-theme="dark"] .btn-warning {
+  background: #431407;
+  color: #fdba74;
+  border-color: #7c2d12;
+}
+
+html[data-theme="dark"] .btn-danger {
+  background: #1e293b;
+  color: #f87171;
+  border-color: #7f1d1d;
+}
+
+html[data-theme="dark"] .btn-danger:hover {
+  background: #450a0a;
+  border-color: #991b1b;
+}
+
+html[data-theme="dark"] .btn-ghost {
+  background: transparent;
+}
+
+
+/* ---------- Task actions ---------- */
+
+html[data-theme="dark"] .task-action {
+  background: #1e293b;
+  color: var(--text-soft);
+  border-color: var(--border);
+}
+
+html[data-theme="dark"] .task-action:hover {
+  background: var(--primary-soft);
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+html[data-theme="dark"] .task-action.danger:hover {
+  background: var(--danger-soft);
+  color: var(--danger);
+  border-color: #7f1d1d;
+}
+
+
+/* ---------- Forms ---------- */
+
+html[data-theme="dark"] .task-filters input,
+html[data-theme="dark"] .task-filters select,
+html[data-theme="dark"] .field input,
+html[data-theme="dark"] .field select,
+html[data-theme="dark"] .field textarea,
+html[data-theme="dark"] .fixed-time-config input,
+html[data-theme="dark"] .client-add-type-row input {
+  background: #0f172a;
+  color: var(--text);
+  border-color: var(--border);
+}
+
+html[data-theme="dark"] .task-filters input::placeholder,
+html[data-theme="dark"] .field input::placeholder,
+html[data-theme="dark"] .field textarea::placeholder,
+html[data-theme="dark"] .fixed-time-config input::placeholder,
+html[data-theme="dark"] .client-add-type-row input::placeholder {
+  color: #64748b;
+}
+
+html[data-theme="dark"] .task-filters input:focus,
+html[data-theme="dark"] .task-filters select:focus,
+html[data-theme="dark"] .field input:focus,
+html[data-theme="dark"] .field select:focus,
+html[data-theme="dark"] .field textarea:focus,
+html[data-theme="dark"] .fixed-time-config input:focus,
+html[data-theme="dark"] .client-add-type-row input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(129, 140, 248, .15);
+}
+
+html[data-theme="dark"] select option {
+  background: #0f172a;
+  color: var(--text);
+}
+
+
+/* ---------- Panels / cards ---------- */
+
+html[data-theme="dark"] .stat-card,
+html[data-theme="dark"] .panel,
+html[data-theme="dark"] .summary-card,
+html[data-theme="dark"] .breakdown-card {
+  background: var(--panel);
+  border-color: var(--border);
+}
+
+
+/* ---------- Tables ---------- */
+
+html[data-theme="dark"] .report-table th {
+  background: #172033;
+  color: var(--text-soft);
+}
+
+html[data-theme="dark"] .report-table td {
+  border-color: var(--border);
+}
+
+html[data-theme="dark"] .report-table tr:hover td {
+  background: #172033;
+}
+
+
+/* ---------- Progress bars ---------- */
+
+html[data-theme="dark"] .bar {
+  background: #263244;
+}
+
+
+/* ---------- Work entries ---------- */
+
+html[data-theme="dark"] .work-entry-list {
+  border-left-color: #334155;
+}
+
+
+/* ---------- Modal ---------- */
+
+html[data-theme="dark"] .modal-overlay {
+  background: rgba(0, 0, 0, .65);
+}
+
+html[data-theme="dark"] .modal {
+  background: #111827;
+  border-color: var(--border);
+  box-shadow: 0 25px 70px rgba(0, 0, 0, .45);
+}
+
+html[data-theme="dark"] .modal-close:hover {
+  color: #fff;
+}
+
+
+/* ---------- Fixed task badge ---------- */
+
+html[data-theme="dark"] .client-type-fixed-badge {
+  background: #1e1b4b;
+  border-color: #4338ca;
+  color: #a5b4fc;
+}
+
+
+/* ---------- Code ---------- */
+
+html[data-theme="dark"] code {
+  background: #1e293b;
+  color: #c7d2fe;
+}
+
+
+/* ---------- Empty states ---------- */
+
+html[data-theme="dark"] .empty-state {
+  background: #111827;
+}
+
+
+/* ---------- Theme toggle ---------- */
+
+.theme-toggle {
+  width: 100%;
+  border: 1px solid #374151;
+  background: #1f2937;
+  color: #e5e7eb;
+  border-radius: 8px;
+  padding: 9px 11px;
+
+  display: flex;
+  align-items: center;
+  gap: 9px;
+
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+
+  margin-bottom: 12px;
+
+  transition:
+    background .18s ease,
+    border-color .18s ease,
+    color .18s ease;
+}
+
+.theme-toggle:hover {
+  background: #273449;
+  border-color: #4b5563;
+}
+
+.theme-toggle span:first-child {
+  width: 18px;
+  text-align: center;
+}
+
+
+/* ---------- Dark mode sidebar ---------- */
+
+html[data-theme="dark"] .sidebar {
+  background: #0b1120;
+}
+
+html[data-theme="dark"] .nav-item:hover,
+html[data-theme="dark"] .nav-item.active {
+  background: #1e293b;
+}
+
+
+/* ---------- Text / separators ---------- */
+
+html[data-theme="dark"] .panel-header,
+html[data-theme="dark"] .topbar,
+html[data-theme="dark"] .task-filters,
+html[data-theme="dark"] .report-filters {
+  border-color: var(--border);
+}
+
+
+/* ---------- Scrollbars ---------- */
+
+html[data-theme="dark"] ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+html[data-theme="dark"] ::-webkit-scrollbar-track {
+  background: #0f172a;
+}
+
+html[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 999px;
+}
+
+html[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+  background: #475569;
 }

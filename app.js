@@ -13,6 +13,58 @@ import {
 
 const $ = (id) => document.getElementById(id);
 
+// ==================== THEME ====================
+
+function applyTheme(theme) {
+  const isDark = theme === "dark";
+
+  document.documentElement.dataset.theme =
+    isDark ? "dark" : "light";
+
+  const icon = $("themeToggleIcon");
+  const text = $("themeToggleText");
+
+  if (icon) {
+    icon.textContent = isDark ? "☀️" : "🌙";
+  }
+
+  if (text) {
+    text.textContent = isDark
+      ? "Light mode"
+      : "Dark mode";
+  }
+}
+
+function initTheme() {
+  const savedTheme =
+    localStorage.getItem("worklog-theme") || "light";
+
+  applyTheme(savedTheme);
+
+  const toggle = $("themeToggleBtn");
+
+  if (!toggle) return;
+
+  toggle.addEventListener("click", () => {
+    const current =
+      document.documentElement.dataset.theme || "light";
+
+    const next =
+      current === "dark"
+        ? "light"
+        : "dark";
+
+    localStorage.setItem(
+      "worklog-theme",
+      next
+    );
+
+    applyTheme(next);
+  });
+}
+
+initTheme();
+
 const TASK_TYPES = [
   "Article page creation",
   "Article page versioning",
