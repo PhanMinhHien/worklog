@@ -587,10 +587,8 @@ function renderTasks() {
 
   const sf = $("taskStatusFilter").value;
   const tf = $("taskTypeFilter").value;
-  // const lf = $("taskLogFilter")?.value || "all";
 
   const df = $("taskDateFilter")?.value || "all";
-  const customDate = $("taskCustomDate")?.value || "";
   const customDate = $("taskCustomDate")?.value || "";
 
   let tasks = state.tasks.filter(
@@ -612,23 +610,6 @@ function renderTasks() {
       (t) => t.type === tf
     );
   }
-
-  // Logging
-// if (lf !== "all") {
-//   tasks = tasks.filter((t) => {
-//     const minutes = taskMinutes(t.id);
-
-//     if (lf === "logged") {
-//       return minutes > 0;
-//     }
-
-//     if (lf === "not-logged") {
-//       return minutes <= 0;
-//     }
-
-//     return true;
-//   });
-// }
 
   // Date
   tasks = tasks.filter(
@@ -4326,7 +4307,6 @@ $("taskAssetAmount").oninput =
   $("taskSearch").oninput = renderTasks;
   $("taskStatusFilter").onchange = renderTasks;
   $("taskTypeFilter").onchange = renderTasks;
-  // $("taskLogFilter").onchange = renderTasks;
   $("showArchivedBtn").onclick = () => {
     state.showArchived = !state.showArchived;
     $("showArchivedBtn").textContent = state.showArchived
