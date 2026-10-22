@@ -2088,9 +2088,36 @@ html[data-theme="dark"] .nav-item.active {
 }
 
 
+/* ---------- Dark task ---------- */
+
+html[data-theme="dark"] .reason-option {
+     background: var(--panel);
+    border-color: var(--border);
+}
+html[data-theme="dark"] .quick-time {
+     background: var(--panel);
+    border-color: var(--border);
+}
+
 /* ---------- Dark work hours ---------- */
 
 html[data-theme="dark"] .work-day-metric {
+      background: var(--panel);
+    border-color: var(--border);
+}
+
+html[data-theme="dark"] .work-week-table th {
+      background: var(--panel);
+    border-color: var(--border);
+}
+html[data-theme="dark"] .workDayPreview {
+      background: var(--panel);
+    border-color: var(--border);
+}
+
+/* ---------- Dark Edit ---------- */
+
+html[data-theme="dark"] .client-type-editor-row {
       background: var(--panel);
     border-color: var(--border);
 }
