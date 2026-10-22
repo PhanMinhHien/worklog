@@ -2110,7 +2110,7 @@ html[data-theme="dark"] .work-week-table th {
       background: var(--panel);
     border-color: var(--border);
 }
-html[data-theme="dark"] .workDayPreview {
+html[data-theme="dark"] .work-day-preview {
       background: var(--panel);
     border-color: var(--border);
 }
