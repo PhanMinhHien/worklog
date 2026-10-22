@@ -1429,6 +1429,9 @@ function populateTaskTypeFilter() {
 
   if (!select) return;
 
+  // Preserve the current filter before rebuilding options.
+  const selectedType = select.value || "all";
+
   /*
    * Include configured client types
    * + legacy types still used by old tasks.
@@ -1452,6 +1455,16 @@ function populateTaskTypeFilter() {
           </option>`
       )
       .join("");
+
+  // Restore the filter if that type still exists.
+  if (
+    selectedType === "all" ||
+    types.includes(selectedType)
+  ) {
+    select.value = selectedType;
+  } else {
+    select.value = "all";
+  }
 }
 
 function renderClients() {
