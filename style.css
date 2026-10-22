@@ -610,7 +610,7 @@ body {
   padding: 14px 20px;
   border-bottom: 1px solid var(--border);
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 190px 190px 190px;
+  grid-template-columns: minmax(0, 1fr) 190px 190px 190px 190px;
   gap: 9px;
   align-items: center;
 }

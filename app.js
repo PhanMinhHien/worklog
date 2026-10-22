@@ -611,14 +611,14 @@ const df = $("taskDateFilter")?.value || "all";
       (t) => t.type === tf
     );
   }
- // Logging
+// Logging
 if (lf !== "all") {
   tasks = tasks.filter((t) => {
-    const minutes = taskMinutes(t.id);
+    const loggedMinutes = Number(t.loggedMinutes) || 0;
 
     return lf === "logged"
-      ? minutes > 0
-      : minutes === 0;
+      ? loggedMinutes > 0
+      : loggedMinutes === 0;
   });
 }
 
