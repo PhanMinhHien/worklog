@@ -1477,6 +1477,123 @@ function populateTaskTypeFilter() {
     select.value = "all";
   }
 }
+function populateTaskStatusFilter() {
+  const select = $("taskStatusFilter");
+
+  if (!select) return;
+
+  // Preserve current filter
+  const selectedStatus = select.value || "all";
+
+  const statuses = Object.entries(STATUS_META)
+    .filter(([key]) => key !== STATUS.ARCHIVED)
+    .map(([key, meta]) => ({
+      value: key,
+      label: `${meta.icon} ${meta.label}`,
+    }));
+
+  select.innerHTML =
+    `<option value="all">All statuses</option>` +
+    statuses
+      .map(
+        (status) =>
+          `<option value="${escapeHtml(status.value)}">
+            ${escapeHtml(status.label)}
+          </option>`
+      )
+      .join("");
+
+  // Restore current filter if it still exists
+  if (
+    selectedStatus === "all" ||
+    statuses.some(
+      (status) => status.value === selectedStatus
+    )
+  ) {
+    select.value = selectedStatus;
+  } else {
+    select.value = "all";
+  }
+}
+function populateTaskLogFilter() {
+  const select = $("taskLogFilter");
+
+  if (!select) return;
+
+  // Preserve current filter
+  const selectedLog = select.value || "all";
+
+  const options = [
+    {
+      value: "logged",
+      label: "Logged",
+    },
+    {
+      value: "not-logged",
+      label: "Not logged",
+    },
+  ];
+
+  select.innerHTML =
+    `<option value="all">All</option>` +
+    options
+      .map(
+        (option) =>
+          `<option value="${option.value}">
+            ${option.label}
+          </option>`
+      )
+      .join("");
+
+  // Restore current filter if it still exists
+  if (
+    selectedLog === "all" ||
+    options.some(
+      (option) => option.value === selectedLog
+    )
+  ) {
+    select.value = selectedLog;
+  } else {
+    select.value = "all";
+  }
+}
+
+function populateTaskDateFilter() {
+  const select = $("taskDateFilter");
+
+  if (!select) return;
+
+  // Preserve current filter
+  const selectedDate = select.value || "all";
+
+  // Keep the existing date-filter options
+  const options = Array.from(select.options).map(
+    (option) => ({
+      value: option.value,
+      label: option.textContent.trim(),
+    })
+  );
+
+  select.innerHTML = options
+    .map(
+      (option) =>
+        `<option value="${escapeHtml(option.value)}">
+          ${escapeHtml(option.label)}
+        </option>`
+    )
+    .join("");
+
+  // Restore current filter if it still exists
+  if (
+    options.some(
+      (option) => option.value === selectedDate
+    )
+  ) {
+    select.value = selectedDate;
+  } else {
+    select.value = "all";
+  }
+}
 
 function renderClients() {
   const container = $("clientsList");
@@ -2161,13 +2278,15 @@ async function deleteClient(clientId) {
 function fillSelects() {
   populateTaskClients("");
   populateTaskTypes("");
+
   populateTaskTypeFilter();
+  populateTaskStatusFilter();
+  populateTaskLogFilter();
+  populateTaskDateFilter();
 
   $("taskStatus").innerHTML =
     Object.entries(STATUS_META)
-      .filter(
-        ([k]) => k !== STATUS.ARCHIVED
-      )
+      .filter(([k]) => k !== STATUS.ARCHIVED)
       .map(
         ([k, v]) =>
           `<option value="${k}">
