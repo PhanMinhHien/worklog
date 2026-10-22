@@ -587,6 +587,7 @@ function renderTasks() {
 
   const sf = $("taskStatusFilter").value;
   const tf = $("taskTypeFilter").value;
+  const lf = $("taskLogFilter")?.value || "all";
 
   const df = $("taskDateFilter")?.value || "all";
   const customDate = $("taskCustomDate")?.value || "";
@@ -610,6 +611,22 @@ function renderTasks() {
       (t) => t.type === tf
     );
   }
+  // Logging
+if (lf !== "all") {
+  tasks = tasks.filter((t) => {
+    const loggedMinutes = taskMinutes(t.id);
+
+    if (lf === "logged") {
+      return loggedMinutes > 0;
+    }
+
+    if (lf === "not-logged") {
+      return loggedMinutes <= 0;
+    }
+
+    return true;
+  });
+}
 
   // Date
   tasks = tasks.filter(
@@ -4604,6 +4621,12 @@ $("taskAssetAmount").addEventListener(
 $("taskLoggedHours").addEventListener(
   "input",
   updateLoggedTimePreview
+);
+$("taskLogFilter")?.addEventListener(
+  "change",
+  () => {
+    renderTasks();
+  }
 );
 $("taskDateFilter")?.addEventListener(
   "change",
