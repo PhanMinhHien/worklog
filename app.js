@@ -2384,12 +2384,12 @@ function updateAssetTimePreview() {
 }
 
 function updateLoggedTimePreview() {
-  const hours = Math.max(
+  const loggedMinutes = Math.max(
     0,
-    Number($("taskLoggedHours").value) || 0
+    Math.round(
+      Number($("taskLoggedHours").value) || 0
+    )
   );
-
-  const loggedMinutes = Math.round(hours * 60);
 
   $("loggedTimePreview").textContent =
     `Logged: ${formatDuration(loggedMinutes)}`;
@@ -2467,9 +2467,9 @@ function openTaskModal(task = null) {
     task?.assetAmount || 1;
 
   $("taskLoggedHours").value =
-    task?.loggedMinutes
-      ? Number(task.loggedMinutes) / 60
-      : 0;
+  task?.loggedMinutes
+    ? Number(task.loggedMinutes)
+    : 0;
 
   updateAssetTimePreview();
   updateLoggedTimePreview();
@@ -3273,18 +3273,15 @@ const fixedMinutes =
       minutesPerAsset
     : 0;
 
-  const loggedHours =
-    Math.max(
-      0,
+  const loggedMinutes =
+  Math.max(
+    0,
+    Math.round(
       Number(
         $("taskLoggedHours").value
       ) || 0
-    );
-
-  const loggedMinutes =
-    Math.round(
-      loggedHours * 60
-    );
+    )
+  );
 
   const existingTask =
     id
@@ -3973,6 +3970,47 @@ function renderBars(target, map) {
         .join("")
     : `<div class="empty-small">No data for this period.</div>`;
 }
+
+function renderTypeBreakdown(typeMap) {
+  const rows = [...typeMap.entries()]
+    .sort((a, b) => b[1].time - a[1].time);
+
+  $("reportByType").innerHTML = rows.length
+    ? rows
+        .map(([name, data]) => {
+          const maxTime =
+            rows[0]?.[1]?.time || 1;
+
+          const width = Math.max(
+            3,
+            Math.round(
+              (data.time / maxTime) * 100
+            )
+          );
+
+          return `
+            <div class="breakdown-row">
+              <div>
+                <span>${escapeHtml(name)}</span>
+
+                <strong>
+                  ${formatDuration(data.time)}
+                </strong>
+              </div>
+
+              <div class="breakdown-meta">
+                ${data.assets} assets
+              </div>
+
+              <div class="bar">
+                <i style="width:${width}%"></i>
+              </div>
+            </div>
+          `;
+        })
+        .join("")
+    : `<div class="empty-small">No data for this period.</div>`;
+}
 function firstWorkLogDate(taskId) {
   const logs = state.workSessions
     .filter(
@@ -4023,7 +4061,7 @@ function renderReport() {
   // Aggregations
   const byP = new Map();
   const byT = new Map();
-
+const countedAssets = new Set();
 // Report rows are grouped by Task.
 // Date = first WorkLog date for that task.
 const rows = new Map();
@@ -4043,10 +4081,22 @@ for (const e of entries) {
   );
 
   // By Type
-  byT.set(
-    type,
-    (byT.get(type) || 0) + e.duration
-  );
+const existingType = byT.get(type) || {
+  time: 0,
+  assets: 0,
+};
+
+existingType.time += e.duration;
+
+// Count assets only once per task
+if (!countedAssets.has(e.taskId)) {
+  existingType.assets +=
+    Number(task.assetAmount) || 0;
+
+  countedAssets.add(e.taskId);
+}
+
+byT.set(type, existingType);
 
   // One row per Task
   const key = e.taskId;
@@ -4076,7 +4126,7 @@ for (const e of entries) {
 
   // Charts / breakdowns
   renderBars("reportByProject", byP);
-  renderBars("reportByType", byT);
+renderTypeBreakdown(byT);
 
   // Detailed report table
   const tableRows = [...rows.values()]
