@@ -1831,6 +1831,467 @@ body {
   white-space: nowrap;
 }
 
+.type-breakdown-row {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.type-breakdown-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.type-breakdown-header > span {
+  font-weight: 600;
+}
+
+.type-breakdown-details {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-left: 12px;
+  border-left: 2px solid var(--border);
+}
+
+.type-breakdown-section {
+  display: grid;
+  grid-template-columns: 110px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+}
+
+.type-breakdown-label {
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--text);
+}
+
+.type-breakdown-value {
+  color: var(--muted);
+}
+
+.type-breakdown-section strong {
+  font-weight: 600;
+}
+
+.type-breakdown-total {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-top: 8px;
+  margin-top: 2px;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.type-breakdown-total span {
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* ==================== APP LOCK ==================== */
+
+.lock-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 24px;
+
+  background: var(--bg, #f6f7f9);
+}
+
+.lock-screen.hidden {
+  display: none;
+}
+
+.lock-card {
+  width: min(420px, 100%);
+
+  padding: 32px;
+
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 18px;
+
+  background: var(--panel, #ffffff);
+
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.12);
+
+  text-align: center;
+}
+
+.lock-icon {
+  width: 64px;
+  height: 64px;
+
+  margin: 0 auto 18px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 50%;
+
+  background: var(--surface, #f1f3f5);
+
+  font-size: 28px;
+}
+
+.lock-card h1 {
+  margin: 0 0 8px;
+}
+
+.lock-card p {
+  margin: 0 0 24px;
+
+  color: var(--muted, #6b7280);
+}
+#appLockPasswordBtn {
+  margin-top: 20px;
+}
+.lock-card form {
+  text-align: left;
+}
+#lockAppBtn{
+  width: 100%;
+}
+.lock-card form button {
+  margin-top: 20px;
+}
+
+.lock-error {
+  margin: 10px 0 14px;
+
+  color: #dc2626;
+
+  font-size: 14px;
+}
+
+.lock-error.hidden {
+  display: none;
+}
+
+/* =========================================================
+   SCROLLABLE LISTS
+   ========================================================= */
+
+/* Dashboard */
+#todayWorkList,
+#recentActivityList,
+#dashboardTasks {
+  max-height: 420px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 6px;
+}
+
+/* Tasks */
+#tasksList {
+  max-height: 620px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 6px;
+}
+
+/* Settings - Clients */
+#clientsList {
+  max-height: 560px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 6px;
+}
+
+/* History modal */
+#historyContent {
+  max-height: 520px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 6px;
+}
+
+/* Reports - breakdowns */
+#reportByProject,
+#reportByType {
+  max-height: 420px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 6px;
+}
+
+/* Reports table */
+.table-wrapper {
+  max-height: 620px;
+  overflow: auto;
+}
+
+/* Work Hours table */
+.work-week-table-wrapper {
+  max-height: 560px;
+  overflow: auto;
+}
+
+
+/* =========================================================
+   CUSTOM SCROLLBAR
+   ========================================================= */
+
+#todayWorkList,
+#recentActivityList,
+#dashboardTasks,
+#tasksList,
+#clientsList,
+#historyContent,
+#reportByProject,
+#reportByType,
+.table-wrapper,
+.work-week-table-wrapper {
+  scrollbar-width: thin;
+}
+
+#todayWorkList::-webkit-scrollbar,
+#recentActivityList::-webkit-scrollbar,
+#dashboardTasks::-webkit-scrollbar,
+#tasksList::-webkit-scrollbar,
+#clientsList::-webkit-scrollbar,
+#historyContent::-webkit-scrollbar,
+#reportByProject::-webkit-scrollbar,
+#reportByType::-webkit-scrollbar,
+.table-wrapper::-webkit-scrollbar,
+.work-week-table-wrapper::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+#todayWorkList::-webkit-scrollbar-track,
+#recentActivityList::-webkit-scrollbar-track,
+#dashboardTasks::-webkit-scrollbar-track,
+#tasksList::-webkit-scrollbar-track,
+#clientsList::-webkit-scrollbar-track,
+#historyContent::-webkit-scrollbar-track,
+#reportByProject::-webkit-scrollbar-track,
+#reportByType::-webkit-scrollbar-track,
+.table-wrapper::-webkit-scrollbar-track,
+.work-week-table-wrapper::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+#todayWorkList::-webkit-scrollbar-thumb,
+#recentActivityList::-webkit-scrollbar-thumb,
+#dashboardTasks::-webkit-scrollbar-thumb,
+#tasksList::-webkit-scrollbar-thumb,
+#clientsList::-webkit-scrollbar-thumb,
+#historyContent::-webkit-scrollbar-thumb,
+#reportByProject::-webkit-scrollbar-thumb,
+#reportByType::-webkit-scrollbar-thumb,
+.table-wrapper::-webkit-scrollbar-thumb,
+.work-week-table-wrapper::-webkit-scrollbar-thumb {
+  background: var(--border, #d1d5db);
+  border-radius: 999px;
+}
+/* ==================== APP LOCK PASSWORD MODAL ==================== */
+
+#appLockPasswordModal.hidden {
+  display: none;
+}
+
+#appLockPasswordModal {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+#appLockPasswordModal .modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+}
+
+#appLockPasswordModal .modal-card {
+  position: relative;
+  z-index: 1;
+
+  width: min(460px, 100%);
+
+  padding: 28px;
+
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 18px;
+
+  background: var(--panel, #fff);
+
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.18);
+}
+
+#appLockPasswordModal .modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+
+  margin-bottom: 24px;
+}
+
+#appLockPasswordModal .modal-header h3 {
+  margin: 0 0 6px;
+}
+
+#appLockPasswordModal .modal-header p {
+  margin: 0;
+
+  color: var(--muted, #6b7280);
+
+  font-size: 14px;
+}
+
+#appLockPasswordModal .modal-close {
+  border: 0;
+  background: transparent;
+
+  font-size: 28px;
+  line-height: 1;
+
+  cursor: pointer;
+
+  color: var(--muted, #6b7280);
+}
+
+#appLockPasswordModal .field {
+  margin-bottom: 18px;
+}
+
+#appLockPasswordModal .modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+
+  margin-top: 24px;
+}
+
+.app-lock-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.app-lock-actions > div {
+  min-width: 0;
+}
+
+.app-lock-actions strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.app-lock-actions .settings-description {
+  margin: 0;
+}
+
+
+/* =========================
+   REPORT TASK LOG STATUS
+========================= */
+
+.report-table tr.task-log-incomplete {
+  background: #000;
+}
+
+.report-table tr.task-log-missing {
+  background: #000;
+}
+
+.report-table tr.task-log-incomplete td {
+  border-bottom-color: #f3dfad;
+}
+
+.report-table tr.task-log-missing td {
+  border-bottom-color: #f1caca;
+}
+
+.task-log-status {
+  display: inline-block;
+  padding: 3px 7px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .03em;
+}
+
+.task-log-incomplete .task-log-status {
+  background: #fff0c7;
+  color: #9a6700;
+}
+
+.task-log-missing .task-log-status {
+  background: #fde2e2;
+  color: #b42318;
+}
+
+.task-log-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.task-log-badge.not-logged {
+  background: #fde2e2;
+  color: #b42318;
+}
+
+#loggedTimeModal .field{
+  padding: 20px;
+}
+
+.task-log-badge.incomplete {
+  background: #fff0c7;
+  color: #9a6700;
+}
+
+.task-log-badge.complete {
+  background: #e7f6ec;
+  color: #18794e;
+}
+
+.task-log-badge.no-plan {
+  background: #eef0f3;
+  color: #667085;
+}
+.quick-log-action {
+  font-weight: 700;
+}
+@media (max-width: 640px) {
+  .app-lock-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .app-lock-actions .btn {
+    width: 100%;
+  }
+}
 /* =========================================================
    DARK MODE
    ========================================================= */
