@@ -15,6 +15,61 @@ import {
 
 const $ = (id) => document.getElementById(id);
 
+
+// ==================== BASIC UI PROTECTION ====================
+
+// Disable right-click
+document.addEventListener("contextmenu", (e) => {
+  e.preventDefault();
+});
+
+// Disable common source/devtools shortcuts
+document.addEventListener("keydown", (e) => {
+  // F12
+  if (e.key === "F12") {
+    e.preventDefault();
+    return;
+  }
+
+  // Ctrl + U / Cmd + U — View Source
+  if (
+    (e.ctrlKey || e.metaKey) &&
+    e.key.toLowerCase() === "u"
+  ) {
+    e.preventDefault();
+    return;
+  }
+
+  // Ctrl + Shift + I / Cmd + Option + I — DevTools
+  if (
+    (e.ctrlKey || e.metaKey) &&
+    e.shiftKey &&
+    e.key.toLowerCase() === "i"
+  ) {
+    e.preventDefault();
+    return;
+  }
+
+  // Ctrl + Shift + J / Cmd + Option + J — Console
+  if (
+    (e.ctrlKey || e.metaKey) &&
+    e.shiftKey &&
+    e.key.toLowerCase() === "j"
+  ) {
+    e.preventDefault();
+    return;
+  }
+
+  // Ctrl + Shift + C / Cmd + Shift + C — Inspect Element
+  if (
+    (e.ctrlKey || e.metaKey) &&
+    e.shiftKey &&
+    e.key.toLowerCase() === "c"
+  ) {
+    e.preventDefault();
+    return;
+  }
+});
 // ==================== THEME ====================
 
 function applyTheme(theme) {
