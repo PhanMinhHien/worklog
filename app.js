@@ -5461,7 +5461,7 @@ function clearDataUI() {
 }
 
 function showDataLockedState() {
-  $("dataLockBanner")?.classList.remove("hidden");
+  // $("dataLockBanner")?.classList.remove("hidden");
   $("dataUnlockBtn")?.classList.remove("hidden");
   $("dataLockBtn")?.classList.add("hidden");
 }
