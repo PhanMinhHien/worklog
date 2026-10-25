@@ -15,63 +15,6 @@ import {
 
 const $ = (id) => document.getElementById(id);
 
-
-// ==================== BASIC UI PROTECTION ====================
-
-// Disable right-click
-document.addEventListener("contextmenu", (e) => {
-  e.preventDefault();
-});
-
-// Disable common source/devtools shortcuts
-document.addEventListener("keydown", (e) => {
-  // F12
-  if (e.key === "F12") {
-    e.preventDefault();
-    return;
-  }
-
-  // Ctrl + U / Cmd + U — View Source
-  if (
-    (e.ctrlKey || e.metaKey) &&
-    e.key.toLowerCase() === "u"
-  ) {
-    e.preventDefault();
-    return;
-  }
-
-  // Ctrl + Shift + I / Cmd + Option + I — DevTools
-  if (
-    (e.ctrlKey || e.metaKey) &&
-    e.shiftKey &&
-    e.key.toLowerCase() === "i"
-  ) {
-    e.preventDefault();
-    return;
-  }
-
-  // Ctrl + Shift + J / Cmd + Option + J — Console
-  if (
-    (e.ctrlKey || e.metaKey) &&
-    e.shiftKey &&
-    e.key.toLowerCase() === "j"
-  ) {
-    e.preventDefault();
-    return;
-  }
-
-  // Ctrl + Shift + C / Cmd + Shift + C — Inspect Element
-  if (
-    (e.ctrlKey || e.metaKey) &&
-    e.shiftKey &&
-    e.key.toLowerCase() === "c"
-  ) {
-    e.preventDefault();
-    return;
-  }
-});
-// ==================== THEME ====================
-
 function applyTheme(theme) {
   const isDark = theme === "dark";
 
@@ -140,7 +83,7 @@ const STATUS = {
   OPEN: "open",
   IN_PROGRESS: "in_progress",
   WAITING: "waiting",
-  // BLOCKED: "blocked",
+
   COMPLETED: "completed",
   ARCHIVED: "archived",
 };
@@ -148,7 +91,7 @@ const STATUS_META = {
   open: { label: "New", icon: "🟡", cls: "status-open" },
   in_progress: { label: "In Approval", icon: "🔵", cls: "status-progress" },
   waiting: { label: "Waiting", icon: "🟣", cls: "status-waiting" },
-  // blocked: { label: "Blocked", icon: "🟠", cls: "status-blocked" },
+
   completed: { label: "Completed", icon: "🟢", cls: "status-completed" },
   archived: { label: "Archived", icon: "⚫", cls: "status-archived" },
 };
@@ -163,16 +106,72 @@ const state = {
   showArchived: false,
   pendingConfirm: null,
 };
-// ==================== DATA LOCK ====================
+
+let dataLockCountdownTimer = null;
+
+function clearDataLockCountdown() {
+  if (dataLockCountdownTimer) {
+    clearInterval(dataLockCountdownTimer);
+    dataLockCountdownTimer = null;
+  }
+}
+
+function formatDataLockCountdown(ms) {
+  const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
+
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  return `${hours}h ${String(minutes).padStart(2, "0")}m ${String(
+    seconds,
+  ).padStart(2, "0")}s`;
+}
+
+function renderDataLockCountdown() {
+  const el = $("appLockSessionStatus");
+
+  if (!el) return;
+
+  const expiresAt = Number(
+    sessionStorage.getItem(DATA_UNLOCK_EXPIRES_KEY) || 0,
+  );
+
+  if (!dataUnlocked || !expiresAt) {
+    el.textContent = "Locked";
+    return;
+  }
+
+  const remainingMs = expiresAt - Date.now();
+
+  if (remainingMs <= 0) {
+    el.textContent = "Expired";
+    return;
+  }
+
+  el.textContent = `Expires in ${formatDataLockCountdown(remainingMs)}`;
+}
+
+function startDataLockCountdown() {
+  clearDataLockCountdown();
+
+  renderDataLockCountdown();
+
+  dataLockCountdownTimer = setInterval(() => {
+    renderDataLockCountdown();
+  }, 1000);
+}
 
 const APP_LOCK_DOC = "appLock";
 
-// Data sẽ tự khóa sau 2 giờ kể từ lúc unlock.
-// 120 phút = 2 giờ.
-const DATA_SESSION_MINUTES = 120;
+const DATA_SESSION_MINUTES = 240;
 const DATA_SESSION_MS = DATA_SESSION_MINUTES * 60 * 1000;
 
-let dataUnlocked = false;
+const DATA_UNLOCK_EXPIRES_KEY = "worklog-data-unlock-expires-at";
+
+let dataUnlocked =
+  Number(sessionStorage.getItem(DATA_UNLOCK_EXPIRES_KEY) || 0) > Date.now();
+
 let dataLockTimer = null;
 
 let appLockPasswordHash = "";
@@ -231,15 +230,9 @@ async function loadWorkHoursSettings() {
 
     const data = snap.data();
 
-    dailyTargetMinutes = Math.max(
-      0,
-      Number(data.dailyTargetMinutes) || 0,
-    );
+    dailyTargetMinutes = Math.max(0, Number(data.dailyTargetMinutes) || 0);
 
-    openingFlexiMinutes = Math.max(
-      0,
-      Number(data.openingFlexiMinutes) || 0,
-    );
+    openingFlexiMinutes = Math.max(0, Number(data.openingFlexiMinutes) || 0);
 
     return true;
   } catch (err) {
@@ -263,10 +256,7 @@ function renderWorkHoursSettings() {
 async function saveWorkHoursSettings(e) {
   e.preventDefault();
 
-  const dailyTarget = Math.max(
-    0,
-    Number($("dailyTargetMinutes")?.value) || 0,
-  );
+  const dailyTarget = Math.max(0, Number($("dailyTargetMinutes")?.value) || 0);
 
   const openingFlexi = Math.max(
     0,
@@ -450,16 +440,11 @@ const correctionMinutes = (id) =>
     .filter((x) => x.taskId === id)
     .reduce((s, x) => s + (Number(x.duration) || 0), 0);
 
-// =========================
-// WORK HOURS / FLEXI SETTINGS
-// =========================
-
 const WORK_HOURS_SETTINGS_DOC = "workHours";
 
 let dailyTargetMinutes = 0;
 let openingFlexiMinutes = 0;
-// const dailyTargetMinutes = 480;
-// const openingFlexiMinutes = 10461;
+
 function localDateString(date = new Date()) {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, "0");
@@ -495,13 +480,12 @@ function calculateWorkDay(checkIn, checkOut, lunchMinutes = 0) {
 
   let gross = end - start;
 
-  // Supports an overnight shift if needed.
   if (gross < 0) {
     gross += 24 * 60;
   }
 
   const actual = Math.max(0, gross - lunch);
-const target = dailyTargetMinutes;
+  const target = dailyTargetMinutes;
   return {
     actualMinutes: actual,
     normalMinutes: Math.min(actual, target),
@@ -586,12 +570,6 @@ function statusBadge(status) {
   const s = STATUS_META[status] || STATUS_META.open;
   return `<span class="status-badge ${s.cls}">${s.icon} ${s.label}</span>`;
 }
-// function taskDates(id) {
-//   const dates = [...state.workSessions, ...state.corrections]
-//     .filter((x) => x.taskId === id && x.date)
-//     .map((x) => x.date);
-//   return [...new Set(dates)].sort().reverse();
-// }
 
 function taskDates(id) {
   const dates = [...state.workSessions, ...state.corrections]
@@ -615,80 +593,6 @@ function dateValue(ts) {
 function sortNewest(a, b) {
   return dateValue(b.createdAt) - dateValue(a.createdAt);
 }
-// function renderTask(task, compact = false) {
-//   const total = taskMinutes(task.id),
-//     dates = taskDates(task.id),
-//     s = STATUS_META[task.status] || STATUS_META.open;
-
-//   const firstWorkDate = dates.length ? dates[dates.length - 1] : "";
-
-//   const worked = firstWorkDate ? shortDate(firstWorkDate) : "No work date yet";
-
-//   return `<div class="task-row ${task.status === STATUS.ARCHIVED ? "is-archived" : ""}">
-//     <div class="task-main">
-
-//       <div class="task-title-line">
-//         <div class="task-title">${escapeHtml(task.title)}</div>
-//       </div>
-
-//       <div class="task-meta">
-//         <span>${escapeHtml(task.project || "No project")}</span>
-//         <span>•</span>
-//         <span>${escapeHtml(task.type || "Other")}</span>
-//         ${statusBadge(task.status)}
-//       </div>
-
-//       <div class="task-context">
-//         <span>Worked: ${escapeHtml(worked)}</span>
-//         <span>•</span>
-//         <span>Last activity: ${escapeHtml(lastActivity(task.id))}</span>
-//       </div>
-
-//       <div class="task-context task-time-context">
-
-//         ${
-//           total > 0
-//             ? `<span>WorkLog: <strong>${formatDuration(total)}</strong></span>`
-//             : ""
-//         }
-
-//         ${
-//           task.loggedMinutes > 0
-//             ? `<span>Logged: <strong>${formatDuration(task.loggedMinutes)}</strong></span>`
-//             : ""
-//         }
-//       </div>
-
-//       ${
-//         !compact && task.note
-//           ? `<div class="task-note">${escapeHtml(task.note)}</div>`
-//           : ""
-//       }
-
-//     </div>
-
-//     <div class="task-actions">
-//       ${
-//         compact
-//           ? `<button class="task-action" data-action="history" data-task-id="${task.id}">History</button>`
-//           : `
-//         <button class="task-action" data-action="add-time" data-task-id="${task.id}">+ Time</button>
-//         <button class="task-action" data-action="correction" data-task-id="${task.id}">Correction</button>
-//         <button class="task-action" data-action="history" data-task-id="${task.id}">History</button>
-//         <button class="task-action" data-action="edit" data-task-id="${task.id}">Edit</button>
-//         ${
-//           task.status === STATUS.ARCHIVED
-//             ? `<button class="task-action" data-action="unarchive" data-task-id="${task.id}">Unarchive</button>`
-//             : `<button class="task-action" data-action="status-next" data-task-id="${task.id}">
-//                 ${task.status === STATUS.COMPLETED ? "Reopen" : "Status"}
-//               </button>
-//               <button class="task-action danger" data-action="archive" data-task-id="${task.id}">Archive</button>`
-//         }
-//       `
-//       }
-//     </div>
-//   </div>`;
-// }
 
 function renderTask(task, compact = false) {
   const total = taskMinutes(task.id),
@@ -699,7 +603,6 @@ function renderTask(task, compact = false) {
 
   const worked = firstWorkDate ? shortDate(firstWorkDate) : "No work date yet";
 
-  // Logging status
   const fixedMinutes = Number(task.fixedMinutes) || 0;
 
   const taskCorrectionMinutes = correctionMinutes(task.id);
@@ -834,182 +737,6 @@ function renderTask(task, compact = false) {
     </div>
   </div>`;
 }
-// function renderTask(task, compact = false) {
-//   const total = taskMinutes(task.id),
-//     dates = taskDates(task.id),
-//     s = STATUS_META[task.status] || STATUS_META.open;
-//   const worked = dates.length
-//     ? dates.slice(0, 3).map(shortDate).join(" · ")
-//     : "No time logged yet";
-//   return `<div class="task-row ${task.status === STATUS.ARCHIVED ? "is-archived" : ""}">
-//     <div class="task-main">
-// <div class="task-title-line">
-//   <div class="task-title">${escapeHtml(task.title)}</div>
-
-//   <div class="task-time-summary">
-//     ${
-//       task.loggedMinutes
-//         ? `<strong class="task-total">
-//             Logged ${formatDuration(task.loggedMinutes)}
-//           </strong>`
-//         : ""
-//     }
-
-//     ${
-//       task.fixedMinutes
-//         ? `<span class="task-fixed-time">
-//             Fixed ${formatDuration(task.fixedMinutes)}
-//           </span>`
-//         : ""
-//     }
-
-//     ${
-//       total
-//         ? `<span class="task-recorded-time">
-//             WorkLog ${formatDuration(total)}
-//           </span>`
-//         : ""
-//     }
-//   </div>
-// </div>
-//       <div class="task-meta"><span>${escapeHtml(task.project || "No project")}</span><span>•</span><span>${escapeHtml(task.type || "Other")}</span>${statusBadge(task.status)}</div>
-//       <div class="task-context"><span>Worked: ${escapeHtml(worked)}</span><span>•</span><span>Last activity: ${escapeHtml(lastActivity(task.id))}</span></div>
-//       ${!compact && task.note ? `<div class="task-note">${escapeHtml(task.note)}</div>` : ""}
-//     </div>
-//     <div class="task-actions">
-//       ${
-//         compact
-//           ? `<button class="task-action" data-action="history" data-task-id="${task.id}">History</button>`
-//           : `
-//         <button class="task-action" data-action="add-time" data-task-id="${task.id}">+ Time</button>
-//         <button class="task-action" data-action="correction" data-task-id="${task.id}">Correction</button>
-//         <button class="task-action" data-action="history" data-task-id="${task.id}">History</button>
-//         <button class="task-action" data-action="edit" data-task-id="${task.id}">Edit</button>
-//         ${
-//           task.status === STATUS.ARCHIVED
-//             ? `<button class="task-action" data-action="unarchive" data-task-id="${task.id}">Unarchive</button>`
-//             : `<button class="task-action" data-action="status-next" data-task-id="${task.id}">${task.status === STATUS.COMPLETED ? "Reopen" : "Status"}</button>
-//            <button class="task-action danger" data-action="archive" data-task-id="${task.id}">Archive</button>`
-//         }
-//       `
-//       }
-//     </div>
-//   </div>`;
-// }
-
-// function renderTasks() {
-//   const q = ($("taskSearch").value || "").toLowerCase().trim();
-
-//   const sf = $("taskStatusFilter").value;
-//   const tf = $("taskTypeFilter").value;
-//   const lf = $("taskLogFilter")?.value || "all";
-
-//   const df = $("taskDateFilter")?.value || "all";
-//   const customDate = $("taskCustomDate")?.value || "";
-
-//   let tasks = state.tasks.filter(
-//     (t) => state.showArchived || t.status !== STATUS.ARCHIVED,
-//   );
-
-//   // Status
-//   if (sf !== "all") {
-//     tasks = tasks.filter((t) => t.status === sf);
-//   }
-
-//   // Type
-//   if (tf !== "all") {
-//     tasks = tasks.filter((t) => t.type === tf);
-//   }
-//   // Logging
-//   if (lf !== "all") {
-//     tasks = tasks.filter((t) => {
-//       const loggedMinutes = Number(t.loggedMinutes) || 0;
-
-//       return lf === "logged" ? loggedMinutes > 0 : loggedMinutes === 0;
-//     });
-//   }
-
-//   // Date
-//   tasks = tasks.filter((t) => taskMatchesDateFilter(t, df, customDate));
-
-//   // Search
-//   if (q) {
-//     tasks = tasks.filter((t) =>
-//       [t.title, t.project, t.note, t.type, t.url].some((v) =>
-//         String(v || "")
-//           .toLowerCase()
-//           .includes(q),
-//       ),
-//     );
-//   }
-
-//  tasks.sort((a, b) => {
-//   const getLogPriority = (task) => {
-//     const fixedMinutes =
-//       Number(task.fixedMinutes) || 0;
-
-//     const correctionMinutes =
-//       Number(task.correctionMinutes) || 0;
-
-//     const requiredMinutes =
-//       fixedMinutes + correctionMinutes;
-
-//     const loggedMinutes =
-//       Number(task.loggedMinutes) || 0;
-
-//     // 0 = NOT LOGGED
-//     if (requiredMinutes > 0 && loggedMinutes <= 0) {
-//       return 0;
-//     }
-
-//     // 1 = INCOMPLETE
-//     if (
-//       requiredMinutes > 0 &&
-//       loggedMinutes < requiredMinutes
-//     ) {
-//       return 1;
-//     }
-
-//     // 2 = COMPLETE
-//     if (
-//       requiredMinutes > 0 &&
-//       loggedMinutes >= requiredMinutes
-//     ) {
-//       return 2;
-//     }
-
-//     // 3 = NO PLAN
-//     return 3;
-//   };
-
-//   const statusCompare =
-//     getLogPriority(a) -
-//     getLogPriority(b);
-
-//   if (statusCompare !== 0) {
-//     return statusCompare;
-//   }
-
-//   // Same logging status → newest updated task first
-//   return (
-//     dateValue(b.updatedAt || b.createdAt) -
-//     dateValue(a.updatedAt || a.createdAt)
-//   );
-// });
-
-//   $("tasksList").innerHTML = tasks.length
-//     ? tasks.map((t) => renderTask(t)).join("")
-//     : `
-//       <div class="empty-state">
-//         <div class="empty-title">
-//           No tasks found
-//         </div>
-//         <div class="empty-text">
-//           Try another filter or create a new task.
-//         </div>
-//       </div>
-//     `;
-// }
 
 function renderTasks() {
   const q = ($("taskSearch").value || "").toLowerCase().trim();
@@ -1025,17 +752,14 @@ function renderTasks() {
     (t) => state.showArchived || t.status !== STATUS.ARCHIVED,
   );
 
-  // Status
   if (sf !== "all") {
     tasks = tasks.filter((t) => t.status === sf);
   }
 
-  // Type
   if (tf !== "all") {
     tasks = tasks.filter((t) => t.type === tf);
   }
 
-  // Logging
   if (lf !== "all") {
     tasks = tasks.filter((t) => {
       const loggedMinutes = Number(t.loggedMinutes) || 0;
@@ -1044,10 +768,8 @@ function renderTasks() {
     });
   }
 
-  // Date
   tasks = tasks.filter((t) => taskMatchesDateFilter(t, df, customDate));
 
-  // Search
   if (q) {
     tasks = tasks.filter((t) =>
       [t.title, t.project, t.note, t.type, t.url].some((v) =>
@@ -1058,7 +780,6 @@ function renderTasks() {
     );
   }
 
-  // Logging status priority
   tasks.sort((a, b) => {
     const getLogPriority = (task) => {
       const fixedMinutes = Number(task.fixedMinutes) || 0;
@@ -1069,22 +790,18 @@ function renderTasks() {
 
       const loggedMinutes = Number(task.loggedMinutes) || 0;
 
-      // 0 = NOT LOGGED
       if (requiredMinutes > 0 && loggedMinutes <= 0) {
         return 0;
       }
 
-      // 1 = INCOMPLETE
       if (requiredMinutes > 0 && loggedMinutes < requiredMinutes) {
         return 1;
       }
 
-      // 2 = LOGGED
       if (requiredMinutes > 0 && loggedMinutes >= requiredMinutes) {
         return 2;
       }
 
-      // 3 = NO PLAN
       return 3;
     };
 
@@ -1094,7 +811,6 @@ function renderTasks() {
       return statusCompare;
     }
 
-    // Same logging status → newest updated task first
     return (
       dateValue(b.updatedAt || b.createdAt) -
       dateValue(a.updatedAt || a.createdAt)
@@ -1114,38 +830,11 @@ function renderTasks() {
       </div>
     `;
 }
-// function renderTasks() {
-//   const q = ($("taskSearch").value || "").toLowerCase().trim();
-//   const sf = $("taskStatusFilter").value,
-//     tf = $("taskTypeFilter").value;
-//   let tasks = state.tasks.filter(
-//     (t) => state.showArchived || t.status !== STATUS.ARCHIVED,
-//   );
-//   if (sf !== "all") tasks = tasks.filter((t) => t.status === sf);
-//   if (tf !== "all") tasks = tasks.filter((t) => t.type === tf);
-//   if (q)
-//     tasks = tasks.filter((t) =>
-//       [t.title, t.project, t.note, t.type, t.url].some((v) =>
-//         String(v || "")
-//           .toLowerCase()
-//           .includes(q),
-//       ),
-//     );
-//   tasks.sort(
-//     (a, b) =>
-//       dateValue(b.updatedAt || b.createdAt) -
-//       dateValue(a.updatedAt || a.createdAt),
-//   );
-//   $("tasksList").innerHTML = tasks.length
-//     ? tasks.map((t) => renderTask(t)).join("")
-//     : `<div class="empty-state"><div class="empty-title">No tasks found</div><div class="empty-text">Try another filter or create a new task.</div></div>`;
-// }
 
 function startOfWeek(date) {
   const d = new Date(date);
   const day = d.getDay();
 
-  // Monday = first day of week
   const diff = day === 0 ? -6 : 1 - day;
 
   d.setDate(d.getDate() + diff);
@@ -1412,43 +1101,6 @@ function updateDashboard() {
   renderWorkHours();
 }
 
-// function updateDashboard() {
-//   const d = today(),
-//     normal = state.workSessions.filter((x) => x.date === d),
-//     corr = state.corrections.filter((x) => x.date === d);
-//   const nm = normal.reduce((s, x) => s + (Number(x.duration) || 0), 0),
-//     cm = corr.reduce((s, x) => s + (Number(x.duration) || 0), 0);
-//   const ids = new Set(
-//     [...normal, ...corr].map((x) => x.taskId).filter((id) => getTask(id)),
-//   );
-//   const fm = state.tasks
-//   .filter(
-//     (task) =>
-//       task.fixedMinutes > 0 &&
-//       task.fixedDate === today()
-//   )
-//   .reduce(
-//     (sum, task) =>
-//       sum + (Number(task.fixedMinutes) || 0),
-//     0
-//   );
-// $("statTodayTime").textContent =
-//     formatDuration(nm + cm + fm);
-//   $("statTasksWorked").textContent = ids.size;
-//   $("statCorrections").textContent = corr.length;
-//   $("statOpenTasks").textContent = state.tasks.filter((t) =>
-//     [STATUS.OPEN, STATUS.IN_PROGRESS, STATUS.WAITING, STATUS.BLOCKED].includes(
-//       t.status,
-//     ),
-//   ).length;
-//   $("summaryWorked").textContent = formatDuration(nm + cm);
-//   $("summaryTasks").textContent = ids.size;
-//   $("summaryCorrections").textContent = corr.length;
-//   renderToday();
-//   renderDashboardTasks();
-//   renderRecentActivity();
-//   renderWorkHours();
-// }
 function renderWorkHours() {
   const date = today();
   const day = getWorkDay(date);
@@ -1468,25 +1120,20 @@ function renderWorkHours() {
 
   $("workWeekActual").textContent = formatDuration(weekActualMinutes(date));
 
-  // $("flexiOpening").textContent = formatFlexi(openingFlexiMinutes);
-$("flexiOpening").textContent =
-  formatFlexi(openingFlexiMinutes);
+  $("flexiOpening").textContent = formatFlexi(openingFlexiMinutes);
 
-$("flexiWeekAdded").textContent =
-  formatFlexi(weekFlexiMinutes(date));
+  $("flexiWeekAdded").textContent = formatFlexi(weekFlexiMinutes(date));
 
-$("flexiAvailable").textContent =
-  formatFlexi(availableFlexiMinutes(date));
+  $("flexiAvailable").textContent = formatFlexi(availableFlexiMinutes(date));
 
-$("workAvailableFlexi").textContent =
-  formatFlexi(availableFlexiMinutes(date));
+  $("workAvailableFlexi").textContent = formatFlexi(
+    availableFlexiMinutes(date),
+  );
 
-$("workFlexiHelper").textContent =
-  `${formatFlexi(openingFlexiMinutes)} opening + ${formatFlexi(
-    weekFlexiMinutes(date),
-  )} this week`;
-  // $("workFlexiHelper").textContent =
-  //   `${formatFlexi(openingFlexiMinutes)} opening + ${formatFlexi(weekFlexiMinutes(date))} this week`;
+  $("workFlexiHelper").textContent =
+    `${formatFlexi(openingFlexiMinutes)} opening + ${formatFlexi(
+      weekFlexiMinutes(date),
+    )} this week`;
 
   $("workWeekFlexi").textContent =
     `${formatFlexi(weekFlexiMinutes(date))} flexi`;
@@ -1807,7 +1454,6 @@ function populateTaskTypeFilter() {
 
   if (!select) return;
 
-  // Preserve the current filter before rebuilding options.
   const selectedType = select.value || "all";
 
   /*
@@ -1832,7 +1478,6 @@ function populateTaskTypeFilter() {
       )
       .join("");
 
-  // Restore the filter if that type still exists.
   if (selectedType === "all" || types.includes(selectedType)) {
     select.value = selectedType;
   } else {
@@ -1844,7 +1489,6 @@ function populateTaskStatusFilter() {
 
   if (!select) return;
 
-  // Preserve current filter
   const selectedStatus = select.value || "all";
 
   const statuses = Object.entries(STATUS_META)
@@ -1865,7 +1509,6 @@ function populateTaskStatusFilter() {
       )
       .join("");
 
-  // Restore current filter if it still exists
   if (
     selectedStatus === "all" ||
     statuses.some((status) => status.value === selectedStatus)
@@ -1880,7 +1523,6 @@ function populateTaskLogFilter() {
 
   if (!select) return;
 
-  // Preserve current filter
   const selectedLog = select.value || "all";
 
   const options = [
@@ -1905,7 +1547,6 @@ function populateTaskLogFilter() {
       )
       .join("");
 
-  // Restore current filter if it still exists
   if (
     selectedLog === "all" ||
     options.some((option) => option.value === selectedLog)
@@ -1921,10 +1562,8 @@ function populateTaskDateFilter() {
 
   if (!select) return;
 
-  // Preserve current filter
   const selectedDate = select.value || "all";
 
-  // Keep the existing date-filter options
   const options = Array.from(select.options).map((option) => ({
     value: option.value,
     label: option.textContent.trim(),
@@ -1939,7 +1578,6 @@ function populateTaskDateFilter() {
     )
     .join("");
 
-  // Restore current filter if it still exists
   if (options.some((option) => option.value === selectedDate)) {
     select.value = selectedDate;
   } else {
@@ -2400,60 +2038,6 @@ async function saveClient(e) {
   }
 }
 
-// async function deleteClient(clientId) {
-//   const client = getClient(clientId);
-
-//   if (!client) return;
-
-//   const affectedTasks =
-//     state.tasks.filter(
-//       (task) =>
-//         task.clientId === clientId ||
-//         (
-//           !task.clientId &&
-//           String(task.project || "")
-//             .trim()
-//             .toLowerCase() ===
-//             String(client.name || "")
-//               .trim()
-//               .toLowerCase()
-//         )
-//     );
-
-//   if (affectedTasks.length) {
-//     return notify(
-//       `Cannot delete "${client.name}" because ${affectedTasks.length} task(s) are using this client.`,
-//       "warning"
-//     );
-//   }
-
-//   showConfirm({
-//     title: "Delete Client",
-//     message:
-//       `Delete "${client.name}" and all of its task type settings?`,
-//     confirmText: "Delete",
-//     danger: true,
-//   }, async () => {
-//     try {
-//       await deleteDoc(
-//         doc(db, "clients", clientId)
-//       );
-
-//       notify("Client deleted.");
-
-//       renderClients();
-//       populateTaskClients("");
-//       populateTaskTypeFilter();
-
-//     } catch (err) {
-//       notify(
-//         err.message ||
-//           "Could not delete client.",
-//         "error"
-//       );
-//     }
-//   });
-// }
 async function deleteClient(clientId) {
   const client = getClient(clientId);
 
@@ -2499,20 +2083,7 @@ async function deleteClient(clientId) {
     danger: true,
   });
 }
-// function fillSelects() {
-//   $("taskType").innerHTML = TASK_TYPES.map(
-//     (x) => `<option value="${escapeHtml(x)}">${escapeHtml(x)}</option>`,
-//   ).join("");
-//   $("taskTypeFilter").innerHTML =
-//     `<option value="all">All types</option>` +
-//     TASK_TYPES.map(
-//       (x) => `<option value="${escapeHtml(x)}">${escapeHtml(x)}</option>`,
-//     ).join("");
-//   $("taskStatus").innerHTML = Object.entries(STATUS_META)
-//     .filter(([k]) => k !== STATUS.ARCHIVED)
-//     .map(([k, v]) => `<option value="${k}">${v.icon} ${v.label}</option>`)
-//     .join("");
-// }
+
 function fillSelects() {
   populateTaskClients("");
   populateTaskTypes("");
@@ -2680,29 +2251,6 @@ async function quickLogTask(task) {
     notify(err.message || "Could not update logged time.", "error");
   }
 }
-// function openTaskModal(task = null) {
-//   $("taskId").value = task?.id || "";
-//   $("taskModalTitle").textContent = task ? "Edit Task" : "New Task";
-//   $("taskTitle").value = task?.title || "";
-//   $("taskProject").value = task?.project || "ALSO";
-//   $("taskType").value = task?.type || TASK_TYPES[0];
-//   $("taskStatus").value = task?.status || STATUS.OPEN;
-//   $("taskUrl").value = task?.url || "";
-//   $("taskNote").value = task?.note || "";
-
-//   $("taskAssetAmount").value =
-//     task?.assetAmount || 1;
-
-//   $("taskLoggedHours").value =
-//     task?.loggedMinutes
-//       ? Number(task.loggedMinutes) / 60
-//       : 0;
-
-//   updateAssetTimePreview();
-//   updateLoggedTimePreview();
-
-//   openModal("taskModal");
-// }
 
 function openTaskModal(task = null) {
   $("taskId").value = task?.id || "";
@@ -2746,23 +2294,6 @@ function openTaskModal(task = null) {
 
   openModal("taskModal");
 }
-// function openTaskModal(task = null) {
-//   $("taskId").value = task?.id || "";
-//   $("taskModalTitle").textContent = task ? "Edit Task" : "New Task";
-//   $("taskTitle").value = task?.title || "";
-//   $("taskProject").value = task?.project || "ALSO";
-//   $("taskType").value = task?.type || TASK_TYPES[0];
-//   $("taskStatus").value = task?.status || STATUS.OPEN;
-//   $("taskUrl").value = task?.url || "";
-//   $("taskNote").value = task?.note || "";
-
-//   $("taskAssetAmount").value =
-//     task?.assetAmount || 1;
-
-//   updateAssetTimePreview();
-
-//   openModal("taskModal");
-// }
 
 function openTimeModal(taskId, entry = null) {
   const t = getTask(taskId);
@@ -2790,17 +2321,7 @@ function openTimeModal(taskId, entry = null) {
 
   openModal("timeModal");
 }
-// function openTimeModal(taskId) {
-//   const t = getTask(taskId);
-//   if (!t) return;
-//   $("timeTaskId").value = taskId;
-//   $("timeModalTaskName").textContent = t.title;
-//   $("timeDate").value = today();
-//   $("timeHours").value = 0;
-//   $("timeMinutes").value = 0;
-//   $("timeNote").value = "";
-//   openModal("timeModal");
-// }
+
 function openCorrectionModal(taskId, entry = null) {
   const t = getTask(taskId);
 
@@ -3136,36 +2657,7 @@ async function addActivity(taskId, action, metadata = {}) {
     createdAt: serverTimestamp(),
   });
 }
-// async function saveTask(e) {
-//   e.preventDefault();
-//   const id = $("taskId").value.trim(),
-//     data = {
-//       title: $("taskTitle").value.trim(),
-//       project: $("taskProject").value.trim(),
-//       type: $("taskType").value,
-//       status: $("taskStatus").value,
-//       url: $("taskUrl").value.trim(),
-//       note: $("taskNote").value.trim(),
-//       updatedAt: serverTimestamp(),
-//     };
-//   if (!data.title) return;
-//   try {
-//     if (id) {
-//       await updateDoc(doc(db, "tasks", id), data);
-//       await addActivity(id, "task_edited");
-//       notify("Task updated.");
-//     } else {
-//       data.createdAt = serverTimestamp();
-//       const ref = await addDoc(collection(db, "tasks"), data);
-//       await addActivity(ref.id, "task_created");
-//       notify("Task created.");
-//     }
-//     closeModal("taskModal");
-//     $("taskForm").reset();
-//   } catch (err) {
-//     notify(err.message || "Could not save task.", "error");
-//   }
-// }
+
 let fixedMigrationRunning = false;
 let fixedMigrationDone = false;
 
@@ -3284,126 +2776,6 @@ async function migrateFixedTasksToWorkLogs() {
   }
 }
 
-// async function saveTask(e) {
-//   e.preventDefault();
-
-//   const id = $("taskId").value.trim();
-//   const type = $("taskType").value;
-
-//   const assetAmount =
-//     FIXED_ASSET_TIMES[type]
-//       ? Math.max(
-//           0,
-//           Number($("taskAssetAmount").value) || 0
-//         )
-//       : 0;
-
-//   const fixedMinutes =
-//     FIXED_ASSET_TIMES[type] &&
-//     assetAmount > 0
-//       ? assetAmount * FIXED_ASSET_TIMES[type]
-//       : 0;
-
-//   const loggedHours = Math.max(
-//     0,
-//     Number($("taskLoggedHours").value) || 0
-//   );
-
-//   const loggedMinutes =
-//     Math.round(loggedHours * 60);
-
-//   const existingTask =
-//     id ? getTask(id) : null;
-
-//   const fixedDate =
-//     FIXED_ASSET_TIMES[type] &&
-//     fixedMinutes > 0
-//       ? existingTask?.fixedDate || today()
-//       : "";
-
-//   const data = {
-//     title: $("taskTitle").value.trim(),
-//     project: $("taskProject").value.trim(),
-//     type,
-//     status: $("taskStatus").value,
-//     url: $("taskUrl").value.trim(),
-//     note: $("taskNote").value.trim(),
-
-//     assetAmount,
-//     fixedMinutes,
-//     fixedDate,
-
-//     // External/manual logged time
-//     loggedMinutes,
-
-//     updatedAt: serverTimestamp(),
-//   };
-
-//   if (!data.title) return;
-
-//   if (
-//     FIXED_ASSET_TIMES[type] &&
-//     assetAmount <= 0
-//   ) {
-//     return notify(
-//       "Please enter the amount of assets.",
-//       "warning"
-//     );
-//   }
-
-//   try {
-//     if (id) {
-//       await updateDoc(
-//         doc(db, "tasks", id),
-//         data
-//       );
-
-//       await syncFixedWorkLog(
-//         id,
-//         fixedMinutes,
-//         fixedDate
-//       );
-
-//       await addActivity(
-//         id,
-//         "task_edited"
-//       );
-
-//       notify("Task updated.");
-//     } else {
-//       data.createdAt =
-//         serverTimestamp();
-
-//       const ref = await addDoc(
-//         collection(db, "tasks"),
-//         data
-//       );
-
-//       await syncFixedWorkLog(
-//         ref.id,
-//         fixedMinutes,
-//         fixedDate
-//       );
-
-//       await addActivity(
-//         ref.id,
-//         "task_created"
-//       );
-
-//       notify("Task created.");
-//     }
-
-//     closeModal("taskModal");
-//     $("taskForm").reset();
-
-//   } catch (err) {
-//     notify(
-//       err.message ||
-//         "Could not save task.",
-//       "error"
-//     );
-//   }
-// }
 async function saveTask(e) {
   e.preventDefault();
 
@@ -3516,101 +2888,7 @@ async function saveTask(e) {
     notify(err.message || "Could not save task.", "error");
   }
 }
-// async function saveTask(e) {
-//   e.preventDefault();
 
-//   const id = $("taskId").value.trim();
-//   const type = $("taskType").value;
-
-//   const assetAmount =
-//     FIXED_ASSET_TIMES[type]
-//       ? Math.max(0, Number($("taskAssetAmount").value) || 0)
-//       : 0;
-
-//   const fixedMinutes =
-//     FIXED_ASSET_TIMES[type] && assetAmount > 0
-//       ? assetAmount * FIXED_ASSET_TIMES[type]
-//       : 0;
-//   const loggedHours =
-//   Math.max(
-//     0,
-//     Number($("taskLoggedHours").value) || 0
-//   );
-
-// const loggedMinutes =
-//   Math.round(loggedHours * 60);
-
-//   const existingTask = id ? getTask(id) : null;
-
-// const fixedDate =
-//   FIXED_ASSET_TIMES[type] && fixedMinutes > 0
-//     ? existingTask?.fixedDate || today()
-//     : "";
-
-//   const data = {
-//   title: $("taskTitle").value.trim(),
-//   project: $("taskProject").value.trim(),
-//   type,
-//   status: $("taskStatus").value,
-//   url: $("taskUrl").value.trim(),
-//   note: $("taskNote").value.trim(),
-
-//   // Asset-based fixed time
-//   assetAmount,
-//     fixedMinutes,
-//     fixedDate,
-
-//   // Manually recorded time from external work system
-//   loggedMinutes,
-
-//   updatedAt: serverTimestamp(),
-//   };
-
-//   if (!data.title) return;
-
-//   if (FIXED_ASSET_TIMES[type] && assetAmount <= 0) {
-//     return notify(
-//       "Please enter the amount of assets.",
-//       "warning"
-//     );
-//   }
-
-//   try {
-//     if (id) {
-//       await updateDoc(
-//         doc(db, "tasks", id),
-//         data
-//       );
-
-//       await addActivity(id, "task_edited");
-
-//       notify("Task updated.");
-//     } else {
-//       data.createdAt = serverTimestamp();
-
-//       const ref = await addDoc(
-//         collection(db, "tasks"),
-//         data
-//       );
-
-//       await addActivity(
-//         ref.id,
-//         "task_created"
-//       );
-
-//       notify("Task created.");
-//     }
-
-//     closeModal("taskModal");
-//     $("taskForm").reset();
-
-//   } catch (err) {
-//     notify(
-//       err.message || "Could not save task.",
-//       "error"
-//     );
-//   }
-// }
 async function saveTime(e) {
   e.preventDefault();
 
@@ -3636,7 +2914,6 @@ async function saveTime(e) {
       updatedAt: serverTimestamp(),
     };
 
-    // EDIT EXISTING WORKLOG
     if (entryId) {
       await updateDoc(doc(db, "workSessions", entryId), data);
 
@@ -3655,7 +2932,6 @@ async function saveTime(e) {
       return;
     }
 
-    // ADD NEW WORKLOG
     data.createdAt = serverTimestamp();
 
     await addDoc(collection(db, "workSessions"), data);
@@ -3743,30 +3019,7 @@ async function deleteCorrection(entryId) {
     }
   };
 }
-// async function saveTime(e) {
-//   e.preventDefault();
-//   const taskId = $("timeTaskId").value,
-//     duration = minutes($("timeHours").value, $("timeMinutes").value),
-//     date = $("timeDate").value;
-//   if (!taskId || !date || duration <= 0)
-//     return notify("Enter a valid duration.", "warning");
-//   try {
-//     await addDoc(collection(db, "workSessions"), {
-//       taskId,
-//       date,
-//       duration,
-//       note: $("timeNote").value.trim(),
-//       type: "normal",
-//       createdAt: serverTimestamp(),
-//     });
-//     await updateDoc(doc(db, "tasks", taskId), { updatedAt: serverTimestamp() });
-//     await addActivity(taskId, "time_added", { duration, date });
-//     closeModal("timeModal");
-//     notify("Time added.");
-//   } catch (err) {
-//     notify(err.message || "Could not add time.", "error");
-//   }
-// }
+
 async function saveCorrection(e) {
   e.preventDefault();
 
@@ -3792,9 +3045,6 @@ async function saveCorrection(e) {
   }
 
   try {
-    // =========================
-    // EDIT EXISTING CORRECTION
-    // =========================
     if (entryId) {
       await updateDoc(doc(db, "corrections", entryId), {
         date,
@@ -3818,9 +3068,6 @@ async function saveCorrection(e) {
       return;
     }
 
-    // =========================
-    // ADD NEW CORRECTION
-    // =========================
     await addDoc(collection(db, "corrections"), {
       taskId,
       date,
@@ -3969,96 +3216,6 @@ function renderBars(target, map) {
     : `<div class="empty-small">No data for this period.</div>`;
 }
 
-// function renderTypeBreakdown(typeMap) {
-//   const rows = [...typeMap.entries()].sort(
-//     (a, b) =>
-//       b[1].newTime + b[1].correctionTime - (a[1].newTime + a[1].correctionTime),
-//   );
-
-//   $("reportByType").innerHTML = rows.length
-//     ? rows
-//         .map(([name, data]) => {
-//           const totalTime = data.newTime + data.correctionTime;
-
-//           const maxTime =
-//             (rows[0]?.[1]?.newTime || 0) +
-//               (rows[0]?.[1]?.correctionTime || 0) || 1;
-
-//           const width = Math.max(3, Math.round((totalTime / maxTime) * 100));
-
-//           return `
-//             <div class="breakdown-row type-breakdown-row">
-
-//               <div class="type-breakdown-header">
-//                 <span>${escapeHtml(name)}</span>
-
-//                 <strong>
-//                   ${formatDuration(totalTime)}
-//                 </strong>
-//               </div>
-
-//               <div class="type-breakdown-details">
-
-//                 ${
-//                   data.newAssets > 0 || data.newTime > 0
-//                     ? `
-//                       <div class="type-breakdown-section">
-//                         <div class="type-breakdown-label">
-//                           NEW
-//                         </div>
-
-//                         <div class="type-breakdown-value">
-//                           ${data.newAssets} assets
-//                         </div>
-
-//                         <strong>
-//                           ${formatDuration(data.newTime)}
-//                         </strong>
-//                       </div>
-//                     `
-//                     : ""
-//                 }
-
-//                 ${
-//                   data.correctionAssets > 0 || data.correctionTime > 0
-//                     ? `
-//                       <div class="type-breakdown-section correction">
-//                         <div class="type-breakdown-label">
-//                           CORRECTION
-//                         </div>
-
-//                         <div class="type-breakdown-value">
-//                           ${data.correctionAssets} assets
-//                         </div>
-
-//                         <strong>
-//                           ${formatDuration(data.correctionTime)}
-//                         </strong>
-//                       </div>
-//                     `
-//                     : ""
-//                 }
-
-//                 <div class="type-breakdown-total">
-//                   <span>TOTAL</span>
-
-//                   <strong>
-//                     ${formatDuration(totalTime)}
-//                   </strong>
-//                 </div>
-
-//               </div>
-
-//               <div class="bar">
-//                 <i style="width:${width}%"></i>
-//               </div>
-
-//             </div>
-//           `;
-//         })
-//         .join("")
-//     : `<div class="empty-small">No data for this period.</div>`;
-// }
 function firstWorkLogDate(taskId) {
   const logs = state.workSessions
     .filter((x) => x.taskId === taskId && x.createdAt)
@@ -4088,8 +3245,6 @@ function renderReport() {
 
   const total = nm + cm;
 
-  // Logged time = manual logged time stored on each task.
-  // Count each task only once, even if it has multiple WorkLogs / Corrections.
   const reportTaskIds = new Set();
 
   for (const e of entries) {
@@ -4106,7 +3261,6 @@ function renderReport() {
 
   const remainingTime = total - loggedTime;
 
-  // Summary
   $("reportNormalTime").textContent = formatDuration(nm);
 
   $("reportCorrectionTime").textContent = formatDuration(cm);
@@ -4119,12 +3273,9 @@ function renderReport() {
     Math.max(0, remainingTime),
   );
 
-  // Aggregations
   const byP = new Map();
   const byT = new Map();
 
-  // Report rows are grouped by Task.
-  // Date = first WorkLog date for that task.
   const rows = new Map();
 
   for (const e of entries) {
@@ -4135,21 +3286,17 @@ function renderReport() {
     const project = task.project?.trim() || "No project";
     const type = task.type?.trim() || "Other";
 
-    // By Project
     byP.set(project, (byP.get(project) || 0) + e.duration);
 
-    // By Type
     const existingType = byT.get(type) || {
       newTime: 0,
       newAssets: 0,
       correctionTime: 0,
       correctionAssets: 0,
 
-      // NEW / CORRECTION asset tracking
       newTaskIds: new Set(),
       correctionTaskIds: new Set(),
 
-      // NEW: task-level planned / logged time
       totalTime: 0,
       loggedTime: 0,
       totalAssets: 0,
@@ -4176,9 +3323,6 @@ function renderReport() {
       }
     }
 
-    // NEW:
-    // Count each task only once for Type-level
-    // TOTAL / LOGGED / REMAINING.
     if (!existingType.taskIds.has(e.taskId)) {
       existingType.taskIds.add(e.taskId);
 
@@ -4191,7 +3335,6 @@ function renderReport() {
 
     byT.set(type, existingType);
 
-    // One row per Task
     const key = e.taskId;
 
     let row = rows.get(key);
@@ -4217,22 +3360,10 @@ function renderReport() {
     }
   }
 
-  // Charts / breakdowns
   renderBars("reportByProject", byP);
   renderTypeBreakdown(byT);
 
-  // ==========================================
-  // DETAILED REPORT TABLE
-  // ==========================================
-
   const tableRows = [...rows.values()].sort((a, b) => {
-    // ------------------------------------------
-    // STATUS PRIORITY
-    // 0 = NOT LOGGED
-    // 1 = INCOMPLETE
-    // 2 = COMPLETE
-    // ------------------------------------------
-
     const getStatusPriority = (row) => {
       const taskTotal = Number(row.task.fixedMinutes) || 0;
 
@@ -4263,19 +3394,11 @@ function renderReport() {
       return statusCompare;
     }
 
-    // ------------------------------------------
-    // SAME STATUS → NEWEST DATE FIRST
-    // ------------------------------------------
-
     const dateCompare = String(b.date).localeCompare(String(a.date));
 
     if (dateCompare !== 0) {
       return dateCompare;
     }
-
-    // ------------------------------------------
-    // SAME STATUS + SAME DATE → TASK NAME
-    // ------------------------------------------
 
     return String(a.task.title || "").localeCompare(String(b.task.title || ""));
   });
@@ -4287,17 +3410,12 @@ function renderReport() {
 
         const taskCorrection = Number(row.correction) || 0;
 
-        // Total time that needs to be logged
-        // = planned/fixed time + correction time
         const taskRequired = taskTotal + taskCorrection;
 
         const taskLogged = Number(row.task.loggedMinutes) || 0;
 
         const taskRemaining = Math.max(0, taskRequired - taskLogged);
 
-        // ------------------------------------------
-        // STATUS
-        // ------------------------------------------
         let rowClass = "";
         let statusLabel = "";
 
@@ -4499,193 +3617,7 @@ function renderTypeBreakdown(typeMap) {
         .join("")
     : `<div class="empty-small">No data for this period.</div>`;
 }
-// function renderReport() {
-//   const entries = reportEntries();
 
-//   const nm = entries
-//     .filter((x) => x.kind === "normal")
-//     .reduce((s, x) => s + x.duration, 0);
-
-//   const cm = entries
-//     .filter((x) => x.kind === "correction")
-//     .reduce((s, x) => s + x.duration, 0);
-
-//   const total = nm + cm;
-
-//   // Logged time = manual logged time stored on each task.
-//   // Count each task only once, even if it has multiple WorkLogs / Corrections.
-//   const reportTaskIds = new Set();
-
-//   for (const e of entries) {
-//     if (e.taskId) {
-//       reportTaskIds.add(e.taskId);
-//     }
-//   }
-
-//   const loggedTime = [...reportTaskIds].reduce((sum, taskId) => {
-//     const task = getTask(taskId);
-
-//     return sum + (Number(task?.loggedMinutes) || 0);
-//   }, 0);
-
-//   const remainingTime = total - loggedTime;
-
-//   // Summary
-//   $("reportNormalTime").textContent = formatDuration(nm);
-
-//   $("reportCorrectionTime").textContent = formatDuration(cm);
-
-//   $("reportTotalTime").textContent = formatDuration(total);
-
-//   $("reportLoggedTime").textContent = formatDuration(loggedTime);
-
-//   $("reportRemainingTime").textContent = formatDuration(
-//     Math.max(0, remainingTime),
-//   );
-
-//   // Aggregations
-//   const byP = new Map();
-//   const byT = new Map();
-//   // Report rows are grouped by Task.
-//   // Date = first WorkLog date for that task.
-//   const rows = new Map();
-
-//   for (const e of entries) {
-//     const task = getTask(e.taskId);
-
-//     if (!task) continue;
-
-//     const project = task.project?.trim() || "No project";
-//     const type = task.type?.trim() || "Other";
-
-//     // By Project
-//     byP.set(project, (byP.get(project) || 0) + e.duration);
-
-//     // By Type
-//     const existingType = byT.get(type) || {
-//       newTime: 0,
-//       newAssets: 0,
-//       correctionTime: 0,
-//       correctionAssets: 0,
-
-//       // Prevent the same task/asset from being
-//       // counted more than once as an asset.
-//       newTaskIds: new Set(),
-//       correctionTaskIds: new Set(),
-//     };
-
-//     const assetAmount = Number(task.assetAmount) || 1;
-
-//     if (e.kind === "normal") {
-//       existingType.newTime += Number(e.duration) || 0;
-
-//       if (!existingType.newTaskIds.has(e.taskId)) {
-//         existingType.newAssets += assetAmount;
-//         existingType.newTaskIds.add(e.taskId);
-//       }
-//     }
-
-//     if (e.kind === "correction") {
-//       existingType.correctionTime += Number(e.duration) || 0;
-
-//       if (!existingType.correctionTaskIds.has(e.taskId)) {
-//         existingType.correctionAssets += assetAmount;
-//         existingType.correctionTaskIds.add(e.taskId);
-//       }
-//     }
-
-//     byT.set(type, existingType);
-//     // One row per Task
-//     const key = e.taskId;
-
-//     let row = rows.get(key);
-
-//     if (!row) {
-//       row = {
-//         date: firstWorkLogDate(e.taskId),
-//         taskId: e.taskId,
-//         task,
-//         normal: 0,
-//         correction: 0,
-//       };
-
-//       rows.set(key, row);
-//     }
-
-//     if (e.kind === "normal") {
-//       row.normal += e.duration;
-//     }
-
-//     if (e.kind === "correction") {
-//       row.correction += e.duration;
-//     }
-//   }
-
-//   // Charts / breakdowns
-//   renderBars("reportByProject", byP);
-//   renderTypeBreakdown(byT);
-
-//   // Detailed report table
-//   const tableRows = [...rows.values()].sort((a, b) => {
-//     const dateCompare = String(b.date).localeCompare(String(a.date));
-
-//     if (dateCompare !== 0) {
-//       return dateCompare;
-//     }
-
-//     return String(a.task.title || "").localeCompare(String(b.task.title || ""));
-//   });
-
-//   $("reportTableBody").innerHTML =
-//     tableRows
-//       .map((row) => {
-//         const rowTotal = row.normal + row.correction;
-
-//         return `
-//           <tr>
-//             <td>
-//               ${escapeHtml(dateLabel(row.date))}
-//             </td>
-
-//             <td>
-//               <strong>
-//                 ${escapeHtml(row.task.title || "Untitled task")}
-//               </strong>
-//             </td>
-
-//             <td>
-//               ${escapeHtml(row.task.project || "No project")}
-//             </td>
-
-//             <td>
-//               ${escapeHtml(row.task.type || "Other")}
-//             </td>
-
-//             <td>
-//               ${formatDuration(row.normal)}
-//             </td>
-
-//             <td>
-//               ${formatDuration(row.correction)}
-//             </td>
-
-//             <td>
-//               <strong>
-//                 ${formatDuration(rowTotal)}
-//               </strong>
-//             </td>
-//           </tr>
-//         `;
-//       })
-//       .join("") ||
-//     `
-//       <tr>
-//         <td colspan="7" class="table-empty">
-//           No entries for this period.
-//         </td>
-//       </tr>
-//     `;
-// }
 function initReportDates() {
   const d = new Date(),
     first = new Date(d.getFullYear(), d.getMonth(), 1);
@@ -4787,73 +3719,7 @@ function generateSummary() {
 
   openModal("summaryModal");
 }
-// function generateSummary() {
-//   const d = today(),
-//     entries = [
-//       ...state.workSessions.map((x) => ({ ...x, kind: "normal" })),
-//       ...state.corrections.map((x) => ({ ...x, kind: "correction" })),
-//     ].filter((x) => x.date === d && getTask(x.taskId));
-//   const total = entries.reduce((s, x) => s + x.duration, 0),
-//     corrections = entries.filter((x) => x.kind === "correction").length,
-//     ids = [...new Set(entries.map((x) => x.taskId))];
-//   const grouped = ids
-//     .map((id) => ({
-//       task: getTask(id),
-//       mins: entries
-//         .filter((x) => x.taskId === id)
-//         .reduce((s, x) => s + x.duration, 0),
-//     }))
-//     .sort((a, b) => b.mins - a.mins);
-//   const completed = state.tasks
-//     .filter(
-//       (t) =>
-//         t.status === STATUS.COMPLETED &&
-//         state.activities.some(
-//           (a) =>
-//             a.taskId === t.id &&
-//             a.action === "status_changed" &&
-//             a.metadata?.to === STATUS.COMPLETED &&
-//             timeAgo(a.createdAt).includes("ago"),
-//         ),
-//     )
-//     .slice(0, 6);
-//   const active = state.tasks
-//     .filter(
-//       (t) =>
-//         [
-//           STATUS.OPEN,
-//           STATUS.IN_PROGRESS,
-//           STATUS.WAITING,
-//           STATUS.BLOCKED,
-//         ].includes(t.status) && taskMinutes(t.id) > 0,
-//     )
-//     .sort((a, b) => taskMinutes(b.id) - taskMinutes(a.id))
-//     .slice(0, 6);
-//   const lines = [
-//     dateLabel(d),
-//     "",
-//     `Worked: ${formatDuration(total)}`,
-//     `Tasks: ${ids.length}`,
-//     `Corrections: ${corrections}`,
-//     "",
-//     "Main work:",
-//     ...grouped
-//       .slice(0, 6)
-//       .map((x) => `• ${x.task.title} — ${formatDuration(x.mins)}`),
-//     "",
-//     "Completed:",
-//     ...(completed.length
-//       ? completed.map((t) => `✓ ${t.title}`)
-//       : ["• None recorded today"]),
-//     "",
-//     "Open:",
-//     ...(active.length ? active.map((t) => `• ${t.title}`) : ["• None"]),
-//   ];
-//   $("summaryModalSubtitle").textContent =
-//     `${dateLabel(d)} · ${formatDuration(total)}`;
-//   $("summaryText").value = lines.join("\n");
-//   openModal("summaryModal");
-// }
+
 async function copySummary() {
   try {
     await navigator.clipboard.writeText($("summaryText").value);
@@ -4865,13 +3731,9 @@ async function copySummary() {
   }
 }
 
-// ==================== APP LOCK SETTINGS ====================
-
 function hasAppLockPassword() {
   return Boolean(appLockPasswordHash);
 }
-
-// ==================== UPDATE SETTINGS UI ====================
 
 function renderAppLockSettings() {
   const status = $("appLockStatus");
@@ -4892,8 +3754,6 @@ function renderAppLockSettings() {
     button.textContent = "Set Password";
   }
 }
-
-// ==================== OPEN PASSWORD MODAL ====================
 
 function openAppLockPasswordModal() {
   const modal = $("appLockPasswordModal");
@@ -4943,13 +3803,9 @@ function openAppLockPasswordModal() {
   }, 50);
 }
 
-// ==================== CLOSE PASSWORD MODAL ====================
-
 function closeAppLockPasswordModal() {
   $("appLockPasswordModal")?.classList.add("hidden");
 }
-
-// ==================== SAVE PASSWORD ====================
 
 async function saveAppLockPassword(password) {
   const passwordHash = await hashPassword(password);
@@ -5052,11 +3908,7 @@ function bindActions() {
   $("restoreJsonBtn").onclick = () => $("restoreFileInput").click();
   $("restoreFileInput").onchange = restoreJson;
   $("clearAllBtn").onclick = clearAll;
-$("workHoursSettingsForm")?.addEventListener(
-  "submit",
-  saveWorkHoursSettings,
-);
-  // ==================== APP LOCK SETTINGS ====================
+  $("workHoursSettingsForm")?.addEventListener("submit", saveWorkHoursSettings);
 
   $("appLockPasswordBtn")?.addEventListener("click", () => {
     openAppLockPasswordModal();
@@ -5079,10 +3931,6 @@ $("workHoursSettingsForm")?.addEventListener(
 
     const error = $("appLockPasswordError");
 
-    // ====================
-    // VALIDATE
-    // ====================
-
     if (newPassword.length < 4) {
       if (error) {
         error.textContent = "Password must be at least 4 characters.";
@@ -5102,10 +3950,6 @@ $("workHoursSettingsForm")?.addEventListener(
 
       return;
     }
-
-    // ====================
-    // SAVE
-    // ====================
 
     try {
       await saveAppLockPassword(newPassword);
@@ -5140,36 +3984,6 @@ $("workHoursSettingsForm")?.addEventListener(
     await unlockData();
   });
 
-  // $("unlockForm")?.addEventListener("submit", async (e) => {
-  //   e.preventDefault();
-
-  //   const password = $("unlockPassword")?.value || "";
-
-  //   const error = $("unlockError");
-
-  //   try {
-  //     const isCorrect = await checkUnlockPassword(password);
-
-  //     if (isCorrect) {
-  //       unlockApp();
-  //       return;
-  //     }
-
-  //     error?.classList.remove("hidden");
-
-  //     $("unlockPassword").value = "";
-
-  //     $("unlockPassword").focus();
-  //   } catch (err) {
-  //     console.error("Unlock failed:", err);
-
-  //     error?.classList.remove("hidden");
-
-  //     $("unlockPassword").value = "";
-
-  //     $("unlockPassword").focus();
-  //   }
-  // });
   document
     .querySelectorAll("[data-close-modal]")
     .forEach((b) => (b.onclick = () => closeModal(b.dataset.closeModal)));
@@ -5189,25 +4003,7 @@ $("workHoursSettingsForm")?.addEventListener(
         $("correctionMinutes").value = n % 60;
       }),
   );
-  // $("unlockForm")?.addEventListener("submit", async (e) => {
-  //   e.preventDefault();
 
-  //   const password = $("unlockPassword")?.value || "";
-
-  //   const error = $("unlockError");
-
-  //   const isCorrect = await checkUnlockPassword(password);
-
-  //   if (isCorrect) {
-  //     unlockApp();
-  //     return;
-  //   }
-
-  //   error?.classList.remove("hidden");
-
-  //   $("unlockPassword").value = "";
-  //   $("unlockPassword").focus();
-  // });
   $("confirmCancelBtn").onclick = () => {
     state.pendingConfirm = null;
     closeModal("confirmModal");
@@ -5341,83 +4137,6 @@ async function importDoc(col, id, data) {
   });
 }
 
-// function subscribe() {
-//   onSnapshot(collection(db, "clients"), (snap) => {
-//     state.clients = snap.docs.map((d) => ({
-//       id: d.id,
-//       ...d.data(),
-//     }));
-
-//     renderClients();
-
-//     populateTaskClients($("taskClient")?.value || "");
-
-//     populateTaskTypeFilter();
-
-//     const currentClientId = $("taskClient")?.value || "";
-
-//     if (currentClientId) {
-//       populateTaskTypes(currentClientId, $("taskType")?.value || "");
-//     }
-//   });
-//   onSnapshot(collection(db, "tasks"), async (snap) => {
-//     state.tasks = snap.docs.map((d) => ({
-//       id: d.id,
-//       ...d.data(),
-//     }));
-
-//     populateProjects();
-//     populateTaskTypeFilter();
-//     renderTasks();
-//     updateDashboard();
-
-//     try {
-//       await migrateFixedTasksToWorkLogs();
-//     } catch (err) {
-//       console.error("Fixed → WorkLog migration failed:", err);
-//     }
-//   });
-
-//   onSnapshot(collection(db, "workSessions"), (snap) => {
-//     state.workSessions = snap.docs.map((d) => ({
-//       id: d.id,
-//       ...d.data(),
-//     }));
-
-//     updateDashboard();
-//     renderTasks();
-//   });
-
-//   onSnapshot(collection(db, "corrections"), (snap) => {
-//     state.corrections = snap.docs.map((d) => ({
-//       id: d.id,
-//       ...d.data(),
-//     }));
-
-//     updateDashboard();
-//     renderTasks();
-//   });
-
-//   onSnapshot(collection(db, "activityLogs"), (snap) => {
-//     state.activities = snap.docs.map((d) => ({
-//       id: d.id,
-//       ...d.data(),
-//     }));
-
-//     updateDashboard();
-//     renderTasks();
-//   });
-
-//   onSnapshot(collection(db, "workDays"), (snap) => {
-//     state.workDays = snap.docs.map((d) => ({
-//       id: d.id,
-//       ...d.data(),
-//     }));
-
-//     updateDashboard();
-//     renderWorkHours();
-//   });
-// }
 function subscribe() {
   stopSubscriptions();
 
@@ -5511,54 +4230,6 @@ function stopSubscriptions() {
 
   unsubscribeListeners = [];
 }
-// function lockApp() {
-//   if (appLocked) return;
-
-//   appLocked = true;
-
-//   localStorage.setItem("worklog_locked", "1");
-
-//   stopSubscriptions();
-
-//   $("app")?.classList.add("hidden");
-//   $("lockScreen")?.classList.remove("hidden");
-
-//   const input = $("unlockPassword");
-
-//   if (input) {
-//     input.value = "";
-//     setTimeout(() => input.focus(), 50);
-//   }
-
-//   $("unlockError")?.classList.add("hidden");
-// }
-
-// function unlockApp() {
-//   appLocked = false;
-
-//   localStorage.removeItem("worklog_locked");
-
-//   $("lockScreen")?.classList.add("hidden");
-//   $("app")?.classList.remove("hidden");
-
-//   $("unlockPassword").value = "";
-//   $("unlockError")?.classList.add("hidden");
-
-//   subscribe();
-//   renderWorkHours();
-//   updateDashboard();
-// }
-
-// async function checkUnlockPassword(password) {
-//   if (!appLockPasswordHash) {
-//     return false;
-//   }
-
-//   const hash = await hashPassword(password);
-
-//   return hash === appLockPasswordHash;
-// }
-// ==================== DATA LOCK ====================
 
 function clearDataState() {
   state.clients = [];
@@ -5570,7 +4241,6 @@ function clearDataState() {
 }
 
 function clearDataUI() {
-  // Dashboard
   $("statTodayTime").textContent = "—";
   $("statTasksWorked").textContent = "—";
   $("statCorrections").textContent = "—";
@@ -5578,7 +4248,6 @@ function clearDataUI() {
 
   $("todayTimelineTotal").textContent = "—";
 
-  // Clear lists
   const emptyContainers = ["todayWorkList", "dashboardTasks", "tasksList"];
 
   emptyContainers.forEach((id) => {
@@ -5589,44 +4258,41 @@ function clearDataUI() {
     }
   });
 
-  // Work hours
   const workHours = $("workHoursList");
 
   if (workHours) {
     workHours.innerHTML = "";
   }
-  // Work hours summary
-const workHourValues = [
-  "workTodayActual",
-  "workTodayFlexi",
-  "workWeekActual",
-  "flexiOpening",
-  "flexiWeekAdded",
-  "flexiAvailable",
-  "workAvailableFlexi",
-  "workFlexiHelper",
-  "workWeekFlexi",
-  "workWeekLabel",
-];
 
-workHourValues.forEach((id) => {
-  const el = $(id);
+  const workHourValues = [
+    "workTodayActual",
+    "workTodayFlexi",
+    "workWeekActual",
+    "flexiOpening",
+    "flexiWeekAdded",
+    "flexiAvailable",
+    "workAvailableFlexi",
+    "workFlexiHelper",
+    "workWeekFlexi",
+    "workWeekLabel",
+  ];
 
-  if (el) {
-    el.textContent = "—";
-  }
-});
+  workHourValues.forEach((id) => {
+    const el = $(id);
 
-$("todayWorkDayCard")?.replaceChildren();
+    if (el) {
+      el.textContent = "—";
+    }
+  });
 
-  // Reports
+  $("todayWorkDayCard")?.replaceChildren();
+
   const reportBody = $("reportTableBody");
 
   if (reportBody) {
     reportBody.innerHTML = "";
   }
 
-  // Client/project/task related selects
   const taskClient = $("taskClient");
 
   if (taskClient) {
@@ -5661,20 +4327,43 @@ function clearDataLockTimer() {
 
 function startDataLockTimer() {
   clearDataLockTimer();
+  clearDataLockCountdown();
+
+  const expiresAt = Number(
+    sessionStorage.getItem(DATA_UNLOCK_EXPIRES_KEY) || 0,
+  );
+
+  const remainingMs = expiresAt - Date.now();
+
+  if (remainingMs <= 0) {
+    sessionStorage.removeItem(DATA_UNLOCK_EXPIRES_KEY);
+    dataUnlocked = false;
+
+    renderDataLockCountdown();
+
+    return;
+  }
 
   dataLockTimer = setTimeout(() => {
     lockData("Data locked automatically.");
-  }, DATA_SESSION_MS);
+  }, remainingMs);
+
+  startDataLockCountdown();
 }
 function lockData(message = "Work data locked.") {
   if (!dataUnlocked) {
     showDataLockedState();
+    renderDataLockCountdown();
     return;
   }
 
   dataUnlocked = false;
 
+  sessionStorage.removeItem(DATA_UNLOCK_EXPIRES_KEY);
+
   clearDataLockTimer();
+  clearDataLockCountdown();
+
   stopSubscriptions();
   clearDataState();
 
@@ -5703,13 +4392,18 @@ async function unlockData() {
 
     dataUnlocked = true;
 
+    sessionStorage.setItem(
+      DATA_UNLOCK_EXPIRES_KEY,
+      String(Date.now() + DATA_SESSION_MS),
+    );
+
     $("unlockPassword").value = "";
     error?.classList.add("hidden");
 
     $("lockScreen")?.classList.add("hidden");
-await loadWorkHoursSettings();
+    await loadWorkHoursSettings();
 
-renderWorkHoursSettings();
+    renderWorkHoursSettings();
 
     showDataUnlockedState();
 
@@ -5784,21 +4478,40 @@ initReportDates();
 bindActions();
 
 setConnection(navigator.onLine);
-// ==================== LOAD DATA LOCK CONFIG ====================
 
 await loadAppLockConfig();
 
 renderAppLockSettings();
 
-dataUnlocked = false;
+const unlockExpiresAt = Number(
+  sessionStorage.getItem(DATA_UNLOCK_EXPIRES_KEY) || 0,
+);
 
-stopSubscriptions();
+if (unlockExpiresAt > Date.now()) {
+  dataUnlocked = true;
 
-clearDataState();
+  $("lockScreen")?.classList.add("hidden");
 
-clearDataUI();
+  await loadWorkHoursSettings();
+  renderWorkHoursSettings();
 
-showDataLockedState();
+  showDataUnlockedState();
+
+  subscribe();
+  renderWorkHours();
+  updateDashboard();
+
+  startDataLockTimer();
+} else {
+  dataUnlocked = false;
+
+  sessionStorage.removeItem(DATA_UNLOCK_EXPIRES_KEY);
+
+  stopSubscriptions();
+  clearDataState();
+  clearDataUI();
+  showDataLockedState();
+}
 
 $("loadingScreen")?.classList.add("hidden");
 $("app")?.classList.remove("hidden");
