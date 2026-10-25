@@ -15,7 +15,7 @@ import {
 
 
 // ==================== BASIC UI PROTECTION ====================
-  /*
+
 // Disable right-click
 document.addEventListener("contextmenu", (e) => {
   e.preventDefault();
@@ -68,7 +68,7 @@ document.addEventListener("keydown", (e) => {
     return;
   }
 });
-  */
+
 const $ = (id) => document.getElementById(id);
 
 function applyTheme(theme) {
