@@ -456,8 +456,8 @@ const correctionMinutes = (id) =>
 
 const WORK_HOURS_SETTINGS_DOC = "workHours";
 
-let dailyTargetMinutes = 480;
-let openingFlexiMinutes = 10461;
+let dailyTargetMinutes = 0;
+let openingFlexiMinutes = 0;
 // const dailyTargetMinutes = 480;
 // const openingFlexiMinutes = 10461;
 function localDateString(date = new Date()) {
