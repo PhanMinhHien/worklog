@@ -240,6 +240,9 @@ body {
   width: 100%;
   margin-top: 14px
 } */
+#dataUnlockBtn, #dataLockBtn {
+  margin: 20px 0 0;
+}
 #generateSummaryBtn{
   margin: 0 20px 20px;
 }

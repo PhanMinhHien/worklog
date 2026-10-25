@@ -82,21 +82,6 @@
             <span class="nav-icon">⚙</span>
             <span>Settings</span>
           </button>
-          <button
-            id="dataUnlockBtn"
-            class="btn btn-secondary btn-block"
-            type="button"
-          >
-            🔓 Show Work Data
-          </button>
-
-          <button
-            id="dataLockBtn"
-            class="btn btn-secondary btn-block hidden"
-            type="button"
-          >
-            🔒 Lock Work Data
-          </button>
         </nav>
 
         <div class="sidebar-footer">
@@ -501,6 +486,50 @@
         <!-- ==================== SETTINGS ==================== -->
         <section id="page-settings" class="page">
           <div class="settings-grid">
+            <!-- ==================== APP LOCK ==================== -->
+
+            <div class="panel full-width">
+              <div class="panel-header">
+                <div>
+                  <h2>App Lock</h2>
+                  <p>Protect WorkLog with a password when the app is locked.</p>
+                  
+                </div>
+                <button
+                    id="dataUnlockBtn"
+                    class="btn btn-secondary btn-block"
+                    type="button"
+                  >
+                    🔓 Show Work Data
+                  </button>
+
+                  <button
+                    id="dataLockBtn"
+                    class="btn btn-secondary btn-block hidden"
+                    type="button"
+                  >
+                    🔒 Lock Work Data
+                  </button>
+              </div>
+
+              <div class="settings-actions app-lock-actions">
+                <div>
+                  <strong>Password</strong>
+
+                  <p id="appLockStatus" class="settings-description">
+                    Checking...
+                  </p>
+                </div>
+
+                <button
+                  id="appLockPasswordBtn"
+                  class="btn btn-secondary"
+                  type="button"
+                >
+                  Set Password
+                </button>
+              </div>
+            </div>
             <!-- BACKUP -->
             <div class="panel">
               <div class="panel-header">
@@ -588,107 +617,76 @@
               </div>
             </div>
 
-            <!-- ==================== APP LOCK ==================== -->
+            
+            <!-- ==================== WORK HOURS SETTINGS ==================== -->
 
             <div class="panel full-width">
               <div class="panel-header">
                 <div>
-                  <h2>App Lock</h2>
-                  <p>Protect WorkLog with a password when the app is locked.</p>
+                  <h2>Work Hours Settings</h2>
+                  <p>Configure your daily target and opening flexi balance.</p>
                 </div>
               </div>
 
-              <div class="settings-actions app-lock-actions">
-                <div>
-                  <strong>Password</strong>
+              <form id="workHoursSettingsForm">
+                <div class="form-grid">
+                  <div class="field">
+                    <label for="dailyTargetMinutes"> Daily Target </label>
 
-                  <p id="appLockStatus" class="settings-description">
-                    Checking...
-                  </p>
+                    <div class="time-input-with-suffix">
+                      <input
+                        id="dailyTargetMinutes"
+                        type="number"
+                        min="0"
+                        step="1"
+                        required
+                      />
+
+                      <span>minutes</span>
+                    </div>
+
+                    <div class="field-helper">
+                      Normal working time target per day.
+                    </div>
+                  </div>
+
+                  <div class="field">
+                    <label for="openingFlexiMinutes"> Opening Flexi </label>
+
+                    <div class="time-input-with-suffix">
+                      <input
+                        id="openingFlexiMinutes"
+                        type="number"
+                        min="0"
+                        step="1"
+                        required
+                      />
+
+                      <span>minutes</span>
+                    </div>
+
+                    <div class="field-helper">
+                      Flexi balance carried into WorkLog.
+                    </div>
+                  </div>
                 </div>
 
-                <button
-                  id="appLockPasswordBtn"
-                  class="btn btn-secondary"
-                  type="button"
-                >
-                  Set Password
-                </button>
-              </div>
+                <div class="settings-actions">
+                  <button
+                    id="saveWorkHoursSettingsBtn"
+                    type="submit"
+                    class="btn btn-primary"
+                  >
+                    Save Work Hours Settings
+                  </button>
+
+                  <span
+                    id="workHoursSettingsStatus"
+                    class="settings-description"
+                  ></span>
+                </div>
+              </form>
             </div>
-            <!-- ==================== WORK HOURS SETTINGS ==================== -->
-
-<div class="panel full-width">
-  <div class="panel-header">
-    <div>
-      <h2>Work Hours Settings</h2>
-      <p>Configure your daily target and opening flexi balance.</p>
-    </div>
-  </div>
-
-  <form id="workHoursSettingsForm">
-    <div class="form-grid">
-      <div class="field">
-        <label for="dailyTargetMinutes">
-          Daily Target
-        </label>
-
-        <div class="time-input-with-suffix">
-          <input
-            id="dailyTargetMinutes"
-            type="number"
-            min="0"
-            step="1"
-            required
-          />
-
-          <span>minutes</span>
-        </div>
-
-        <div class="field-helper">
-          Normal working time target per day.
-        </div>
-      </div>
-
-      <div class="field">
-        <label for="openingFlexiMinutes">
-          Opening Flexi
-        </label>
-
-        <div class="time-input-with-suffix">
-          <input
-            id="openingFlexiMinutes"
-            type="number"
-            min="0"
-            step="1"
-            required
-          />
-
-          <span>minutes</span>
-        </div>
-
-        <div class="field-helper">
-          Flexi balance carried into WorkLog.
-        </div>
-      </div>
-    </div>
-
-    <div class="settings-actions">
-      <button
-        id="saveWorkHoursSettingsBtn"
-        type="submit"
-        class="btn btn-primary"
-      >
-        Save Work Hours Settings
-      </button>
-
-      <span
-        id="workHoursSettingsStatus"
-        class="settings-description"
-      ></span>
-    </div>
-  </form>
-</div>
             <!-- DANGER ZONE -->
             <div class="panel danger-panel">
               <div class="panel-header">
