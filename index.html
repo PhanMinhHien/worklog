@@ -13,9 +13,9 @@
       <div class="lock-card">
         <div class="lock-icon">🔒</div>
 
-        <h1>WorkLog Locked</h1>
+        <h1>Work Data Locked</h1>
 
-        <p>Enter your password to continue.</p>
+        <p>Enter your password to show your work data.</p>
 
         <form id="unlockForm">
           <div class="field">
@@ -35,7 +35,7 @@
           </div>
 
           <button type="submit" class="btn btn-primary btn-block">
-            Unlock WorkLog
+            Show Work Data
           </button>
         </form>
       </div>
@@ -43,6 +43,10 @@
     <div id="loadingScreen" class="loading-screen">
       <div class="loading-spinner"></div>
       <div>Loading WorkLog...</div>
+    </div>
+    <div id="dataLockBanner" class="data-lock-banner hidden">
+      🔒 Work data is locked.
+      <span>Enter your password to show Firebase data.</span>
     </div>
 
     <div id="app" class="app hidden">
@@ -83,11 +87,19 @@
             <span>Settings</span>
           </button>
           <button
-            id="lockAppBtn"
+            id="dataUnlockBtn"
             class="btn btn-secondary btn-block"
             type="button"
           >
-            🔒 Lock App
+            🔓 Show Work Data
+          </button>
+
+          <button
+            id="dataLockBtn"
+            class="btn btn-secondary btn-block hidden"
+            type="button"
+          >
+            🔒 Lock Work Data
           </button>
         </nav>
 
@@ -429,31 +441,31 @@
             </div>
 
             <div class="report-summary">
-  <div class="summary-card">
-    <span>Normal time</span>
-    <strong id="reportNormalTime">0m</strong>
-  </div>
+              <div class="summary-card">
+                <span>Normal time</span>
+                <strong id="reportNormalTime">0m</strong>
+              </div>
 
-  <div class="summary-card">
-    <span>Correction time</span>
-    <strong id="reportCorrectionTime">0m</strong>
-  </div>
+              <div class="summary-card">
+                <span>Correction time</span>
+                <strong id="reportCorrectionTime">0m</strong>
+              </div>
 
-  <div class="summary-card">
-    <span>Total time</span>
-    <strong id="reportTotalTime">0m</strong>
-  </div>
+              <div class="summary-card">
+                <span>Total time</span>
+                <strong id="reportTotalTime">0m</strong>
+              </div>
 
-  <div class="summary-card">
-    <span>Logged time</span>
-    <strong id="reportLoggedTime">0m</strong>
-  </div>
+              <div class="summary-card">
+                <span>Logged time</span>
+                <strong id="reportLoggedTime">0m</strong>
+              </div>
 
-  <div class="summary-card">
-    <span>Remaining</span>
-    <strong id="reportRemainingTime">0m</strong>
-  </div>
-</div>
+              <div class="summary-card">
+                <span>Remaining</span>
+                <strong id="reportRemainingTime">0m</strong>
+              </div>
+            </div>
 
             <div class="report-breakdowns">
               <div class="breakdown-card">
@@ -470,19 +482,19 @@
             <div class="table-wrapper">
               <table class="report-table">
                 <thead>
-  <tr>
-    <th>Date</th>
-    <th>Task</th>
-    <th>Project</th>
-    <th>Type</th>
-    <th>Normal</th>
-    <th>Correction</th>
-    <th>Total</th>
-    <th>Logged</th>
-    <th>Remaining</th>
-    <th>Status</th>
-  </tr>
-</thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Task</th>
+                    <th>Project</th>
+                    <th>Type</th>
+                    <th>Normal</th>
+                    <th>Correction</th>
+                    <th>Total</th>
+                    <th>Logged</th>
+                    <th>Remaining</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
 
                 <tbody id="reportTableBody"></tbody>
               </table>
@@ -583,32 +595,32 @@
 
             <!-- ==================== APP LOCK ==================== -->
 
-<div class="panel full-width">
-  <div class="panel-header">
-    <div>
-      <h2>App Lock</h2>
-      <p>Protect WorkLog with a password when the app is locked.</p>
-    </div>
-  </div>
+            <div class="panel full-width">
+              <div class="panel-header">
+                <div>
+                  <h2>App Lock</h2>
+                  <p>Protect WorkLog with a password when the app is locked.</p>
+                </div>
+              </div>
 
-  <div class="settings-actions app-lock-actions">
-    <div>
-      <strong>Password</strong>
+              <div class="settings-actions app-lock-actions">
+                <div>
+                  <strong>Password</strong>
 
-      <p id="appLockStatus" class="settings-description">
-        Checking...
-      </p>
-    </div>
+                  <p id="appLockStatus" class="settings-description">
+                    Checking...
+                  </p>
+                </div>
 
-    <button
-      id="appLockPasswordBtn"
-      class="btn btn-secondary"
-      type="button"
-    >
-      Set Password
-    </button>
-  </div>
-</div>
+                <button
+                  id="appLockPasswordBtn"
+                  class="btn btn-secondary"
+                  type="button"
+                >
+                  Set Password
+                </button>
+              </div>
+            </div>
             <!-- DANGER ZONE -->
             <div class="panel danger-panel">
               <div class="panel-header">
@@ -914,68 +926,58 @@
     </div>
 
     <div id="loggedTimeModal" class="modal-overlay hidden">
-  <div class="modal modal-small">
-    <div class="modal-header">
-      <div>
-        <h2>Edit Logged Time</h2>
-        <p>Update the actual time logged for this task.</p>
-      </div>
+      <div class="modal modal-small">
+        <div class="modal-header">
+          <div>
+            <h2>Edit Logged Time</h2>
+            <p>Update the actual time logged for this task.</p>
+          </div>
 
-      <button
-        class="modal-close"
-        data-close-modal="loggedTimeModal"
-      >
-        ×
-      </button>
+          <button class="modal-close" data-close-modal="loggedTimeModal">
+            ×
+          </button>
+        </div>
+
+        <form id="loggedTimeForm">
+          <input id="loggedTimeTaskId" type="hidden" />
+
+          <div class="field">
+            <label for="loggedTimeHours"> Logged Time (minutes) </label>
+
+            <div class="time-input-row">
+              <input
+                id="loggedTimeHours"
+                type="number"
+                min="0"
+                step="1"
+                value="0"
+                placeholder="Minutes"
+              />
+            </div>
+
+            <div
+              id="quickLoggedTimePreview"
+              class="field-helper"
+              style="margin-top: 6px"
+            >
+              Logged: 0m
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn btn-secondary"
+              data-close-modal="loggedTimeModal"
+            >
+              Cancel
+            </button>
+
+            <button type="submit" class="btn btn-primary">Save</button>
+          </div>
+        </form>
+      </div>
     </div>
-
-    <form id="loggedTimeForm">
-      <input id="loggedTimeTaskId" type="hidden" />
-
-      <div class="field">
-        <label for="loggedTimeHours">
-          Logged Time (minutes)
-        </label>
-
-        <div class="time-input-row">
-          <input
-            id="loggedTimeHours"
-            type="number"
-            min="0"
-            step="1"
-            value="0"
-            placeholder="Minutes"
-          />
-        </div>
-
-        <div
-          id="quickLoggedTimePreview"
-          class="field-helper"
-          style="margin-top: 6px"
-        >
-          Logged: 0m
-        </div>
-      </div>
-
-      <div class="modal-footer">
-        <button
-          type="button"
-          class="btn btn-secondary"
-          data-close-modal="loggedTimeModal"
-        >
-          Cancel
-        </button>
-
-        <button
-          type="submit"
-          class="btn btn-primary"
-        >
-          Save
-        </button>
-      </div>
-    </form>
-  </div>
-</div>
 
     <!-- ==================== TIME MODAL ==================== -->
     <div id="timeModal" class="modal-overlay hidden">
@@ -1320,84 +1322,75 @@
     <div id="toastContainer" class="toast-container"></div>
     <!-- ==================== APP LOCK PASSWORD MODAL ==================== -->
 
-<div id="appLockPasswordModal" class="modal-overlay hidden">
-  <div class="modal modal-small">
-    <div class="modal-header">
-      <div>
-        <h2 id="appLockPasswordTitle">Set Password</h2>
+    <div id="appLockPasswordModal" class="modal-overlay hidden">
+      <div class="modal modal-small">
+        <div class="modal-header">
+          <div>
+            <h2 id="appLockPasswordTitle">Set Password</h2>
 
-        <p id="appLockPasswordDescription">
-          Create a password to protect WorkLog.
-        </p>
+            <p id="appLockPasswordDescription">
+              Create a password to protect WorkLog.
+            </p>
+          </div>
+
+          <button
+            id="closeAppLockPasswordModal"
+            class="modal-close"
+            type="button"
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+
+        <form id="appLockPasswordForm">
+          <div class="form-grid">
+            <div class="field field-full">
+              <label for="appLockNewPassword"> New Password </label>
+
+              <input
+                id="appLockNewPassword"
+                type="password"
+                autocomplete="new-password"
+                placeholder="Enter new password"
+                minlength="4"
+                required
+              />
+            </div>
+
+            <div class="field field-full">
+              <label for="appLockConfirmPassword"> Confirm Password </label>
+
+              <input
+                id="appLockConfirmPassword"
+                type="password"
+                autocomplete="new-password"
+                placeholder="Re-enter password"
+                minlength="4"
+                required
+              />
+            </div>
+
+            <div
+              id="appLockPasswordError"
+              class="lock-error hidden field-full"
+            ></div>
+          </div>
+
+          <div class="modal-footer">
+            <button
+              id="cancelAppLockPassword"
+              class="btn btn-secondary"
+              type="button"
+            >
+              Cancel
+            </button>
+
+            <button class="btn btn-primary" type="submit">Save Password</button>
+          </div>
+        </form>
       </div>
-
-      <button
-        id="closeAppLockPasswordModal"
-        class="modal-close"
-        type="button"
-        aria-label="Close"
-      >
-        ×
-      </button>
     </div>
-
-    <form id="appLockPasswordForm">
-      <div class="form-grid">
-        <div class="field field-full">
-          <label for="appLockNewPassword">
-            New Password
-          </label>
-
-          <input
-            id="appLockNewPassword"
-            type="password"
-            autocomplete="new-password"
-            placeholder="Enter new password"
-            minlength="4"
-            required
-          />
-        </div>
-
-        <div class="field field-full">
-          <label for="appLockConfirmPassword">
-            Confirm Password
-          </label>
-
-          <input
-            id="appLockConfirmPassword"
-            type="password"
-            autocomplete="new-password"
-            placeholder="Re-enter password"
-            minlength="4"
-            required
-          />
-        </div>
-
-        <div
-          id="appLockPasswordError"
-          class="lock-error hidden field-full"
-        ></div>
-      </div>
-
-      <div class="modal-footer">
-        <button
-          id="cancelAppLockPassword"
-          class="btn btn-secondary"
-          type="button"
-        >
-          Cancel
-        </button>
-
-        <button
-          class="btn btn-primary"
-          type="submit"
-        >
-          Save Password
-        </button>
-      </div>
-    </form>
-  </div>
-</div>
     <script type="module" src="./app.js"></script>
   </body>
 </html>

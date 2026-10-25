@@ -108,12 +108,17 @@ const state = {
   showArchived: false,
   pendingConfirm: null,
 };
-// ==================== APP LOCK ====================
-// ==================== APP LOCK ====================
+// ==================== DATA LOCK ====================
 
 const APP_LOCK_DOC = "appLock";
 
-let appLocked = localStorage.getItem("worklog_locked") === "1";
+// Data sẽ tự khóa sau 2 giờ kể từ lúc unlock.
+// 120 phút = 2 giờ.
+const DATA_SESSION_MINUTES = 120;
+const DATA_SESSION_MS = DATA_SESSION_MINUTES * 60 * 1000;
+
+let dataUnlocked = false;
+let dataLockTimer = null;
 
 let appLockPasswordHash = "";
 
@@ -130,6 +135,7 @@ async function hashPassword(password) {
 
   return hashArray.map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
+
 async function loadAppLockConfig() {
   try {
     const ref = doc(db, "settings", APP_LOCK_DOC);
@@ -137,9 +143,10 @@ async function loadAppLockConfig() {
     const snap = await getDoc(ref);
 
     if (!snap.exists()) {
-      console.warn("App lock config does not exist.");
+      console.warn("Data lock config does not exist.");
 
       appLockPasswordHash = "";
+
       return false;
     }
 
@@ -149,7 +156,7 @@ async function loadAppLockConfig() {
 
     return Boolean(appLockPasswordHash);
   } catch (err) {
-    console.error("Failed to load app lock config:", err);
+    console.error("Failed to load data lock config:", err);
 
     return false;
   }
@@ -543,29 +550,22 @@ function renderTask(task, compact = false) {
 
   const firstWorkDate = dates.length ? dates[dates.length - 1] : "";
 
-  const worked = firstWorkDate
-    ? shortDate(firstWorkDate)
-    : "No work date yet";
+  const worked = firstWorkDate ? shortDate(firstWorkDate) : "No work date yet";
 
   // Logging status
-  const fixedMinutes =
-    Number(task.fixedMinutes) || 0;
+  const fixedMinutes = Number(task.fixedMinutes) || 0;
 
-  const taskCorrectionMinutes =
-    correctionMinutes(task.id);
+  const taskCorrectionMinutes = correctionMinutes(task.id);
 
-  const requiredMinutes =
-    fixedMinutes + taskCorrectionMinutes;
+  const requiredMinutes = fixedMinutes + taskCorrectionMinutes;
 
-  const loggedMinutes =
-    Number(task.loggedMinutes) || 0;
+  const loggedMinutes = Number(task.loggedMinutes) || 0;
 
-  const remainingMinutes =
-    Math.max(0, requiredMinutes - loggedMinutes);
+  const remainingMinutes = Math.max(0, requiredMinutes - loggedMinutes);
 
-    const quickLogButton =
-  requiredMinutes > loggedMinutes
-    ? `
+  const quickLogButton =
+    requiredMinutes > loggedMinutes
+      ? `
       <button
         class="task-action quick-log-action"
         data-action="log-remaining"
@@ -574,23 +574,17 @@ function renderTask(task, compact = false) {
         ✓ Log ${formatDuration(remainingMinutes)}
       </button>
     `
-    : "";
+      : "";
   let logStatus = "NO PLAN";
   let logStatusClass = "no-plan";
 
   if (requiredMinutes > 0 && loggedMinutes <= 0) {
     logStatus = "NOT LOGGED";
     logStatusClass = "not-logged";
-  } else if (
-    requiredMinutes > 0 &&
-    loggedMinutes < requiredMinutes
-  ) {
+  } else if (requiredMinutes > 0 && loggedMinutes < requiredMinutes) {
     logStatus = "INCOMPLETE";
     logStatusClass = "incomplete";
-  } else if (
-    requiredMinutes > 0 &&
-    loggedMinutes >= requiredMinutes
-  ) {
+  } else if (requiredMinutes > 0 && loggedMinutes >= requiredMinutes) {
     logStatus = "LOGGED";
     logStatusClass = "complete";
   }
@@ -899,16 +893,12 @@ function renderTasks() {
     tasks = tasks.filter((t) => {
       const loggedMinutes = Number(t.loggedMinutes) || 0;
 
-      return lf === "logged"
-        ? loggedMinutes > 0
-        : loggedMinutes === 0;
+      return lf === "logged" ? loggedMinutes > 0 : loggedMinutes === 0;
     });
   }
 
   // Date
-  tasks = tasks.filter((t) =>
-    taskMatchesDateFilter(t, df, customDate),
-  );
+  tasks = tasks.filter((t) => taskMatchesDateFilter(t, df, customDate));
 
   // Search
   if (q) {
@@ -924,39 +914,26 @@ function renderTasks() {
   // Logging status priority
   tasks.sort((a, b) => {
     const getLogPriority = (task) => {
-      const fixedMinutes =
-        Number(task.fixedMinutes) || 0;
+      const fixedMinutes = Number(task.fixedMinutes) || 0;
 
-      const taskCorrectionMinutes =
-        correctionMinutes(task.id);
+      const taskCorrectionMinutes = correctionMinutes(task.id);
 
-      const requiredMinutes =
-        fixedMinutes + taskCorrectionMinutes;
+      const requiredMinutes = fixedMinutes + taskCorrectionMinutes;
 
-      const loggedMinutes =
-        Number(task.loggedMinutes) || 0;
+      const loggedMinutes = Number(task.loggedMinutes) || 0;
 
       // 0 = NOT LOGGED
-      if (
-        requiredMinutes > 0 &&
-        loggedMinutes <= 0
-      ) {
+      if (requiredMinutes > 0 && loggedMinutes <= 0) {
         return 0;
       }
 
       // 1 = INCOMPLETE
-      if (
-        requiredMinutes > 0 &&
-        loggedMinutes < requiredMinutes
-      ) {
+      if (requiredMinutes > 0 && loggedMinutes < requiredMinutes) {
         return 1;
       }
 
       // 2 = LOGGED
-      if (
-        requiredMinutes > 0 &&
-        loggedMinutes >= requiredMinutes
-      ) {
+      if (requiredMinutes > 0 && loggedMinutes >= requiredMinutes) {
         return 2;
       }
 
@@ -964,9 +941,7 @@ function renderTasks() {
       return 3;
     };
 
-    const statusCompare =
-      getLogPriority(a) -
-      getLogPriority(b);
+    const statusCompare = getLogPriority(a) - getLogPriority(b);
 
     if (statusCompare !== 0) {
       return statusCompare;
@@ -2475,8 +2450,7 @@ function openLoggedTimeModal(task) {
 
   $("loggedTimeTaskId").value = task.id;
 
-  $("loggedTimeHours").value =
-    Number(task.loggedMinutes) || 0;
+  $("loggedTimeHours").value = Number(task.loggedMinutes) || 0;
 
   updateQuickLoggedTimePreview();
 
@@ -2494,8 +2468,7 @@ function updateQuickLoggedTimePreview() {
 async function saveLoggedTime(e) {
   e.preventDefault();
 
-  const taskId =
-    $("loggedTimeTaskId").value.trim();
+  const taskId = $("loggedTimeTaskId").value.trim();
 
   if (!taskId) {
     return notify("Task not found.", "error");
@@ -2509,9 +2482,7 @@ async function saveLoggedTime(e) {
 
   const loggedMinutes = Math.max(
     0,
-    Math.round(
-      Number($("loggedTimeHours").value) || 0,
-    ),
+    Math.round(Number($("loggedTimeHours").value) || 0),
   );
 
   try {
@@ -2524,17 +2495,11 @@ async function saveLoggedTime(e) {
 
     $("loggedTimeForm").reset();
 
-    await addActivity(
-      taskId,
-      "logged_time_updated",
-    );
+    await addActivity(taskId, "logged_time_updated");
 
     notify("Logged time updated.");
   } catch (err) {
-    notify(
-      err.message || "Could not update logged time.",
-      "error",
-    );
+    notify(err.message || "Could not update logged time.", "error");
   }
 }
 async function quickLogTask(task) {
@@ -3988,20 +3953,17 @@ function renderReport() {
   const remainingTime = total - loggedTime;
 
   // Summary
-  $("reportNormalTime").textContent =
-    formatDuration(nm);
+  $("reportNormalTime").textContent = formatDuration(nm);
 
-  $("reportCorrectionTime").textContent =
-    formatDuration(cm);
+  $("reportCorrectionTime").textContent = formatDuration(cm);
 
-  $("reportTotalTime").textContent =
-    formatDuration(total);
+  $("reportTotalTime").textContent = formatDuration(total);
 
-  $("reportLoggedTime").textContent =
-    formatDuration(loggedTime);
+  $("reportLoggedTime").textContent = formatDuration(loggedTime);
 
-  $("reportRemainingTime").textContent =
-    formatDuration(Math.max(0, remainingTime));
+  $("reportRemainingTime").textContent = formatDuration(
+    Math.max(0, remainingTime),
+  );
 
   // Aggregations
   const byP = new Map();
@@ -4066,11 +4028,9 @@ function renderReport() {
     if (!existingType.taskIds.has(e.taskId)) {
       existingType.taskIds.add(e.taskId);
 
-      existingType.totalTime +=
-        Number(task.fixedMinutes) || 0;
+      existingType.totalTime += Number(task.fixedMinutes) || 0;
 
-      existingType.loggedTime +=
-        Number(task.loggedMinutes) || 0;
+      existingType.loggedTime += Number(task.loggedMinutes) || 0;
 
       existingType.totalAssets += assetAmount;
     }
@@ -4107,93 +4067,79 @@ function renderReport() {
   renderBars("reportByProject", byP);
   renderTypeBreakdown(byT);
 
-    // ==========================================
+  // ==========================================
   // DETAILED REPORT TABLE
   // ==========================================
 
- const tableRows = [...rows.values()].sort((a, b) => {
-  // ------------------------------------------
-  // STATUS PRIORITY
-  // 0 = NOT LOGGED
-  // 1 = INCOMPLETE
-  // 2 = COMPLETE
-  // ------------------------------------------
+  const tableRows = [...rows.values()].sort((a, b) => {
+    // ------------------------------------------
+    // STATUS PRIORITY
+    // 0 = NOT LOGGED
+    // 1 = INCOMPLETE
+    // 2 = COMPLETE
+    // ------------------------------------------
 
- const getStatusPriority = (row) => {
-  const taskTotal =
-    Number(row.task.fixedMinutes) || 0;
+    const getStatusPriority = (row) => {
+      const taskTotal = Number(row.task.fixedMinutes) || 0;
 
-  const taskCorrection =
-    Number(row.correction) || 0;
+      const taskCorrection = Number(row.correction) || 0;
 
-  const taskRequired =
-    taskTotal + taskCorrection;
+      const taskRequired = taskTotal + taskCorrection;
 
-  const taskLogged =
-    Number(row.task.loggedMinutes) || 0;
+      const taskLogged = Number(row.task.loggedMinutes) || 0;
 
-  if (taskRequired <= 0) {
-    return 3;
-  }
+      if (taskRequired <= 0) {
+        return 3;
+      }
 
-  if (taskLogged <= 0) {
-    return 0;
-  }
+      if (taskLogged <= 0) {
+        return 0;
+      }
 
-  if (taskLogged < taskRequired) {
-    return 1;
-  }
+      if (taskLogged < taskRequired) {
+        return 1;
+      }
 
-  return 2;
-};
+      return 2;
+    };
 
-  const statusCompare =
-    getStatusPriority(a) -
-    getStatusPriority(b);
+    const statusCompare = getStatusPriority(a) - getStatusPriority(b);
 
-  if (statusCompare !== 0) {
-    return statusCompare;
-  }
+    if (statusCompare !== 0) {
+      return statusCompare;
+    }
 
-  // ------------------------------------------
-  // SAME STATUS → NEWEST DATE FIRST
-  // ------------------------------------------
+    // ------------------------------------------
+    // SAME STATUS → NEWEST DATE FIRST
+    // ------------------------------------------
 
-  const dateCompare =
-    String(b.date).localeCompare(String(a.date));
+    const dateCompare = String(b.date).localeCompare(String(a.date));
 
-  if (dateCompare !== 0) {
-    return dateCompare;
-  }
+    if (dateCompare !== 0) {
+      return dateCompare;
+    }
 
-  // ------------------------------------------
-  // SAME STATUS + SAME DATE → TASK NAME
-  // ------------------------------------------
+    // ------------------------------------------
+    // SAME STATUS + SAME DATE → TASK NAME
+    // ------------------------------------------
 
-  return String(a.task.title || "").localeCompare(
-    String(b.task.title || "")
-  );
-});
+    return String(a.task.title || "").localeCompare(String(b.task.title || ""));
+  });
 
   $("reportTableBody").innerHTML =
     tableRows
       .map((row) => {
-        const taskTotal =
-  Number(row.task.fixedMinutes) || 0;
+        const taskTotal = Number(row.task.fixedMinutes) || 0;
 
-const taskCorrection =
-  Number(row.correction) || 0;
+        const taskCorrection = Number(row.correction) || 0;
 
-// Total time that needs to be logged
-// = planned/fixed time + correction time
-const taskRequired =
-  taskTotal + taskCorrection;
+        // Total time that needs to be logged
+        // = planned/fixed time + correction time
+        const taskRequired = taskTotal + taskCorrection;
 
-const taskLogged =
-  Number(row.task.loggedMinutes) || 0;
+        const taskLogged = Number(row.task.loggedMinutes) || 0;
 
-const taskRemaining =
-  Math.max(0, taskRequired - taskLogged);
+        const taskRemaining = Math.max(0, taskRequired - taskLogged);
 
         // ------------------------------------------
         // STATUS
@@ -4201,28 +4147,28 @@ const taskRemaining =
         let rowClass = "";
         let statusLabel = "";
 
-      if (taskRequired <= 0) {
-  rowClass = "task-log-missing";
-  statusLabel = "NO PLAN";
-} else if (taskLogged <= 0) {
-  rowClass = "task-log-missing";
-  statusLabel = "NOT LOGGED";
-} else if (taskLogged < taskRequired) {
-  rowClass = "task-log-incomplete";
-  statusLabel = "INCOMPLETE";
-} else {
-  statusLabel = "COMPLETE";
-}
+        if (taskRequired <= 0) {
+          rowClass = "task-log-missing";
+          statusLabel = "NO PLAN";
+        } else if (taskLogged <= 0) {
+          rowClass = "task-log-missing";
+          statusLabel = "NOT LOGGED";
+        } else if (taskLogged < taskRequired) {
+          rowClass = "task-log-incomplete";
+          statusLabel = "INCOMPLETE";
+        } else {
+          statusLabel = "COMPLETE";
+        }
 
-       console.log("REPORT TASK CHECK:", {
-  task: row.task.title,
-  fixedMinutes: taskTotal,
-  correction: taskCorrection,
-  required: taskRequired,
-  logged: taskLogged,
-  remaining: taskRemaining,
-  status: statusLabel,
-});
+        console.log("REPORT TASK CHECK:", {
+          task: row.task.title,
+          fixedMinutes: taskTotal,
+          correction: taskCorrection,
+          required: taskRequired,
+          logged: taskLogged,
+          remaining: taskRemaining,
+          status: statusLabel,
+        });
 
         return `
           <tr class="${rowClass}">
@@ -4233,22 +4179,16 @@ const taskRemaining =
 
             <td>
               <strong>
-                ${escapeHtml(
-                  row.task.title || "Untitled task"
-                )}
+                ${escapeHtml(row.task.title || "Untitled task")}
               </strong>
             </td>
 
             <td>
-              ${escapeHtml(
-                row.task.project || "No project"
-              )}
+              ${escapeHtml(row.task.project || "No project")}
             </td>
 
             <td>
-              ${escapeHtml(
-                row.task.type || "Other"
-              )}
+              ${escapeHtml(row.task.type || "Other")}
             </td>
 
             <td>
@@ -4294,40 +4234,26 @@ const taskRemaining =
     `;
 }
 
-
 function renderTypeBreakdown(typeMap) {
   const rows = [...typeMap.entries()].sort(
     (a, b) =>
-      b[1].newTime +
-        b[1].correctionTime -
-      (a[1].newTime +
-        a[1].correctionTime),
+      b[1].newTime + b[1].correctionTime - (a[1].newTime + a[1].correctionTime),
   );
 
   $("reportByType").innerHTML = rows.length
     ? rows
         .map(([name, data]) => {
-          const totalTime =
-            data.newTime +
-            data.correctionTime;
+          const totalTime = data.newTime + data.correctionTime;
 
           const maxTime =
             (rows[0]?.[1]?.newTime || 0) +
-              (rows[0]?.[1]?.correctionTime || 0) ||
-            1;
+              (rows[0]?.[1]?.correctionTime || 0) || 1;
 
-          const width = Math.max(
-            3,
-            Math.round((totalTime / maxTime) * 100)
-          );
+          const width = Math.max(3, Math.round((totalTime / maxTime) * 100));
 
-         const typeLoggedTime =
-  Number(data.loggedTime) || 0;
+          const typeLoggedTime = Number(data.loggedTime) || 0;
 
-const typeRemainingTime = Math.max(
-  0,
-  totalTime - typeLoggedTime
-);
+          const typeRemainingTime = Math.max(0, totalTime - typeLoggedTime);
           return `
             <div class="breakdown-row type-breakdown-row">
 
@@ -4342,8 +4268,7 @@ const typeRemainingTime = Math.max(
               <div class="type-breakdown-details">
 
                 ${
-                  data.newAssets > 0 ||
-                  data.newTime > 0
+                  data.newAssets > 0 || data.newTime > 0
                     ? `
                       <div class="type-breakdown-section">
                         <div class="type-breakdown-label">
@@ -4363,8 +4288,7 @@ const typeRemainingTime = Math.max(
                 }
 
                 ${
-                  data.correctionAssets > 0 ||
-                  data.correctionTime > 0
+                  data.correctionAssets > 0 || data.correctionTime > 0
                     ? `
                       <div class="type-breakdown-section correction">
                         <div class="type-breakdown-label">
@@ -4891,6 +4815,26 @@ async function saveAppLockPassword(password) {
 
   renderAppLockSettings();
 }
+function openDataUnlockModal() {
+  const modal = $("lockScreen");
+
+  if (!modal) return;
+
+  const input = $("unlockPassword");
+  const error = $("unlockError");
+
+  if (input) {
+    input.value = "";
+  }
+
+  error?.classList.add("hidden");
+
+  modal.classList.remove("hidden");
+
+  setTimeout(() => {
+    input?.focus();
+  }, 50);
+}
 function bindActions() {
   document
     .querySelectorAll(".nav-item")
@@ -5022,49 +4966,53 @@ function bindActions() {
       }
     }
   });
-  $("loggedTimeForm").addEventListener(
-  "submit",
-  saveLoggedTime,
-);
+  $("loggedTimeForm").addEventListener("submit", saveLoggedTime);
 
-$("loggedTimeHours").addEventListener(
-  "input",
-  updateQuickLoggedTimePreview,
-);
-  $("lockAppBtn")?.addEventListener("click", () => {
-    lockApp();
+  $("loggedTimeHours").addEventListener("input", updateQuickLoggedTimePreview);
+  $("dataUnlockBtn")?.addEventListener("click", () => {
+    openDataUnlockModal();
+  });
+
+  $("dataLockBtn")?.addEventListener("click", () => {
+    lockData("Work data locked.");
   });
 
   $("unlockForm")?.addEventListener("submit", async (e) => {
     e.preventDefault();
 
-    const password = $("unlockPassword")?.value || "";
-
-    const error = $("unlockError");
-
-    try {
-      const isCorrect = await checkUnlockPassword(password);
-
-      if (isCorrect) {
-        unlockApp();
-        return;
-      }
-
-      error?.classList.remove("hidden");
-
-      $("unlockPassword").value = "";
-
-      $("unlockPassword").focus();
-    } catch (err) {
-      console.error("Unlock failed:", err);
-
-      error?.classList.remove("hidden");
-
-      $("unlockPassword").value = "";
-
-      $("unlockPassword").focus();
-    }
+    await unlockData();
   });
+
+  // $("unlockForm")?.addEventListener("submit", async (e) => {
+  //   e.preventDefault();
+
+  //   const password = $("unlockPassword")?.value || "";
+
+  //   const error = $("unlockError");
+
+  //   try {
+  //     const isCorrect = await checkUnlockPassword(password);
+
+  //     if (isCorrect) {
+  //       unlockApp();
+  //       return;
+  //     }
+
+  //     error?.classList.remove("hidden");
+
+  //     $("unlockPassword").value = "";
+
+  //     $("unlockPassword").focus();
+  //   } catch (err) {
+  //     console.error("Unlock failed:", err);
+
+  //     error?.classList.remove("hidden");
+
+  //     $("unlockPassword").value = "";
+
+  //     $("unlockPassword").focus();
+  //   }
+  // });
   document
     .querySelectorAll("[data-close-modal]")
     .forEach((b) => (b.onclick = () => closeModal(b.dataset.closeModal)));
@@ -5084,25 +5032,25 @@ $("loggedTimeHours").addEventListener(
         $("correctionMinutes").value = n % 60;
       }),
   );
-  $("unlockForm")?.addEventListener("submit", async (e) => {
-    e.preventDefault();
+  // $("unlockForm")?.addEventListener("submit", async (e) => {
+  //   e.preventDefault();
 
-    const password = $("unlockPassword")?.value || "";
+  //   const password = $("unlockPassword")?.value || "";
 
-    const error = $("unlockError");
+  //   const error = $("unlockError");
 
-    const isCorrect = await checkUnlockPassword(password);
+  //   const isCorrect = await checkUnlockPassword(password);
 
-    if (isCorrect) {
-      unlockApp();
-      return;
-    }
+  //   if (isCorrect) {
+  //     unlockApp();
+  //     return;
+  //   }
 
-    error?.classList.remove("hidden");
+  //   error?.classList.remove("hidden");
 
-    $("unlockPassword").value = "";
-    $("unlockPassword").focus();
-  });
+  //   $("unlockPassword").value = "";
+  //   $("unlockPassword").focus();
+  // });
   $("confirmCancelBtn").onclick = () => {
     state.pendingConfirm = null;
     closeModal("confirmModal");
@@ -5121,8 +5069,8 @@ $("loggedTimeHours").addEventListener(
       const a = b.dataset.action;
       if (a === "add-time") openTimeModal(id);
       if (a === "correction") openCorrectionModal(id);
-          if (a === "edit-logged") openLoggedTimeModal(getTask(id));
-if (a === "log-remaining") quickLogTask(getTask(id));
+      if (a === "edit-logged") openLoggedTimeModal(getTask(id));
+      if (a === "log-remaining") quickLogTask(getTask(id));
       if (a === "history") openHistory(id);
       if (a === "edit") openTaskModal(getTask(id));
       if (a === "status-next") changeStatus(id);
@@ -5406,42 +5354,207 @@ function stopSubscriptions() {
 
   unsubscribeListeners = [];
 }
-function lockApp() {
-  if (appLocked) return;
+// function lockApp() {
+//   if (appLocked) return;
 
-  appLocked = true;
+//   appLocked = true;
 
-  localStorage.setItem("worklog_locked", "1");
+//   localStorage.setItem("worklog_locked", "1");
+
+//   stopSubscriptions();
+
+//   $("app")?.classList.add("hidden");
+//   $("lockScreen")?.classList.remove("hidden");
+
+//   const input = $("unlockPassword");
+
+//   if (input) {
+//     input.value = "";
+//     setTimeout(() => input.focus(), 50);
+//   }
+
+//   $("unlockError")?.classList.add("hidden");
+// }
+
+// function unlockApp() {
+//   appLocked = false;
+
+//   localStorage.removeItem("worklog_locked");
+
+//   $("lockScreen")?.classList.add("hidden");
+//   $("app")?.classList.remove("hidden");
+
+//   $("unlockPassword").value = "";
+//   $("unlockError")?.classList.add("hidden");
+
+//   subscribe();
+//   renderWorkHours();
+//   updateDashboard();
+// }
+
+// async function checkUnlockPassword(password) {
+//   if (!appLockPasswordHash) {
+//     return false;
+//   }
+
+//   const hash = await hashPassword(password);
+
+//   return hash === appLockPasswordHash;
+// }
+// ==================== DATA LOCK ====================
+
+function clearDataState() {
+  state.clients = [];
+  state.tasks = [];
+  state.workSessions = [];
+  state.corrections = [];
+  state.activities = [];
+  state.workDays = [];
+}
+
+function clearDataUI() {
+  // Dashboard
+  $("statTodayTime").textContent = "—";
+  $("statTasksWorked").textContent = "—";
+  $("statCorrections").textContent = "—";
+  $("statOpenTasks").textContent = "—";
+
+  $("todayTimelineTotal").textContent = "—";
+
+  // Clear lists
+  const emptyContainers = ["todayWorkList", "dashboardTasks", "tasksList"];
+
+  emptyContainers.forEach((id) => {
+    const el = $(id);
+
+    if (el) {
+      el.innerHTML = "";
+    }
+  });
+
+  // Work hours
+  const workHours = $("workHoursList");
+
+  if (workHours) {
+    workHours.innerHTML = "";
+  }
+
+  // Reports
+  const reportBody = $("reportTableBody");
+
+  if (reportBody) {
+    reportBody.innerHTML = "";
+  }
+
+  // Client/project/task related selects
+  const taskClient = $("taskClient");
+
+  if (taskClient) {
+    taskClient.innerHTML = `<option value="">Unlock data to load clients</option>`;
+  }
+
+  const taskProject = $("taskProject");
+
+  if (taskProject) {
+    taskProject.innerHTML = "";
+  }
+}
+
+function showDataLockedState() {
+  $("dataLockBanner")?.classList.remove("hidden");
+  $("dataUnlockBtn")?.classList.remove("hidden");
+  $("dataLockBtn")?.classList.add("hidden");
+}
+
+function showDataUnlockedState() {
+  $("dataLockBanner")?.classList.add("hidden");
+  $("dataUnlockBtn")?.classList.add("hidden");
+  $("dataLockBtn")?.classList.remove("hidden");
+}
+
+function clearDataLockTimer() {
+  if (dataLockTimer) {
+    clearTimeout(dataLockTimer);
+    dataLockTimer = null;
+  }
+}
+
+function startDataLockTimer() {
+  clearDataLockTimer();
+
+  dataLockTimer = setTimeout(() => {
+    lockData("Data locked automatically.");
+  }, DATA_SESSION_MS);
+}
+
+function lockData(message = "Work data locked.") {
+  if (!dataUnlocked) {
+    showDataLockedState();
+    return;
+  }
+
+  dataUnlocked = false;
+
+  clearDataLockTimer();
 
   stopSubscriptions();
 
-  $("app")?.classList.add("hidden");
-  $("lockScreen")?.classList.remove("hidden");
+  clearDataState();
 
-  const input = $("unlockPassword");
+  clearDataUI();
 
-  if (input) {
-    input.value = "";
-    setTimeout(() => input.focus(), 50);
-  }
+  showDataLockedState();
 
-  $("unlockError")?.classList.add("hidden");
+  notify(message);
 }
 
-function unlockApp() {
-  appLocked = false;
+async function unlockData() {
+  const password = $("unlockPassword")?.value || "";
+  const error = $("unlockError");
 
-  localStorage.removeItem("worklog_locked");
+  if (!password) {
+    error?.classList.remove("hidden");
+    return;
+  }
 
-  $("lockScreen")?.classList.add("hidden");
-  $("app")?.classList.remove("hidden");
+  try {
+    const isCorrect = await checkUnlockPassword(password);
 
-  $("unlockPassword").value = "";
-  $("unlockError")?.classList.add("hidden");
+    if (!isCorrect) {
+      error?.classList.remove("hidden");
 
-  subscribe();
-  renderWorkHours();
-  updateDashboard();
+      $("unlockPassword").value = "";
+      $("unlockPassword").focus();
+
+      return;
+    }
+
+    dataUnlocked = true;
+
+    $("unlockPassword").value = "";
+    error?.classList.add("hidden");
+
+    $("lockScreen")?.classList.add("hidden");
+
+    showDataUnlockedState();
+
+    subscribe();
+
+    renderWorkHours();
+
+    updateDashboard();
+
+    startDataLockTimer();
+
+    notify("Work data unlocked.");
+  } catch (err) {
+    console.error("Unlock data failed:", err);
+
+    error?.classList.remove("hidden");
+
+    $("unlockPassword").value = "";
+    $("unlockPassword").focus();
+  }
 }
 
 async function checkUnlockPassword(password) {
@@ -5496,30 +5609,21 @@ initReportDates();
 bindActions();
 
 setConnection(navigator.onLine);
+// ==================== LOAD DATA LOCK CONFIG ====================
 
-// ==================== LOAD APP LOCK CONFIG ====================
 await loadAppLockConfig();
+
 renderAppLockSettings();
 
-const hasPassword = Boolean(appLockPasswordHash);
+dataUnlocked = false;
 
-// Chỉ lock khi:
-// 1. App đang được đánh dấu locked
-// 2. Và password thực sự tồn tại
-if (appLocked && hasPassword) {
-  $("loadingScreen")?.classList.add("hidden");
-  $("app")?.classList.add("hidden");
-  $("lockScreen")?.classList.remove("hidden");
-  $("unlockPassword")?.focus();
-} else {
-  // Chưa có password → cho vào app để thiết lập
-  appLocked = false;
-  localStorage.removeItem("worklog_locked");
+stopSubscriptions();
 
-  subscribe();
-  renderWorkHours();
-  updateDashboard();
+clearDataState();
 
-  $("loadingScreen")?.classList.add("hidden");
-  $("app")?.classList.remove("hidden");
-}
+clearDataUI();
+
+showDataLockedState();
+
+$("loadingScreen")?.classList.add("hidden");
+$("app")?.classList.remove("hidden");
