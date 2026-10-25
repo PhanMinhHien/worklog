@@ -217,6 +217,93 @@ async function loadAppLockConfig() {
   }
 }
 
+async function loadWorkHoursSettings() {
+  try {
+    const ref = doc(db, "settings", WORK_HOURS_SETTINGS_DOC);
+
+    const snap = await getDoc(ref);
+
+    if (!snap.exists()) {
+      console.warn("Work hours settings do not exist yet.");
+
+      return false;
+    }
+
+    const data = snap.data();
+
+    dailyTargetMinutes = Math.max(
+      0,
+      Number(data.dailyTargetMinutes) || 0,
+    );
+
+    openingFlexiMinutes = Math.max(
+      0,
+      Number(data.openingFlexiMinutes) || 0,
+    );
+
+    return true;
+  } catch (err) {
+    console.error("Failed to load work hours settings:", err);
+
+    return false;
+  }
+}
+function renderWorkHoursSettings() {
+  const dailyTargetInput = $("dailyTargetMinutes");
+  const openingFlexiInput = $("openingFlexiMinutes");
+
+  if (dailyTargetInput) {
+    dailyTargetInput.value = dailyTargetMinutes;
+  }
+
+  if (openingFlexiInput) {
+    openingFlexiInput.value = openingFlexiMinutes;
+  }
+}
+async function saveWorkHoursSettings(e) {
+  e.preventDefault();
+
+  const dailyTarget = Math.max(
+    0,
+    Number($("dailyTargetMinutes")?.value) || 0,
+  );
+
+  const openingFlexi = Math.max(
+    0,
+    Number($("openingFlexiMinutes")?.value) || 0,
+  );
+
+  try {
+    await setDoc(
+      doc(db, "settings", WORK_HOURS_SETTINGS_DOC),
+      {
+        dailyTargetMinutes: dailyTarget,
+        openingFlexiMinutes: openingFlexi,
+        updatedAt: serverTimestamp(),
+      },
+      {
+        merge: true,
+      },
+    );
+
+    dailyTargetMinutes = dailyTarget;
+    openingFlexiMinutes = openingFlexi;
+
+    renderWorkHours();
+
+    const status = $("workHoursSettingsStatus");
+
+    if (status) {
+      status.textContent = "Saved.";
+    }
+
+    notify("Work hours settings saved.");
+  } catch (err) {
+    console.error("Failed to save work hours settings:", err);
+
+    notify("Failed to save work hours settings.", "error");
+  }
+}
 const today = () => localDateString();
 const escapeHtml = (v = "") =>
   String(v).replace(
@@ -362,12 +449,17 @@ const correctionMinutes = (id) =>
   state.corrections
     .filter((x) => x.taskId === id)
     .reduce((s, x) => s + (Number(x.duration) || 0), 0);
-/* =========================
-   WORK HOURS / FLEXI HELPERS
-========================= */
 
-const DAILY_TARGET_MINUTES = 480;
-const OPENING_FLEXI_MINUTES = 10461;
+// =========================
+// WORK HOURS / FLEXI SETTINGS
+// =========================
+
+const WORK_HOURS_SETTINGS_DOC = "workHours";
+
+let dailyTargetMinutes = 480;
+let openingFlexiMinutes = 10461;
+// const dailyTargetMinutes = 480;
+// const openingFlexiMinutes = 10461;
 function localDateString(date = new Date()) {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, "0");
@@ -409,7 +501,7 @@ function calculateWorkDay(checkIn, checkOut, lunchMinutes = 0) {
   }
 
   const actual = Math.max(0, gross - lunch);
-  const target = DAILY_TARGET_MINUTES;
+const target = dailyTargetMinutes;
   return {
     actualMinutes: actual,
     normalMinutes: Math.min(actual, target),
@@ -470,7 +562,7 @@ function weekActualMinutes(date = today()) {
 }
 
 function availableFlexiMinutes(date = today()) {
-  return OPENING_FLEXI_MINUTES + weekFlexiMinutes(date);
+  return openingFlexiMinutes + weekFlexiMinutes(date);
 }
 
 function formatFlexi(mins = 0) {
@@ -1376,18 +1468,25 @@ function renderWorkHours() {
 
   $("workWeekActual").textContent = formatDuration(weekActualMinutes(date));
 
-  $("flexiOpening").textContent = formatFlexi(OPENING_FLEXI_MINUTES);
+  // $("flexiOpening").textContent = formatFlexi(openingFlexiMinutes);
+$("flexiOpening").textContent =
+  formatFlexi(openingFlexiMinutes);
 
-  $("flexiWeekAdded").textContent = formatFlexi(weekFlexiMinutes(date));
+$("flexiWeekAdded").textContent =
+  formatFlexi(weekFlexiMinutes(date));
 
-  $("flexiAvailable").textContent = formatFlexi(availableFlexiMinutes(date));
+$("flexiAvailable").textContent =
+  formatFlexi(availableFlexiMinutes(date));
 
-  $("workAvailableFlexi").textContent = formatFlexi(
-    availableFlexiMinutes(date),
-  );
+$("workAvailableFlexi").textContent =
+  formatFlexi(availableFlexiMinutes(date));
 
-  $("workFlexiHelper").textContent =
-    `${formatFlexi(OPENING_FLEXI_MINUTES)} opening + ${formatFlexi(weekFlexiMinutes(date))} this week`;
+$("workFlexiHelper").textContent =
+  `${formatFlexi(openingFlexiMinutes)} opening + ${formatFlexi(
+    weekFlexiMinutes(date),
+  )} this week`;
+  // $("workFlexiHelper").textContent =
+  //   `${formatFlexi(openingFlexiMinutes)} opening + ${formatFlexi(weekFlexiMinutes(date))} this week`;
 
   $("workWeekFlexi").textContent =
     `${formatFlexi(weekFlexiMinutes(date))} flexi`;
@@ -1493,7 +1592,7 @@ function renderWorkWeekTable(date = today()) {
       const flexiClass =
         calc.flexiMinutes > 0
           ? "flexi-positive"
-          : calc.actualMinutes < DAILY_TARGET_MINUTES
+          : calc.actualMinutes < dailyTargetMinutes
             ? "below-target"
             : "";
 
@@ -1562,7 +1661,7 @@ function updateWorkDayPreview() {
     return;
   }
 
-  const target = DAILY_TARGET_MINUTES;
+  const target = dailyTargetMinutes;
 
   $("workDayPreview").innerHTML = `
     <div>
@@ -4953,7 +5052,10 @@ function bindActions() {
   $("restoreJsonBtn").onclick = () => $("restoreFileInput").click();
   $("restoreFileInput").onchange = restoreJson;
   $("clearAllBtn").onclick = clearAll;
-
+$("workHoursSettingsForm")?.addEventListener(
+  "submit",
+  saveWorkHoursSettings,
+);
   // ==================== APP LOCK SETTINGS ====================
 
   $("appLockPasswordBtn")?.addEventListener("click", () => {
@@ -5493,6 +5595,29 @@ function clearDataUI() {
   if (workHours) {
     workHours.innerHTML = "";
   }
+  // Work hours summary
+const workHourValues = [
+  "workTodayActual",
+  "workTodayFlexi",
+  "workWeekActual",
+  "flexiOpening",
+  "flexiWeekAdded",
+  "flexiAvailable",
+  "workAvailableFlexi",
+  "workFlexiHelper",
+  "workWeekFlexi",
+  "workWeekLabel",
+];
+
+workHourValues.forEach((id) => {
+  const el = $(id);
+
+  if (el) {
+    el.textContent = "—";
+  }
+});
+
+$("todayWorkDayCard")?.replaceChildren();
 
   // Reports
   const reportBody = $("reportTableBody");
@@ -5516,7 +5641,7 @@ function clearDataUI() {
 }
 
 function showDataLockedState() {
-  // $("dataLockBanner")?.classList.remove("hidden");
+  $("dataLockBanner")?.classList.remove("hidden");
   $("dataUnlockBtn")?.classList.remove("hidden");
   $("dataLockBtn")?.classList.add("hidden");
 }
@@ -5541,7 +5666,6 @@ function startDataLockTimer() {
     lockData("Data locked automatically.");
   }, DATA_SESSION_MS);
 }
-
 function lockData(message = "Work data locked.") {
   if (!dataUnlocked) {
     showDataLockedState();
@@ -5551,18 +5675,11 @@ function lockData(message = "Work data locked.") {
   dataUnlocked = false;
 
   clearDataLockTimer();
-
   stopSubscriptions();
-
   clearDataState();
 
-  clearDataUI();
-
-  showDataLockedState();
-
-  notify(message);
+  window.location.reload();
 }
-
 async function unlockData() {
   const password = $("unlockPassword")?.value || "";
   const error = $("unlockError");
@@ -5590,6 +5707,9 @@ async function unlockData() {
     error?.classList.add("hidden");
 
     $("lockScreen")?.classList.add("hidden");
+await loadWorkHoursSettings();
+
+renderWorkHoursSettings();
 
     showDataUnlockedState();
 
