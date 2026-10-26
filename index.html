@@ -1078,31 +1078,65 @@
               <input id="timeDate" type="date" required />
             </div>
 
-            <div class="time-row">
-              <div class="field">
-                <label for="timeHours"> Hours </label>
+           <div class="field field-full">
+  <label> Required </label>
 
-                <input
-                  id="timeHours"
-                  type="number"
-                  min="0"
-                  max="999"
-                  value="0"
-                />
-              </div>
+  <div class="time-row">
+    <div class="field">
+      <label for="timeRequiredHours"> Hours </label>
 
-              <div class="field">
-                <label for="timeMinutes"> Minutes </label>
+      <input
+        id="timeRequiredHours"
+        type="number"
+        min="0"
+        max="999"
+        value="0"
+      />
+    </div>
 
-                <input
-                  id="timeMinutes"
-                  type="number"
-                  min="0"
-                  max="59"
-                  value="0"
-                />
-              </div>
-            </div>
+    <div class="field">
+      <label for="timeRequiredMinutes"> Minutes </label>
+
+      <input
+        id="timeRequiredMinutes"
+        type="number"
+        min="0"
+        max="59"
+        value="0"
+      />
+    </div>
+  </div>
+</div>
+
+<!-- <div class="field field-full">
+  <label> Logged </label>
+
+  <div class="time-row">
+    <div class="field">
+      <label for="timeHours"> Hours </label>
+
+      <input
+        id="timeHours"
+        type="number"
+        min="0"
+        max="999"
+        value="0"
+      />
+    </div>
+
+    <div class="field">
+      <label for="timeMinutes"> Minutes </label>
+
+      <input
+        id="timeMinutes"
+        type="number"
+        min="0"
+        max="59"
+        value="0"
+      />
+    </div>
+  </div>
+</div>
 
             <div class="quick-times">
               <button type="button" class="quick-time" data-time-preset="15">
@@ -1120,7 +1154,7 @@
               <button type="button" class="quick-time" data-time-preset="120">
                 2h
               </button>
-            </div>
+            </div> -->
 
             <div class="field field-full">
               <label for="timeNote"> Note </label>
