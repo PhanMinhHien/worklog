@@ -139,7 +139,6 @@ const STATUS = {
   OPEN: "open",
   IN_PROGRESS: "in_progress",
   WAITING: "waiting",
-
   COMPLETED: "completed",
   ARCHIVED: "archived",
 };
@@ -147,7 +146,6 @@ const STATUS_META = {
   open: { label: "New", icon: "🟡", cls: "status-open" },
   in_progress: { label: "In Approval", icon: "🔵", cls: "status-progress" },
   waiting: { label: "Waiting", icon: "🟣", cls: "status-waiting" },
-
   completed: { label: "Completed", icon: "🟢", cls: "status-completed" },
   archived: { label: "Archived", icon: "⚫", cls: "status-archived" },
 };
@@ -3152,7 +3150,6 @@ function nextStatus(current) {
     STATUS.OPEN,
     STATUS.IN_PROGRESS,
     STATUS.WAITING,
-    STATUS.BLOCKED,
     STATUS.COMPLETED,
   ];
   const i = order.indexOf(current);
