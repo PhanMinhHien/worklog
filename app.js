@@ -4,42 +4,42 @@ import { collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot, serverTimest
 // ==================== BASIC UI PROTECTION ====================
 
 // Disable right-click
-// document.addEventListener("contextmenu", (e) => {
-//   e.preventDefault();
-// });
+document.addEventListener("contextmenu", (e) => {
+  e.preventDefault();
+});
 
-// // Disable common source/devtools shortcuts
-// document.addEventListener("keydown", (e) => {
-//   // F12
-//   if (e.key === "F12") {
-//     e.preventDefault();
-//     return;
-//   }
+// Disable common source/devtools shortcuts
+document.addEventListener("keydown", (e) => {
+  // F12
+  if (e.key === "F12") {
+    e.preventDefault();
+    return;
+  }
 
-//   // Ctrl + U / Cmd + U — View Source
-//   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "u") {
-//     e.preventDefault();
-//     return;
-//   }
+  // Ctrl + U / Cmd + U — View Source
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "u") {
+    e.preventDefault();
+    return;
+  }
 
-//   // Ctrl + Shift + I / Cmd + Option + I — DevTools
-//   if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "i") {
-//     e.preventDefault();
-//     return;
-//   }
+  // Ctrl + Shift + I / Cmd + Option + I — DevTools
+  if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "i") {
+    e.preventDefault();
+    return;
+  }
 
-//   // Ctrl + Shift + J / Cmd + Option + J — Console
-//   if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "j") {
-//     e.preventDefault();
-//     return;
-//   }
+  // Ctrl + Shift + J / Cmd + Option + J — Console
+  if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "j") {
+    e.preventDefault();
+    return;
+  }
 
-//   // Ctrl + Shift + C / Cmd + Shift + C — Inspect Element
-//   if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "c") {
-//     e.preventDefault();
-//     return;
-//   }
-// });
+  // Ctrl + Shift + C / Cmd + Shift + C — Inspect Element
+  if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "c") {
+    e.preventDefault();
+    return;
+  }
+});
 
 const $ = (id) => document.getElementById(id);
 
@@ -183,7 +183,9 @@ function startDataLockCountdown() {
     renderDataLockCountdown();
   }, 1000);
 }
+const TASK_DEFAULTS_SETTINGS_DOC = "taskDefaults";
 
+let defaultTaskClientId = "";
 const APP_LOCK_DOC = "appLock";
 
 const DATA_SESSION_MINUTES = 240;
@@ -234,6 +236,88 @@ async function loadAppLockConfig() {
     console.error("Failed to load data lock config:", err);
 
     return false;
+  }
+}
+
+async function loadTaskDefaultsSettings() {
+  try {
+    const ref = doc(db, "settings", TASK_DEFAULTS_SETTINGS_DOC);
+
+    const snap = await getDoc(ref);
+
+    if (!snap.exists()) {
+      defaultTaskClientId = "";
+      return false;
+    }
+
+    const data = snap.data();
+
+    defaultTaskClientId = data.defaultClientId || "";
+
+    return true;
+  } catch (err) {
+    console.error("Failed to load task defaults settings:", err);
+
+    defaultTaskClientId = "";
+
+    return false;
+  }
+}
+function renderTaskDefaultsSettings() {
+  const select = $("defaultTaskClientId");
+
+  if (!select) return;
+
+  const clients = [...state.clients].sort((a, b) =>
+    String(a.name || "").localeCompare(String(b.name || ""))
+  );
+
+  select.innerHTML =
+    `<option value="">No default client</option>` +
+    clients
+      .map(
+        (client) =>
+          `<option value="${escapeHtml(client.id)}">
+            ${escapeHtml(client.name)}
+          </option>`
+      )
+      .join("");
+
+  const exists = clients.some(
+    (client) => client.id === defaultTaskClientId
+  );
+
+  select.value = exists ? defaultTaskClientId : "";
+}
+async function saveTaskDefaultsSettings() {
+  const defaultClientId =
+    $("defaultTaskClientId")?.value || "";
+
+  try {
+    await setDoc(
+      doc(db, "settings", TASK_DEFAULTS_SETTINGS_DOC),
+      {
+        defaultClientId,
+        updatedAt: serverTimestamp(),
+      },
+      {
+        merge: true,
+      }
+    );
+
+    defaultTaskClientId = defaultClientId;
+
+    notify("Default client saved.");
+  } catch (err) {
+    console.error(
+      "Failed to save task defaults settings:",
+      err
+    );
+
+    notify(
+      "Failed to save default client.",
+      "error"
+    );
   }
 }
 
@@ -350,14 +434,56 @@ const shortDate = (d) =>
       })
     : "";
 const timeAgo = (ts) => {
-  const date = ts?.toDate ? ts.toDate() : ts ? new Date(ts) : null;
-  if (!date) return "Recently";
-  const diff = Math.max(0, Date.now() - date.getTime()),
-    min = Math.floor(diff / 60000);
+  let millis = null;
+
+  if (!ts) {
+    return "Recently";
+  }
+
+  // Firebase Timestamp
+  if (typeof ts.toMillis === "function") {
+    millis = ts.toMillis();
+  } else if (typeof ts.toDate === "function") {
+    millis = ts.toDate().getTime();
+  }
+
+  // Firebase Timestamp-like object
+  else if (typeof ts === "object" && Number.isFinite(Number(ts.seconds))) {
+    millis =
+      Number(ts.seconds) * 1000 +
+      Math.floor(Number(ts.nanoseconds || 0) / 1e6);
+  }
+
+  // JavaScript Date
+  else if (ts instanceof Date) {
+    millis = ts.getTime();
+  }
+
+  // Number timestamp
+  else if (typeof ts === "number") {
+    millis = ts;
+  }
+
+  // String date
+  else if (typeof ts === "string") {
+    millis = new Date(ts).getTime();
+  }
+
+  // Invalid timestamp
+  if (!Number.isFinite(millis)) {
+    return "Recently";
+  }
+
+  const diff = Math.max(0, Date.now() - millis);
+  const min = Math.floor(diff / 60000);
+
   if (min < 1) return "Just now";
   if (min < 60) return `${min}m ago`;
+
   const hr = Math.floor(min / 60);
+
   if (hr < 24) return `${hr}h ago`;
+
   return `${Math.floor(hr / 24)}d ago`;
 };
 const getTask = (id) => state.tasks.find((t) => t.id === id);
@@ -541,12 +667,17 @@ function formatFlexi(mins = 0) {
   const value = Math.max(0, Math.round(Number(mins) || 0));
   return formatDuration(value);
 }
-function notify(message, type = "success") {
+function notify(message, type = "success", duration = 3200) {
   const el = document.createElement("div");
   el.className = `toast ${type}`;
   el.textContent = message;
   $("toastContainer").appendChild(el);
-  setTimeout(() => el.remove(), 3200);
+
+  if (duration > 0) {
+    setTimeout(() => el.remove(), duration);
+  }
+
+  return el;
 }
 function openModal(id) {
   $(id)?.classList.remove("hidden");
@@ -570,8 +701,31 @@ function lastActivity(id) {
 }
 function dateValue(ts) {
   if (!ts) return 0;
-  if (ts.toMillis) return ts.toMillis();
-  const n = typeof ts === "number" ? ts : new Date(ts).getTime();
+
+  if (typeof ts.toMillis === "function") {
+    return ts.toMillis();
+  }
+
+  if (typeof ts.toDate === "function") {
+    return ts.toDate().getTime();
+  }
+
+  if (typeof ts === "object" && Number.isFinite(Number(ts.seconds))) {
+    return (
+      Number(ts.seconds) * 1000 +
+      Math.floor(Number(ts.nanoseconds || 0) / 1e6)
+    );
+  }
+
+  if (ts instanceof Date) {
+    return ts.getTime();
+  }
+
+  const n =
+    typeof ts === "number"
+      ? ts
+      : new Date(ts).getTime();
+
   return Number.isFinite(n) ? n : 0;
 }
 function sortNewest(a, b) {
@@ -907,14 +1061,14 @@ const correctionMinutes = (id) => {
 //     </div>
 //   </div>`;
 // }
+
 function renderTask(task, compact = false) {
   const summary = getTaskTimeSummary(task);
 
   const dates = taskDates(task.id);
   const s = STATUS_META[task.status] || STATUS_META.open;
 
-  const firstWorkDate = dates.length ? dates[dates.length - 1] : "";
-
+const firstWorkDate = dates.length ? dates[0] : "";
   const worked = firstWorkDate ? shortDate(firstWorkDate) : "No work date yet";
 
   const { fixedMinutes, isFixedTask, workLogDurationMinutes, workLogRequiredMinutes, correctionMinutes: taskCorrectionMinutes, requiredMinutes, loggedMinutes, remainingMinutes } = summary;
@@ -924,18 +1078,36 @@ function renderTask(task, compact = false) {
    * No Remaining.
    * No Quick Log.
    */
-  const quickLogButton =
-    !isFixedTask && remainingMinutes > 0
-      ? `
-        <button
-          class="task-action quick-log-action"
-          data-action="log-remaining"
-          data-task-id="${task.id}"
-        >
-          ✓ Log ${formatDuration(remainingMinutes)}
-        </button>
-      `
-      : "";
+  // const quickLogButton =
+  //   !isFixedTask && remainingMinutes > 0
+  //     ? `
+  //       <button
+  //         class="task-action quick-log-action"
+  //         data-action="log-remaining"
+  //         data-task-id="${task.id}"
+  //       >
+  //         ✓ Log ${formatDuration(remainingMinutes)}
+  //       </button>
+  //     `
+  //     : "";
+
+  const quickLogRemainingMinutes = Math.max(
+  0,
+  requiredMinutes - loggedMinutes
+);
+
+const quickLogButton =
+  quickLogRemainingMinutes > 0
+    ? `
+      <button
+        class="task-action quick-log-action"
+        data-action="log-remaining"
+        data-task-id="${task.id}"
+      >
+        ✓ Log ${formatDuration(quickLogRemainingMinutes)}
+      </button>
+    `
+    : "";
 
   /*
   * Log status
@@ -1117,13 +1289,19 @@ function renderTask(task, compact = false) {
                 ${formatDuration(loggedMinutes)}
               </button>
 
-              <button
-                class="task-action"
-                data-action="add-time"
-                data-task-id="${task.id}"
-              >
-                + Time
-              </button>
+              ${
+  !isFixedTask
+    ? `
+      <button
+        class="task-action"
+        data-action="add-time"
+        data-task-id="${task.id}"
+      >
+        + Time
+      </button>
+    `
+    : ""
+}
 
               <button
                 class="task-action"
@@ -1242,91 +1420,57 @@ function renderTasks() {
   }
 
   tasks.sort((a, b) => {
-    const getLogPriority = (task) => {
-      const summary = getTaskTimeSummary(task);
+  const getLogPriority = (task) => {
+    const summary = getTaskTimeSummary(task);
 
-      /*
-       * Fixed Time does not participate
-       * in Remaining / Quick Log status.
-       */
-      if (summary.isFixedTask) {
-        return 3;
-      }
-
-      if (summary.requiredMinutes <= 0) {
-        return 3;
-      }
-
-      if (summary.loggedMinutes <= 0) {
-        return 0;
-      }
-
-      if (summary.loggedMinutes < summary.requiredMinutes) {
-        return 1;
-      }
-
-      return 2;
-    };
-
-    //     const getLogPriority = (task) => {
-    //       // const fixedMinutes = Number(task.fixedMinutes) || 0;
-
-    //       // const taskCorrectionMinutes = correctionMinutes(task.id);
-
-    //       // const requiredMinutes = fixedMinutes + taskCorrectionMinutes;
-
-    //       // const loggedMinutes = Number(task.loggedMinutes) || 0;
-
-    //       const fixedMinutes = Number(task.fixedMinutes) || 0;
-
-    // const taskCorrectionMinutes = correctionMinutes(task.id);
-
-    // const workLogRequiredMinutes = state.workSessions
-    //   .filter(
-    //     (x) =>
-    //       x.taskId === task.id &&
-    //       x.source !== "fixed",
-    //   )
-    //   .reduce(
-    //     (sum, x) => sum + (Number(x.requiredMinutes) || 0),
-    //     0,
-    //   );
-
-    // const requiredMinutes =
-    //   fixedMinutes +
-    //   taskCorrectionMinutes +
-    //   workLogRequiredMinutes;
-
-    // const loggedMinutes = state.workSessions
-    //   .filter((x) => x.taskId === task.id)
-    //   .reduce(
-    //     (sum, x) => sum + (Number(x.duration) || 0),
-    //     0,
-    //   );
-
-    //       if (requiredMinutes > 0 && loggedMinutes <= 0) {
-    //         return 0;
-    //       }
-
-    //       if (requiredMinutes > 0 && loggedMinutes < requiredMinutes) {
-    //         return 1;
-    //       }
-
-    //       if (requiredMinutes > 0 && loggedMinutes >= requiredMinutes) {
-    //         return 2;
-    //       }
-
-    //       return 3;
-    //     };
-
-    const statusCompare = getLogPriority(a) - getLogPriority(b);
-
-    if (statusCompare !== 0) {
-      return statusCompare;
+    // No required time -> always last
+    if (summary.requiredMinutes <= 0) {
+      return 3;
     }
 
-    return dateValue(b.updatedAt || b.createdAt) - dateValue(a.updatedAt || a.createdAt);
-  });
+    // Same status logic for Normal + Fixed Time
+    if (summary.loggedMinutes <= 0) {
+      return 0; // NOT LOGGED
+    }
+
+    if (summary.loggedMinutes < summary.requiredMinutes) {
+      return 1; // INCOMPLETE
+    }
+
+    return 2; // LOGGED
+  };
+
+  // 1. Status first
+  const statusCompare =
+    getLogPriority(a) - getLogPriority(b);
+
+  if (statusCompare !== 0) {
+    return statusCompare;
+  }
+
+  // 2. Within the same status:
+  // newest Worked date first
+  const getLatestWorkDate = (task) => {
+    const dates = taskDates(task.id);
+    return dates.length ? dates[0] : "";
+  };
+
+  const dateA = getLatestWorkDate(a);
+  const dateB = getLatestWorkDate(b);
+
+  if (dateA !== dateB) {
+    if (!dateA) return 1;
+    if (!dateB) return -1;
+
+    return dateB.localeCompare(dateA);
+  }
+
+  // 3. Fallback when there is no Worked date
+  return (
+    dateValue(b.updatedAt || b.createdAt) -
+    dateValue(a.updatedAt || a.createdAt)
+  );
+});
 
   $("tasksList").innerHTML = tasks.length
     ? tasks.map((t) => renderTask(t)).join("")
@@ -2763,18 +2907,26 @@ async function quickLogTask(task) {
   /*
    * Fixed Time never uses Quick Log.
    */
-  if (summary.isFixedTask) {
-    return;
-  }
+  // if (summary.isFixedTask) {
+  //   return;
+  // }
 
   if (summary.requiredMinutes <= 0) {
     return;
   }
 
-  if (summary.remainingMinutes <= 0) {
-    return;
-  }
+  // if (summary.remainingMinutes <= 0) {
+  //   return;
+  // }
 
+  const quickLogRemainingMinutes = Math.max(
+  0,
+  summary.requiredMinutes - summary.loggedMinutes
+);
+
+if (quickLogRemainingMinutes <= 0) {
+  return;
+}
   try {
     /*
      * Quick Log means:
@@ -2849,13 +3001,21 @@ function openTaskModal(task = null) {
 
   $("taskTitle").value = task?.title || "";
 
-  const inferredClient = task?.clientId ? getClient(task.clientId) : getClientByName(task?.project);
+const inferredClient =
+  task?.clientId
+    ? getClient(task.clientId)
+    : getClientByName(task?.project);
 
-  const clientId = inferredClient?.id || "";
+const clientId =
+  inferredClient?.id ||
+  (!task ? defaultTaskClientId : "");
 
-  populateTaskClients(clientId);
+populateTaskClients(clientId);
 
-  populateTaskTypes(clientId, task?.type || "");
+populateTaskTypes(
+  clientId,
+  task?.type || ""
+);
 
   $("taskStatus").value = task?.status || STATUS.OPEN;
 
@@ -3007,7 +3167,9 @@ function openCorrectionModal(taskId, entry = null) {
 }
 
 function openHistory(taskId) {
+  
   const t = getTask(taskId);
+    const isFixedTask = (Number(t.fixedMinutes) || 0) > 0;
   if (!t) return;
 
   const normal = state.workSessions.filter((x) => x.taskId === taskId && x.source !== "fixed").sort((a, b) => String(b.date).localeCompare(String(a.date)) || dateValue(b.createdAt) - dateValue(a.createdAt));
@@ -3247,11 +3409,18 @@ function openHistory(taskId) {
   /*
    * Add WorkLog
    */
-  $("historyAddTimeBtn").onclick = () => {
+ const historyAddTimeBtn = $("historyAddTimeBtn");
+
+if (historyAddTimeBtn) {
+  historyAddTimeBtn.style.display = isFixedTask ? "none" : "";
+
+  historyAddTimeBtn.onclick = () => {
+    if (isFixedTask) return;
+
     closeModal("historyModal");
     openTimeModal(taskId);
   };
-
+}
   /*
    * Add Correction
    */
@@ -5356,7 +5525,10 @@ function bindActions() {
   $("restoreFileInput").onchange = restoreJson;
   $("clearAllBtn").onclick = clearAll;
   $("workHoursSettingsForm")?.addEventListener("submit", saveWorkHoursSettings);
-
+$("saveTaskDefaultsBtn")?.addEventListener(
+  "click",
+  saveTaskDefaultsSettings
+);
   $("appLockPasswordBtn")?.addEventListener("click", () => {
     openAppLockPasswordModal();
   });
@@ -5520,35 +5692,49 @@ function exportJson() {
   URL.revokeObjectURL(a.href);
 }
 async function restoreJson(e) {
-  const file = e.target.files?.[0];
+  const input = e.target;
+  const file = input.files?.[0];
+
   if (!file) return;
+
+  // Keep this visible until restore actually finishes.
+  const loadingToast = notify("Restoring backup...", "success", 0);
+
   try {
     const data = JSON.parse(await file.text());
-    if (!Array.isArray(data.tasks)) throw new Error("Invalid WorkLog backup.");
+
+    if (!Array.isArray(data.tasks)) {
+      throw new Error("Invalid WorkLog backup.");
+    }
+
     for (const t of data.tasks) {
       const id = t.id;
       const copy = { ...t };
       delete copy.id;
       await importDoc("tasks", id, copy);
     }
+
     for (const x of data.workSessions || []) {
       const id = x.id;
       const copy = { ...x };
       delete copy.id;
       await importDoc("workSessions", id, copy);
     }
+
     for (const x of data.corrections || []) {
       const id = x.id;
       const copy = { ...x };
       delete copy.id;
       await importDoc("corrections", id, copy);
     }
+
     for (const x of data.activityLogs || []) {
       const id = x.id;
       const copy = { ...x };
       delete copy.id;
       await importDoc("activityLogs", id, copy);
     }
+
     for (const x of data.workDays || []) {
       const id = x.id;
       const copy = { ...x };
@@ -5556,10 +5742,20 @@ async function restoreJson(e) {
       await importDoc("workDays", id, copy);
     }
 
-    notify("Backup restored.");
-    e.target.value = "";
+    loadingToast.remove();
+    notify("Backup restored successfully.");
   } catch (err) {
-    notify(err.message || "Could not restore backup.", "error");
+    console.error("Restore backup failed:", err);
+
+    loadingToast.remove();
+
+    notify(
+      err.message || "Could not restore backup.",
+      "error"
+    );
+  } finally {
+    // Allow selecting the same JSON file again.
+    input.value = "";
   }
 }
 async function importDoc(col, id, data) {
@@ -5579,7 +5775,7 @@ function subscribe() {
       }));
 
       renderClients();
-
+renderTaskDefaultsSettings();
       populateTaskClients($("taskClient")?.value || "");
 
       populateTaskTypeFilter();
@@ -5817,6 +6013,7 @@ async function unlockData() {
 
     $("lockScreen")?.classList.add("hidden");
     await loadWorkHoursSettings();
+await loadTaskDefaultsSettings();
 
     renderWorkHoursSettings();
 
@@ -5906,7 +6103,10 @@ if (unlockExpiresAt > Date.now()) {
   $("lockScreen")?.classList.add("hidden");
 
   await loadWorkHoursSettings();
+  await loadTaskDefaultsSettings();
+
   renderWorkHoursSettings();
+  renderTaskDefaultsSettings();
 
   showDataUnlockedState();
 
