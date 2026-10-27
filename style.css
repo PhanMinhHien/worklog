@@ -560,6 +560,25 @@ body {
   font-weight: 750;
   white-space: nowrap
 }
+.status-approval {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.status-correction {
+  background: #ffedd5;
+  color: #c2410c;
+}
+
+.status-execution-proof {
+  background: #f3e8ff;
+  color: #7e22ce;
+}
+
+.status-production {
+  background: #f5f5f4;
+  color: #57534e;
+}
 
 .status-open {
   background: #fef3c7;
