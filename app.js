@@ -4216,6 +4216,7 @@ async function saveTime(e) {
     const data = {
       taskId,
       date,
+      duration: requiredMinutes,
       note,
       type: "normal",
       updatedAt:
