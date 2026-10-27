@@ -107,20 +107,84 @@ const FIXED_ASSET_TIMES = {
   "Banner release": 15,
   "Teaser creation": 30,
 };
+// const STATUS = {
+//   OPEN: "open",
+//   IN_APPROVAL: "in_approval",
+//   IN_CORRECTION: "in_correction",
+//   EXECUTION_PROOF: "execution_proof",
+//   IN_PRODUCTION: "in_production",
+//   COMPLETED: "completed",
+//   WAITING: "waiting",
+//   ARCHIVED: "archived",
+// };
+// const STATUS_META = {
+//   open: { label: "New", icon: "🟡", cls: "status-open" },
+//   in_progress: { label: "In Approval", icon: "🔵", cls: "status-progress" },
+//   waiting: { label: "Waiting", icon: "🟣", cls: "status-waiting" },
+//   completed: { label: "Completed", icon: "🟢", cls: "status-completed" },
+//   archived: { label: "Archived", icon: "⚫", cls: "status-archived" },
+// };
 const STATUS = {
   OPEN: "open",
-  IN_PROGRESS: "in_progress",
-  WAITING: "waiting",
+  IN_APPROVAL: "in_approval",
+  IN_CORRECTION: "in_correction",
+  EXECUTION_PROOF: "execution_proof",
+  IN_PRODUCTION: "in_production",
   COMPLETED: "completed",
+  WAITING: "waiting",
   ARCHIVED: "archived",
 };
+
 const STATUS_META = {
-  open: { label: "New", icon: "🟡", cls: "status-open" },
-  in_progress: { label: "In Approval", icon: "🔵", cls: "status-progress" },
-  waiting: { label: "Waiting", icon: "🟣", cls: "status-waiting" },
-  completed: { label: "Completed", icon: "🟢", cls: "status-completed" },
-  archived: { label: "Archived", icon: "⚫", cls: "status-archived" },
+  [STATUS.OPEN]: {
+    label: "New",
+    icon: "🟡",
+    cls: "status-open",
+  },
+
+  [STATUS.IN_APPROVAL]: {
+    label: "In Approval",
+    icon: "🔵",
+    cls: "status-approval",
+  },
+
+  [STATUS.IN_CORRECTION]: {
+    label: "In Correction",
+    icon: "🟠",
+    cls: "status-correction",
+  },
+
+  [STATUS.EXECUTION_PROOF]: {
+    label: "Execution Proof",
+    icon: "🟣",
+    cls: "status-execution-proof",
+  },
+
+  [STATUS.IN_PRODUCTION]: {
+    label: "In Production",
+    icon: "🟤",
+    cls: "status-production",
+  },
+
+  [STATUS.COMPLETED]: {
+    label: "Completed",
+    icon: "🟢",
+    cls: "status-completed",
+  },
+
+  [STATUS.WAITING]: {
+    label: "Waiting",
+    icon: "⚪",
+    cls: "status-waiting",
+  },
+
+  [STATUS.ARCHIVED]: {
+    label: "Archived",
+    icon: "⚫",
+    cls: "status-archived",
+  },
 };
+
 const state = {
   clients: [],
   tasks: [],
@@ -4346,24 +4410,74 @@ async function saveCorrection(e) {
     notify(err.message || "Could not save correction.", "error");
   }
 }
+// function nextStatus(current) {
+//   const order = [STATUS.OPEN, STATUS.IN_PROGRESS, STATUS.WAITING, STATUS.COMPLETED];
+//   const i = order.indexOf(current);
+//   return order[i < 0 ? 0 : (i + 1) % order.length];
+// }
+// async function changeStatus(id) {
+//   const t = getTask(id);
+//   if (!t) return;
+//   const to = t.status === STATUS.COMPLETED ? STATUS.OPEN : nextStatus(t.status);
+//   try {
+//     await updateDoc(doc(db, "tasks", id), {
+//       status: to,
+//       updatedAt: serverTimestamp(),
+//     });
+//     await addActivity(id, "status_changed", { from: t.status, to });
+//     notify(`Status → ${STATUS_META[to].label}`);
+//   } catch (err) {
+//     notify(err.message || "Could not change status.", "error");
+//   }
+// }
+
+
 function nextStatus(current) {
-  const order = [STATUS.OPEN, STATUS.IN_PROGRESS, STATUS.WAITING, STATUS.COMPLETED];
+  const order = [
+    STATUS.OPEN,
+    STATUS.IN_APPROVAL,
+    STATUS.IN_CORRECTION,
+    STATUS.EXECUTION_PROOF,
+    STATUS.IN_PRODUCTION,
+    STATUS.COMPLETED,
+    STATUS.WAITING,
+  ];
+
   const i = order.indexOf(current);
-  return order[i < 0 ? 0 : (i + 1) % order.length];
+
+  return order[
+    i < 0
+      ? 0
+      : (i + 1) % order.length
+  ];
 }
+
 async function changeStatus(id) {
   const t = getTask(id);
   if (!t) return;
-  const to = t.status === STATUS.COMPLETED ? STATUS.OPEN : nextStatus(t.status);
+
+  const to =
+    t.status === STATUS.COMPLETED
+      ? STATUS.OPEN
+      : nextStatus(t.status);
+
   try {
     await updateDoc(doc(db, "tasks", id), {
       status: to,
       updatedAt: serverTimestamp(),
     });
-    await addActivity(id, "status_changed", { from: t.status, to });
+
+    await addActivity(id, "status_changed", {
+      from: t.status,
+      to,
+    });
+
     notify(`Status → ${STATUS_META[to].label}`);
   } catch (err) {
-    notify(err.message || "Could not change status.", "error");
+    notify(
+      err.message || "Could not change status.",
+      "error",
+    );
   }
 }
 function confirmAction(title, message, fn, button = "Confirm") {
