@@ -3084,6 +3084,20 @@ function openTimeModal(taskId, entry = null) {
   const t = getTask(taskId);
   if (!t) return;
 
+  const isFixedTask =
+    (Number(t.fixedMinutes) || 0) > 0;
+
+  // Fixed Time uses its existing shadow WorkLog.
+  if (isFixedTask && !entry) {
+    entry =
+      state.workSessions.find(
+        (x) =>
+          x.taskId === taskId &&
+          x.source === "fixed" &&
+          x.fixedTaskId === taskId
+      ) || null;
+  }
+
   $("timeTaskId").value =
     taskId;
 
@@ -3093,19 +3107,23 @@ function openTimeModal(taskId, entry = null) {
   $("timeEntryId").value =
     entry?.id || "";
 
-  // Date
+  // Fixed Time → use its Worked date / fixedDate
   $("timeDate").value =
-    entry?.date || today();
+    entry?.date ||
+    (isFixedTask ? t.fixedDate : "") ||
+    today();
 
-  // Required Time belongs to the task
-  const requiredMinutes =
-    Number(t.requiredMinutes) || 0;
+  // Normal Time → Required Time
+  // Fixed Time → show fixedMinutes only
+  const displayMinutes = isFixedTask
+    ? Number(t.fixedMinutes) || 0
+    : Number(t.requiredMinutes) || 0;
 
   $("timeRequiredHours").value =
-    Math.floor(requiredMinutes / 60);
+    Math.floor(displayMinutes / 60);
 
   $("timeRequiredMinutes").value =
-    requiredMinutes % 60;
+    displayMinutes % 60;
 
   $("timeNote").value =
     entry?.note || "";
@@ -3114,8 +3132,9 @@ function openTimeModal(taskId, entry = null) {
     $("timeModalTitle");
 
   if (title) {
-    title.textContent =
-      entry
+    title.textContent = isFixedTask
+      ? "Edit Fixed Time Date"
+      : entry
         ? "Edit WorkLog"
         : "Add WorkLog";
   }
@@ -3412,10 +3431,10 @@ function openHistory(taskId) {
  const historyAddTimeBtn = $("historyAddTimeBtn");
 
 if (historyAddTimeBtn) {
-  historyAddTimeBtn.style.display = isFixedTask ? "none" : "";
+  // historyAddTimeBtn.style.display = isFixedTask ? "none" : "";
 
   historyAddTimeBtn.onclick = () => {
-    if (isFixedTask) return;
+    // if (isFixedTask) return;
 
     closeModal("historyModal");
     openTimeModal(taskId);
@@ -3865,6 +3884,121 @@ async function saveTask(e) {
 //     notify(err.message || "Could not save WorkLog.", "error");
 //   }
 // }
+// async function saveTime(e) {
+//   e.preventDefault();
+
+//   const taskId =
+//     $("timeTaskId").value;
+
+//   const entryId =
+//     $("timeEntryId").value.trim();
+
+//   const requiredMinutes = minutes(
+//     $("timeRequiredHours").value,
+//     $("timeRequiredMinutes").value,
+//   );
+
+//   const date =
+//     $("timeDate").value;
+
+//   const note =
+//     $("timeNote").value.trim();
+
+//   if (!taskId || !date) {
+//     return notify(
+//       "Please enter a date.",
+//       "warning",
+//     );
+//   }
+
+//   if (requiredMinutes <= 0) {
+//     return notify(
+//       "Please enter Required time.",
+//       "warning",
+//     );
+//   }
+
+//   try {
+//     // Required Time belongs to the task
+//     await updateDoc(
+//       doc(db, "tasks", taskId),
+//       {
+//         requiredMinutes,
+//         updatedAt:
+//           serverTimestamp(),
+//       },
+//     );
+
+//     // WorkLog does NOT store duration anymore
+//     const data = {
+//       taskId,
+//       date,
+//       note,
+//       type: "normal",
+//       updatedAt:
+//         serverTimestamp(),
+//     };
+
+//     // EDIT existing WorkLog
+//     if (entryId) {
+//       await updateDoc(
+//         doc(
+//           db,
+//           "workSessions",
+//           entryId,
+//         ),
+//         data,
+//       );
+
+//       await addActivity(
+//         taskId,
+//         "time_updated",
+//         {
+//           requiredMinutes,
+//           date,
+//         },
+//       );
+
+//       closeModal("timeModal");
+
+//       notify("WorkLog updated.");
+//       return;
+//     }
+
+//     // ADD new WorkLog
+//     await addDoc(
+//       collection(
+//         db,
+//         "workSessions",
+//       ),
+//       {
+//         ...data,
+//         createdAt:
+//           serverTimestamp(),
+//       },
+//     );
+
+//     await addActivity(
+//       taskId,
+//       "time_added",
+//       {
+//         requiredMinutes,
+//         date,
+//       },
+//     );
+
+//     closeModal("timeModal");
+
+//     notify("WorkLog added.");
+//   } catch (err) {
+//     notify(
+//       err.message ||
+//         "Could not save WorkLog.",
+//       "error",
+//     );
+//   }
+// }
+
 async function saveTime(e) {
   e.preventDefault();
 
@@ -3874,16 +4008,14 @@ async function saveTime(e) {
   const entryId =
     $("timeEntryId").value.trim();
 
-  const requiredMinutes = minutes(
-    $("timeRequiredHours").value,
-    $("timeRequiredMinutes").value,
-  );
-
   const date =
     $("timeDate").value;
 
   const note =
     $("timeNote").value.trim();
+
+  const task =
+    getTask(taskId);
 
   if (!taskId || !date) {
     return notify(
@@ -3891,6 +4023,113 @@ async function saveTime(e) {
       "warning",
     );
   }
+
+  if (!task) {
+    return notify(
+      "Task not found.",
+      "error",
+    );
+  }
+
+  /*
+   * ========================================
+   * FIXED TIME
+   * ========================================
+   *
+   * Fixed Time only edits Worked date.
+   * Do NOT touch:
+   * - requiredMinutes
+   * - duration
+   * - loggedMinutes
+   * - create another WorkLog
+   */
+  const isFixedTask =
+    (Number(task.fixedMinutes) || 0) > 0;
+
+  if (isFixedTask) {
+    try {
+      const fixedEntry =
+        entryId
+          ? state.workSessions.find(
+              (x) => x.id === entryId
+            )
+          : state.workSessions.find(
+              (x) =>
+                x.taskId === taskId &&
+                x.source === "fixed" &&
+                x.fixedTaskId === taskId
+            );
+
+      // Task is the source of truth for Fixed Worked date
+      await updateDoc(
+        doc(db, "tasks", taskId),
+        {
+          fixedDate: date,
+          updatedAt: serverTimestamp(),
+        },
+      );
+
+      if (fixedEntry) {
+        // Only update the date.
+        // Keep Fixed Time duration untouched.
+        await updateDoc(
+          doc(
+            db,
+            "workSessions",
+            fixedEntry.id,
+          ),
+          {
+            date,
+            updatedAt: serverTimestamp(),
+          },
+        );
+      } else {
+        // Safety fallback in case the fixed shadow WorkLog
+        // does not exist yet.
+        await syncFixedWorkLog(
+          taskId,
+          Number(task.fixedMinutes) || 0,
+          date,
+        );
+      }
+
+      await addActivity(
+        taskId,
+        "time_updated",
+        {
+          date,
+          source: "fixed",
+        },
+      );
+
+      closeModal("timeModal");
+
+      notify(
+        "Fixed Time date updated.",
+      );
+
+      return;
+    } catch (err) {
+      notify(
+        err.message ||
+          "Could not update Fixed Time date.",
+        "error",
+      );
+
+      return;
+    }
+  }
+
+  /*
+   * ========================================
+   * NORMAL TIME
+   * ========================================
+   */
+
+  const requiredMinutes = minutes(
+    $("timeRequiredHours").value,
+    $("timeRequiredMinutes").value,
+  );
 
   if (requiredMinutes <= 0) {
     return notify(
@@ -3910,7 +4149,6 @@ async function saveTime(e) {
       },
     );
 
-    // WorkLog does NOT store duration anymore
     const data = {
       taskId,
       date,
@@ -3942,7 +4180,10 @@ async function saveTime(e) {
 
       closeModal("timeModal");
 
-      notify("WorkLog updated.");
+      notify(
+        "WorkLog updated.",
+      );
+
       return;
     }
 
@@ -3970,7 +4211,9 @@ async function saveTime(e) {
 
     closeModal("timeModal");
 
-    notify("WorkLog added.");
+    notify(
+      "WorkLog added.",
+    );
   } catch (err) {
     notify(
       err.message ||
