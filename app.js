@@ -1744,18 +1744,52 @@ function activityIcon(a) {
 }
 function activityLabel(a) {
   const m = a.metadata || {};
-  if (a.action === "time_added") return `Time logged · ${formatDuration(m.duration)} · ${m.date || ""}`;
-  if (a.action === "correction_added") return `Correction · ${formatDuration(m.duration)} · ${m.reason || "Other"}`;
-  if (a.action === "correction_updated") return `Correction updated · ${formatDuration(m.duration)} · ${m.reason || "Other"}`;
 
-  if (a.action === "correction_deleted") return `Correction deleted · ${formatDuration(m.duration)} · ${m.reason || "Other"}`;
-  if (a.action === "status_changed") return `Status: ${STATUS_META[m.from]?.label || m.from} → ${STATUS_META[m.to]?.label || m.to}`;
-  if (a.action === "task_archived") return "Task archived";
-  if (a.action === "task_unarchived") return "Task unarchived";
-  if (a.action === "task_edited") return "Task updated";
-  if (a.action === "time_updated") return `WorkLog updated · ${formatDuration(m.duration)} · ${m.date || ""}`;
+  const duration =
+    Number(m.duration) ||
+    Number(m.requiredMinutes) ||
+    0;
 
-  if (a.action === "time_deleted") return `WorkLog deleted · ${formatDuration(m.duration)} · ${m.date || ""}`;
+  if (a.action === "time_added") {
+    return `Time logged · ${formatDuration(duration)} · ${m.date || ""}`;
+  }
+
+  if (a.action === "correction_added") {
+    return `Correction · ${formatDuration(m.duration)} · ${m.reason || "Other"}`;
+  }
+
+  if (a.action === "correction_updated") {
+    return `Correction updated · ${formatDuration(m.duration)} · ${m.reason || "Other"}`;
+  }
+
+  if (a.action === "correction_deleted") {
+    return `Correction deleted · ${formatDuration(m.duration)} · ${m.reason || "Other"}`;
+  }
+
+  if (a.action === "status_changed") {
+    return `Status: ${STATUS_META[m.from]?.label || m.from} → ${STATUS_META[m.to]?.label || m.to}`;
+  }
+
+  if (a.action === "task_archived") {
+    return "Task archived";
+  }
+
+  if (a.action === "task_unarchived") {
+    return "Task unarchived";
+  }
+
+  if (a.action === "task_edited") {
+    return "Task updated";
+  }
+
+  if (a.action === "time_updated") {
+    return `WorkLog updated · ${formatDuration(duration)} · ${m.date || ""}`;
+  }
+
+  if (a.action === "time_deleted") {
+    return `WorkLog deleted · ${formatDuration(duration)} · ${m.date || ""}`;
+  }
+
   return "Task created";
 }
 function updateDashboard() {
@@ -4157,14 +4191,15 @@ async function saveTime(e) {
         );
       }
 
-      await addActivity(
-        taskId,
-        "time_updated",
-        {
-          date,
-          source: "fixed",
-        },
-      );
+     await addActivity(
+  taskId,
+  "time_updated",
+  {
+    duration: requiredMinutes,
+    requiredMinutes,
+    date,
+  },
+);
 
       closeModal("timeModal");
 
@@ -4265,14 +4300,15 @@ async function saveTime(e) {
       },
     );
 
-    await addActivity(
-      taskId,
-      "time_added",
-      {
-        requiredMinutes,
-        date,
-      },
-    );
+   await addActivity(
+  taskId,
+  "time_added",
+  {
+    duration: requiredMinutes,
+    requiredMinutes,
+    date,
+  },
+);
 
     closeModal("timeModal");
 
