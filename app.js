@@ -126,10 +126,10 @@ const FIXED_ASSET_TIMES = {
 // };
 const STATUS = {
   OPEN: "open",
+  IN_PRODUCTION: "in_production",
   IN_APPROVAL: "in_approval",
   IN_CORRECTION: "in_correction",
   EXECUTION_PROOF: "execution_proof",
-  IN_PRODUCTION: "in_production",
   COMPLETED: "completed",
   WAITING: "waiting",
   ARCHIVED: "archived",
@@ -140,6 +140,12 @@ const STATUS_META = {
     label: "New",
     icon: "🟡",
     cls: "status-open",
+  },
+
+  [STATUS.IN_PRODUCTION]: {
+    label: "In Production",
+    icon: "🟤",
+    cls: "status-production",
   },
 
   [STATUS.IN_APPROVAL]: {
@@ -158,12 +164,6 @@ const STATUS_META = {
     label: "Execution Proof",
     icon: "🟣",
     cls: "status-execution-proof",
-  },
-
-  [STATUS.IN_PRODUCTION]: {
-    label: "In Production",
-    icon: "🟤",
-    cls: "status-production",
   },
 
   [STATUS.COMPLETED]: {
@@ -4472,12 +4472,12 @@ async function saveCorrection(e) {
 function nextStatus(current) {
   const order = [
     STATUS.OPEN,
+    STATUS.IN_PRODUCTION,
     STATUS.IN_APPROVAL,
     STATUS.IN_CORRECTION,
     STATUS.EXECUTION_PROOF,
-    STATUS.IN_PRODUCTION,
-    STATUS.COMPLETED,
     STATUS.WAITING,
+    STATUS.COMPLETED,
   ];
 
   const i = order.indexOf(current);
