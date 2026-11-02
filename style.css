@@ -2021,10 +2021,10 @@ body {
 
 /* Tasks */
 #tasksList {
-  max-height: 620px;
+  max-height: 65vh;
   overflow-y: auto;
   overflow-x: hidden;
-  padding-right: 6px;
+  padding: 0 20px;
 }
 
 /* Settings - Clients */

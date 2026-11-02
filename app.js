@@ -4,42 +4,42 @@ import { collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot, serverTimest
 // ==================== BASIC UI PROTECTION ====================
 
 // Disable right-click
-document.addEventListener("contextmenu", (e) => {
-  e.preventDefault();
-});
+// document.addEventListener("contextmenu", (e) => {
+//   e.preventDefault();
+// });
 
-// Disable common source/devtools shortcuts
-document.addEventListener("keydown", (e) => {
-  // F12
-  if (e.key === "F12") {
-    e.preventDefault();
-    return;
-  }
+// // Disable common source/devtools shortcuts
+// document.addEventListener("keydown", (e) => {
+//   // F12
+//   if (e.key === "F12") {
+//     e.preventDefault();
+//     return;
+//   }
 
-  // Ctrl + U / Cmd + U — View Source
-  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "u") {
-    e.preventDefault();
-    return;
-  }
+//   // Ctrl + U / Cmd + U — View Source
+//   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "u") {
+//     e.preventDefault();
+//     return;
+//   }
 
-  // Ctrl + Shift + I / Cmd + Option + I — DevTools
-  if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "i") {
-    e.preventDefault();
-    return;
-  }
+//   // Ctrl + Shift + I / Cmd + Option + I — DevTools
+//   if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "i") {
+//     e.preventDefault();
+//     return;
+//   }
 
-  // Ctrl + Shift + J / Cmd + Option + J — Console
-  if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "j") {
-    e.preventDefault();
-    return;
-  }
+//   // Ctrl + Shift + J / Cmd + Option + J — Console
+//   if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "j") {
+//     e.preventDefault();
+//     return;
+//   }
 
-  // Ctrl + Shift + C / Cmd + Shift + C — Inspect Element
-  if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "c") {
-    e.preventDefault();
-    return;
-  }
-});
+//   // Ctrl + Shift + C / Cmd + Shift + C — Inspect Element
+//   if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "c") {
+//     e.preventDefault();
+//     return;
+//   }
+// });
 
 const $ = (id) => document.getElementById(id);
 
@@ -1125,7 +1125,70 @@ const correctionMinutes = (id) => {
 //     </div>
 //   </div>`;
 // }
+function renderTaskTypeNavigation(orderedTypes, groups) {
+  const tasksList = $("tasksList");
 
+  if (!tasksList) return;
+
+  let nav = $("taskTypeQuickNav");
+
+  if (!nav) {
+    nav = document.createElement("div");
+    nav.id = "taskTypeQuickNav";
+
+    tasksList.parentNode.insertBefore(
+      nav,
+      tasksList,
+    );
+  }
+
+  if (!orderedTypes.length) {
+    nav.innerHTML = "";
+    nav.style.display = "none";
+    return;
+  }
+
+  nav.style.display = "";
+
+  nav.innerHTML = `
+    <div class="task-type-nav-header">
+      <span class="task-type-nav-label">
+        Asset Types
+      </span>
+
+      <span class="task-type-nav-hint">
+        Click to jump
+      </span>
+    </div>
+
+    <div class="task-type-nav-list">
+
+      ${orderedTypes
+        .map((type, index) => {
+          const count =
+            groups.get(type)?.length || 0;
+
+          return `
+            <button
+              type="button"
+              class="task-type-nav-item ${index === 0 ? "active" : ""}"
+              data-task-nav-index="${index}"
+            >
+              <span class="task-type-nav-name">
+                ${escapeHtml(type)}
+              </span>
+
+              <span class="task-type-nav-count">
+                ${count}
+              </span>
+            </button>
+          `;
+        })
+        .join("")}
+
+    </div>
+  `;
+}
 function renderTask(task, compact = false) {
   const summary = getTaskTimeSummary(task);
 
@@ -1330,111 +1393,130 @@ const quickLogButton =
 
       <div class="task-actions">
 
-        ${
-          compact
-            ? `
-              <button
-                class="task-action"
-                data-action="history"
-                data-task-id="${task.id}"
-              >
-                History
-              </button>
-            `
-            : `
-              ${quickLogButton}
+  ${
+    compact
+      ? `
+        <div class="task-actions-primary">
+          <button
+            class="task-action"
+            data-action="history"
+            data-task-id="${task.id}"
+          >
+            History
+          </button>
+        </div>
+      `
+      : `
+        <div class="task-actions-primary">
 
-              <button
-                class="task-action logged-time-action"
-                data-action="edit-logged"
-                data-task-id="${task.id}"
-              >
-                Logged:
-                ${formatDuration(loggedMinutes)}
-              </button>
+          ${quickLogButton}
 
-              ${
-  !isFixedTask
-    ? `
-      <button
-        class="task-action"
-        data-action="add-time"
-        data-task-id="${task.id}"
-      >
-        + Time
-      </button>
-    `
-    : ""
-}
+          <button
+            class="task-action logged-time-action"
+            data-action="edit-logged"
+            data-task-id="${task.id}"
+          >
+            Logged: ${formatDuration(loggedMinutes)}
+          </button>
 
-              <button
-                class="task-action"
-                data-action="correction"
-                data-task-id="${task.id}"
-              >
-                Correction
-              </button>
+          <button
+            class="task-action"
+            data-action="correction"
+            data-task-id="${task.id}"
+          >
+            Correction
+          </button>
 
-              <button
-                class="task-action"
-                data-action="history"
-                data-task-id="${task.id}"
-              >
-                History
-              </button>
+          <button
+            class="task-action task-more-toggle"
+            data-action="toggle-task-more"
+            data-task-id="${task.id}"
+            aria-expanded="false"
+          >
+            ⋯ More
+          </button>
 
-              <button
-                class="task-action"
-                data-action="edit"
-                data-task-id="${task.id}"
-              >
-                Edit
-              </button>
-              <button
-  class="task-action danger"
-  data-action="delete"
-  data-task-id="${task.id}"
->
-  Delete
-</button>
-              ${
-                task.status === STATUS.ARCHIVED
-                  ? `
-                    <button
-                      class="task-action"
-                      data-action="unarchive"
-                      data-task-id="${task.id}"
-                    >
-                      Unarchive
-                    </button>
-                  `
-                  : `
-                    <button
-                      class="task-action"
-                      data-action="status-next"
-                      data-task-id="${task.id}"
-                    >
-                      ${task.status === STATUS.COMPLETED ? "Reopen" : "Status"}
-                    </button>
+        </div>
 
-                    <button
-                      class="task-action danger"
-                      data-action="archive"
-                      data-task-id="${task.id}"
-                    >
-                      Archive
-                    </button>
-                  `
-              }
-            `
-        }
+        <div class="task-secondary-actions">
 
-      </div>
+          ${
+            !isFixedTask
+              ? `
+                <button
+                  class="task-action"
+                  data-action="add-time"
+                  data-task-id="${task.id}"
+                >
+                  + Time
+                </button>
+              `
+              : ""
+          }
+
+          <button
+            class="task-action"
+            data-action="history"
+            data-task-id="${task.id}"
+          >
+            History
+          </button>
+
+          <button
+            class="task-action"
+            data-action="edit"
+            data-task-id="${task.id}"
+          >
+            Edit
+          </button>
+
+          <button
+            class="task-action danger"
+            data-action="delete"
+            data-task-id="${task.id}"
+          >
+            Delete
+          </button>
+
+          ${
+            task.status === STATUS.ARCHIVED
+              ? `
+                <button
+                  class="task-action"
+                  data-action="unarchive"
+                  data-task-id="${task.id}"
+                >
+                  Unarchive
+                </button>
+              `
+              : `
+                <button
+                  class="task-action"
+                  data-action="status-next"
+                  data-task-id="${task.id}"
+                >
+                  ${task.status === STATUS.COMPLETED ? "Reopen" : "Status"}
+                </button>
+
+                <button
+                  class="task-action danger"
+                  data-action="archive"
+                  data-task-id="${task.id}"
+                >
+                  Archive
+                </button>
+              `
+          }
+
+        </div>
+      `
+  }
+
+</div>
 
     </div>
   `;
 }
-
 function renderTasks() {
   const q = ($("taskSearch").value || "").toLowerCase().trim();
 
@@ -1445,111 +1527,842 @@ function renderTasks() {
   const df = $("taskDateFilter")?.value || "all";
   const customDate = $("taskCustomDate")?.value || "";
 
-  let tasks = state.tasks.filter((t) => state.showArchived || t.status !== STATUS.ARCHIVED);
+  let tasks = state.tasks.filter(
+    (t) => state.showArchived || t.status !== STATUS.ARCHIVED
+  );
 
+  // =========================
+  // STATUS FILTER
+  // =========================
   if (sf !== "all") {
     tasks = tasks.filter((t) => t.status === sf);
   }
 
+  // =========================
+  // ASSET TYPE FILTER
+  // =========================
   if (tf !== "all") {
     tasks = tasks.filter((t) => t.type === tf);
   }
 
-  // if (lf !== "all") {
-  //   tasks = tasks.filter((t) => {
-  //     const loggedMinutes = Number(t.loggedMinutes) || 0;
-
-  //     return lf === "logged" ? loggedMinutes > 0 : loggedMinutes === 0;
-  //   });
-  // }
-
+  // =========================
+  // LOG FILTER
+  // =========================
   if (lf !== "all") {
     tasks = tasks.filter((t) => {
-      const loggedMinutes = Math.max(0, Number(t.loggedMinutes) || 0);
+      const loggedMinutes = Math.max(
+        0,
+        Number(t.loggedMinutes) || 0
+      );
 
-      return lf === "logged" ? loggedMinutes > 0 : loggedMinutes === 0;
+      return lf === "logged"
+        ? loggedMinutes > 0
+        : loggedMinutes === 0;
     });
   }
 
-  tasks = tasks.filter((t) => taskMatchesDateFilter(t, df, customDate));
+  // =========================
+  // DATE FILTER
+  // =========================
+  tasks = tasks.filter(
+    (t) => taskMatchesDateFilter(t, df, customDate)
+  );
 
+  // =========================
+  // SEARCH
+  // =========================
   if (q) {
     tasks = tasks.filter((t) =>
       [t.title, t.project, t.note, t.type, t.url].some((v) =>
         String(v || "")
           .toLowerCase()
-          .includes(q),
-      ),
+          .includes(q)
+      )
     );
   }
 
+  // =========================
+  // SORT
+  // =========================
   tasks.sort((a, b) => {
-  const getLogPriority = (task) => {
-    const summary = getTaskTimeSummary(task);
+    const getLogPriority = (task) => {
+      const summary = getTaskTimeSummary(task);
 
-    // No required time -> always last
-    if (summary.requiredMinutes <= 0) {
-      return 3;
+      // No required time -> always last
+      if (summary.requiredMinutes <= 0) {
+        return 3;
+      }
+
+      // NOT LOGGED
+      if (summary.loggedMinutes <= 0) {
+        return 0;
+      }
+
+      // INCOMPLETE
+      if (summary.loggedMinutes < summary.requiredMinutes) {
+        return 1;
+      }
+
+      // LOGGED
+      return 2;
+    };
+
+    // 1. Status first
+    const statusCompare =
+      getLogPriority(a) - getLogPriority(b);
+
+    if (statusCompare !== 0) {
+      return statusCompare;
     }
 
-    // Same status logic for Normal + Fixed Time
-    if (summary.loggedMinutes <= 0) {
-      return 0; // NOT LOGGED
+    // 2. Newest Worked date first
+    const getLatestWorkDate = (task) => {
+      const dates = taskDates(task.id);
+
+      return dates.length ? dates[0] : "";
+    };
+
+    const dateA = getLatestWorkDate(a);
+    const dateB = getLatestWorkDate(b);
+
+    if (dateA !== dateB) {
+      if (!dateA) return 1;
+      if (!dateB) return -1;
+
+      return dateB.localeCompare(dateA);
     }
 
-    if (summary.loggedMinutes < summary.requiredMinutes) {
-      return 1; // INCOMPLETE
-    }
+    // 3. Fallback
+    return (
+      dateValue(b.updatedAt || b.createdAt) -
+      dateValue(a.updatedAt || a.createdAt)
+    );
+  });
 
-    return 2; // LOGGED
-  };
+  const container = $("tasksList");
 
-  // 1. Status first
-  const statusCompare =
-    getLogPriority(a) - getLogPriority(b);
-
-  if (statusCompare !== 0) {
-    return statusCompare;
-  }
-
-  // 2. Within the same status:
-  // newest Worked date first
-  const getLatestWorkDate = (task) => {
-    const dates = taskDates(task.id);
-    return dates.length ? dates[0] : "";
-  };
-
-  const dateA = getLatestWorkDate(a);
-  const dateB = getLatestWorkDate(b);
-
-  if (dateA !== dateB) {
-    if (!dateA) return 1;
-    if (!dateB) return -1;
-
-    return dateB.localeCompare(dateA);
-  }
-
-  // 3. Fallback when there is no Worked date
-  return (
-    dateValue(b.updatedAt || b.createdAt) -
-    dateValue(a.updatedAt || a.createdAt)
-  );
-});
-
-  $("tasksList").innerHTML = tasks.length
-    ? tasks.map((t) => renderTask(t)).join("")
-    : `
+  // =========================
+  // EMPTY STATE
+  // =========================
+  if (!tasks.length) {
+    container.innerHTML = `
       <div class="empty-state">
         <div class="empty-title">
           No tasks found
         </div>
+
         <div class="empty-text">
           Try another filter or create a new task.
         </div>
       </div>
     `;
+
+    return;
+  }
+
+  // =========================
+  // TASK TYPE GROUPING
+  // =========================
+
+  /*
+   * Keep the same order as TASK_TYPES.
+   * Any custom/new type not found in TASK_TYPES
+   * will appear after the standard types.
+   */
+  const groupedTasks = new Map();
+
+  tasks.forEach((task) => {
+    const type = String(task.type || "").trim() || "Other";
+
+    if (!groupedTasks.has(type)) {
+      groupedTasks.set(type, []);
+    }
+
+    groupedTasks.get(type).push(task);
+  });
+
+  // =========================
+  // ORDER COLUMNS
+  // =========================
+
+  const orderedTypes = [];
+
+  // First: types from TASK_TYPES
+  TASK_TYPES.forEach((type) => {
+    if (groupedTasks.has(type)) {
+      orderedTypes.push(type);
+    }
+  });
+
+  // Then: any custom/new types
+  groupedTasks.forEach((_, type) => {
+    if (!orderedTypes.includes(type)) {
+      orderedTypes.push(type);
+    }
+  });
+
+  // =========================
+  // RENDER COLUMNS
+  // =========================
+renderTaskTypeNavigation(
+  orderedTypes,
+  groupedTasks
+);
+  container.innerHTML = `
+    <div class="tasks-board">
+      ${orderedTypes
+        .map((type) => {
+          const typeTasks = groupedTasks.get(type) || [];
+
+          return `
+<section
+  class="task-column"
+  data-task-column-index="${orderedTypes.indexOf(type)}"
+>              
+              <div class="task-column-header">
+                <div class="task-column-title">
+                  ${escapeHtml(type)}
+                </div>
+
+                <div class="task-column-count">
+                  ${typeTasks.length}
+                </div>
+              </div>
+
+              <div class="task-column-body">
+                ${typeTasks
+                  .map((task) => renderTask(task))
+                  .join("")}
+              </div>
+
+            </section>
+          `;
+        })
+        .join("")}
+    </div>
+  `;
+
+  // =========================
+  // APPLY BOARD STYLES
+  // =========================
+
+  ensureTasksBoardStyles();
+}
+function ensureTasksBoardStyles() {
+  if (document.getElementById("tasksBoardStyles")) return;
+
+  const style = document.createElement("style");
+  style.id = "tasksBoardStyles";
+
+  style.textContent = `
+    /* =========================================================
+       TASKS BOARD
+       Horizontal Asset Type columns
+    ========================================================= */
+
+    .tasks-board {
+      display: flex !important;
+      flex-direction: row !important;
+      flex-wrap: nowrap !important;
+
+      gap: 14px;
+
+      width: 100%;
+      max-width: 100%;
+
+      overflow-x: auto;
+      overflow-y: hidden;
+
+      padding: 4px 4px 14px;
+
+      box-sizing: border-box;
+
+      scroll-behavior: smooth;
+      scroll-snap-type: x proximity;
+
+      -webkit-overflow-scrolling: touch;
+    }
+
+    /* Horizontal scrollbar */
+    .tasks-board::-webkit-scrollbar {
+      height: 9px;
+    }
+
+    .tasks-board::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .tasks-board::-webkit-scrollbar-thumb {
+      background: rgba(148, 163, 184, 0.32);
+      border-radius: 999px;
+    }
+
+    .tasks-board::-webkit-scrollbar-thumb:hover {
+      background: rgba(148, 163, 184, 0.52);
+    }
+
+
+    /* =========================================================
+       ASSET TYPE COLUMN
+    ========================================================= */
+
+    .task-column {
+      flex: 0 0 370px !important;
+
+      width: 370px;
+      min-width: 370px;
+      max-width: 370px;
+
+      display: flex;
+      flex-direction: column;
+
+      box-sizing: border-box;
+
+      border: 1px solid var(
+        --border,
+        rgba(148, 163, 184, 0.18)
+      );
+
+      background: var(
+        --card,
+        rgba(15, 23, 42, 0.45)
+      );
+
+      overflow: hidden;
+
+      scroll-snap-align: start;
+    }
+
+
+    /* =========================================================
+       COLUMN HEADER
+    ========================================================= */
+
+    .task-column-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+
+      min-height: 54px;
+
+      padding: 12px 16px;
+
+      border-bottom: 1px solid var(
+        --border,
+        rgba(148, 163, 184, 0.18)
+      );
+
+      background: var(
+        --card,
+        rgba(15, 23, 42, 0.8)
+      );
+
+      box-sizing: border-box;
+
+      /*
+       * Keep Asset Type header visible
+       * while scrolling inside the column.
+       */
+      position: sticky;
+      top: 0;
+      z-index: 5;
+
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+
+    .task-column-title {
+      min-width: 0;
+
+      font-size: 15px;
+      font-weight: 700;
+
+      color: var(
+        --text,
+        #e5e7eb
+      );
+
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .task-column-count {
+      flex: 0 0 auto;
+
+      min-width: 28px;
+      height: 28px;
+
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+
+      padding: 0 8px;
+
+      border-radius: 999px;
+
+      background: rgba(148, 163, 184, 0.14);
+
+      font-size: 12px;
+      font-weight: 700;
+
+      color: var(
+        --muted,
+        #94a3b8
+      );
+    }
+
+
+    /* =========================================================
+       COLUMN BODY
+    ========================================================= */
+
+    .task-column-body {
+      display: flex;
+      flex-direction: column;
+
+      gap: 8px;
+
+      padding: 10px 12px 12px;
+
+      min-width: 0;
+
+      /*
+       * Each Asset Type scrolls vertically
+       * independently.
+       */
+      max-height: calc(100vh - 300px);
+
+      overflow-y: auto;
+      overflow-x: hidden;
+
+      box-sizing: border-box;
+    }
+
+    .task-column-body::-webkit-scrollbar {
+      width: 7px;
+    }
+
+    .task-column-body::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .task-column-body::-webkit-scrollbar-thumb {
+      background: rgba(148, 163, 184, 0.22);
+      border-radius: 999px;
+    }
+
+    .task-column-body::-webkit-scrollbar-thumb:hover {
+      background: rgba(148, 163, 184, 0.38);
+    }
+
+
+    /* =========================================================
+       TASK ROW
+       Prevent old layout from breaking inside columns
+    ========================================================= */
+
+    .task-column-body .task-row {
+      display: block !important;
+
+      width: 100%;
+      min-width: 0;
+      max-width: 100%;
+
+      box-sizing: border-box;
+
+      margin: 0 !important;
+
+      padding: 4px 6px 12px;
+    }
+
+    .task-column-body .task-main {
+      width: 100%;
+      min-width: 0;
+
+      box-sizing: border-box;
+
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+
+    .task-column-body .task-title {
+      min-width: 0;
+
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+
+    .task-column-body .task-meta {
+      min-width: 0;
+
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+
+      gap: 5px;
+
+      overflow-wrap: anywhere;
+    }
+
+    .task-column-body .task-context {
+      min-width: 0;
+
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+
+    .task-column-body .task-note {
+      min-width: 0;
+
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+
+
+    /* =========================================================
+       URL
+       Keep long URLs from making cards extremely tall
+    ========================================================= */
+
+    .task-column-body .task-main a,
+    .task-column-body .task-url {
+      display: -webkit-box;
+
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+
+      overflow: hidden;
+
+      word-break: break-all;
+      overflow-wrap: anywhere;
+    }
+
+
+    /* =========================================================
+       ACTION BUTTONS
+    ========================================================= */
+
+    .task-column-body .task-actions {
+      position: static !important;
+
+      display: flex !important;
+      flex-wrap: wrap !important;
+
+      align-items: center;
+
+      gap: 6px;
+
+      width: 100%;
+
+      margin-top: 10px;
+
+      box-sizing: border-box;
+    }
+
+    .task-column-body .task-action {
+      position: static !important;
+
+      flex: 0 0 auto;
+
+      max-width: 100%;
+
+      box-sizing: border-box;
+
+      white-space: nowrap;
+    }
+
+
+    /* =========================================================
+       TASK DIVIDER
+    ========================================================= */
+
+    .task-column-body .task-row {
+      border-bottom: 1px solid
+        var(
+          --border,
+          rgba(148, 163, 184, 0.16)
+        );
+    }
+
+    .task-column-body .task-row:last-child {
+      border-bottom: none;
+    }
+
+
+    /* =========================================================
+       EMPTY STATE
+    ========================================================= */
+
+    .task-column-body .empty-small,
+    .task-column-body .empty-state {
+      margin: 0;
+
+      padding: 24px 12px;
+
+      text-align: center;
+    }
+
+
+    /* =========================================================
+       RESPONSIVE
+       Still horizontal — never turns into vertical columns
+    ========================================================= */
+
+    @media (max-width: 900px) {
+      .task-column {
+        flex-basis: 350px !important;
+
+        width: 350px;
+        min-width: 350px;
+        max-width: 350px;
+      }
+    }
+
+    @media (max-width: 600px) {
+      .tasks-board {
+        gap: 10px;
+
+        padding-left: 2px;
+        padding-right: 2px;
+      }
+
+      .task-column {
+        flex-basis: calc(100vw - 42px) !important;
+
+        width: calc(100vw - 42px);
+        min-width: calc(100vw - 42px);
+        max-width: calc(100vw - 42px);
+      }
+
+      .task-column-body {
+        max-height: none;
+      }
+    }
+      /* =========================================================
+   TASK ACTIONS
+   ========================================================= */
+
+.task-actions {
+  display: flex;
+  flex-direction: column;
+
+  gap: 7px;
+
+  width: 100%;
 }
 
+.task-actions-primary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+
+  gap: 6px;
+
+  width: 100%;
+}
+
+.task-secondary-actions {
+  display: none;
+
+  flex-wrap: wrap;
+  align-items: center;
+
+  gap: 6px;
+
+  width: 100%;
+
+  padding-top: 2px;
+}
+
+.task-row.task-more-open
+  .task-secondary-actions {
+  display: flex;
+}
+
+.task-more-toggle {
+  margin-left: auto;
+}
+
+.task-more-toggle[aria-expanded="true"] {
+  opacity: 0.85;
+}
+
+
+/* =========================================================
+   ASSET TYPE QUICK NAVIGATION
+   ========================================================= */
+
+#taskTypeQuickNav {
+  width: 100%;
+  padding: 14px 20px;
+  margin: 0 0 12px;
+
+  box-sizing: border-box;
+}
+
+.task-type-nav-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 12px;
+
+  margin-bottom: 7px;
+
+  padding: 0 2px;
+}
+
+.task-type-nav-label {
+  font-size: 12px;
+  font-weight: 700;
+
+  color: var(
+    --muted,
+    #94a3b8
+  );
+
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.task-type-nav-hint {
+  font-size: 11px;
+
+  color: var(
+    --muted,
+    #64748b
+  );
+}
+
+.task-type-nav-list {
+  display: flex;
+
+  gap: 7px;
+
+  width: 100%;
+
+  overflow-x: auto;
+  overflow-y: hidden;
+
+  padding: 2px 2px 7px;
+
+  box-sizing: border-box;
+
+  scrollbar-width: thin;
+
+  -webkit-overflow-scrolling: touch;
+}
+
+.task-type-nav-list::-webkit-scrollbar {
+  height: 6px;
+}
+
+.task-type-nav-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.task-type-nav-list::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.25);
+  border-radius: 999px;
+}
+
+.task-type-nav-item {
+  flex: 0 0 auto;
+
+  display: inline-flex;
+  align-items: center;
+
+  gap: 7px;
+
+  min-height: 34px;
+
+  padding: 6px 10px;
+
+  border: 1px solid
+    var(
+      --border,
+      rgba(148, 163, 184, 0.18)
+    );
+
+  border-radius: 9px;
+
+  background: transparent;
+
+  color: var(
+    --muted,
+    #94a3b8
+  );
+
+  cursor: pointer;
+
+  white-space: nowrap;
+
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.task-type-nav-item:hover {
+  background: rgba(148, 163, 184, 0.08);
+}
+
+.task-type-nav-item.active {
+  background: rgba(148, 163, 184, 0.13);
+
+  border-color:
+    rgba(148, 163, 184, 0.3);
+
+  color: var(
+    --text,
+    #e5e7eb
+  );
+}
+
+.task-type-nav-name {
+  max-width: 220px;
+
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.task-type-nav-count {
+  min-width: 20px;
+  height: 20px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 0 5px;
+
+  border-radius: 999px;
+
+  background: rgba(148, 163, 184, 0.12);
+
+  font-size: 10px;
+  font-weight: 700;
+}
+
+
+/* =========================================================
+   MOBILE
+   ========================================================= */
+
+@media (max-width: 600px) {
+  .task-type-nav-name {
+    max-width: 160px;
+  }
+
+  .task-more-toggle {
+    margin-left: 0;
+  }
+}
+  `;
+
+  document.head.appendChild(style);
+}
 function startOfWeek(date) {
   const d = new Date(date);
   const day = d.getDay();
@@ -6077,6 +6890,23 @@ $("saveTaskDefaultsBtn")?.addEventListener(
       if (!b) return;
       const id = b.dataset.taskId;
       const a = b.dataset.action;
+      if (a === "toggle-task-more") {
+  const row = b.closest(".task-row");
+
+  if (!row) return;
+
+  const isOpen =
+    row.classList.toggle(
+      "task-more-open",
+    );
+
+  b.setAttribute(
+    "aria-expanded",
+    String(isOpen),
+  );
+
+  return;
+}
       if (a === "add-time") openTimeModal(id);
       if (a === "correction") openCorrectionModal(id);
       if (a === "edit-logged") openLoggedTimeModal(getTask(id));
@@ -6089,6 +6919,52 @@ $("saveTaskDefaultsBtn")?.addEventListener(
       if (a === "unarchive") unarchiveTask(id);
     }),
   );
+  document.addEventListener(
+  "click",
+  (e) => {
+    const button =
+      e.target.closest(
+        "[data-task-nav-index]",
+      );
+
+    if (!button) return;
+
+    const board =
+      $("tasksList")?.querySelector(
+        ".tasks-board",
+      );
+
+    if (!board) return;
+
+    const index = Number(
+      button.dataset.taskNavIndex,
+    );
+
+    const column =
+      board.querySelector(
+        `[data-task-column-index="${index}"]`,
+      );
+
+    if (!column) return;
+
+    board.scrollTo({
+      left:
+        column.offsetLeft -
+        board.offsetLeft,
+      behavior: "smooth",
+    });
+
+    document
+      .querySelectorAll(
+        "#taskTypeQuickNav .task-type-nav-item",
+      )
+      .forEach((item) =>
+        item.classList.remove("active"),
+      );
+
+    button.classList.add("active");
+  },
+);
 }
 function exportCsv() {
   const entries = reportEntries(),
