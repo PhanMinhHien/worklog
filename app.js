@@ -1927,61 +1927,94 @@ function renderWorkWeekTable(date = today()) {
   $("workWeekTableBody").innerHTML = dates
     .map((d) => {
       const item = getWorkDay(d);
-
-      if (!item) {
-        const dateObj = new Date(`${d}T00:00:00`);
-
-        return `
-        <tr>
-          <td>${escapeHtml(shortDate(d))}</td>
-          <td>${dateObj.toLocaleDateString("en-US", {
-            weekday: "short",
-          })}</td>
-          <td>—</td>
-          <td>—</td>
-          <td>—</td>
-          <td>—</td>
-          <td>—</td>
-          <td>—</td>
-        </tr>
-      `;
-      }
-
-      const calc = calculateWorkDay(item.checkIn, item.checkOut, item.lunchMinutes);
-
       const dateObj = new Date(`${d}T00:00:00`);
 
-      const flexiClass = calc.flexiMinutes > 0 ? "flexi-positive" : calc.actualMinutes < dailyTargetMinutes ? "below-target" : "";
+      const editButton = `
+        <button
+          type="button"
+          class="btn btn-small"
+          data-edit-work-day="${escapeHtml(d)}"
+        >
+          Edit
+        </button>
+      `;
+
+      // No work-day record yet
+      if (!item) {
+        return `
+          <tr>
+            <td>${escapeHtml(shortDate(d))}</td>
+
+            <td>
+              ${dateObj.toLocaleDateString("en-US", {
+                weekday: "short",
+              })}
+            </td>
+
+            <td>—</td>
+            <td>—</td>
+            <td>—</td>
+            <td>—</td>
+            <td>—</td>
+            <td>—</td>
+
+            <td>
+              ${editButton}
+            </td>
+          </tr>
+        `;
+      }
+
+      const calc = calculateWorkDay(
+        item.checkIn,
+        item.checkOut,
+        item.lunchMinutes
+      );
+
+      const flexiClass =
+        calc.flexiMinutes > 0
+          ? "flexi-positive"
+          : calc.actualMinutes < dailyTargetMinutes
+            ? "below-target"
+            : "";
 
       return `
-      <tr>
-        <td>${escapeHtml(shortDate(d))}</td>
+        <tr>
+          <td>${escapeHtml(shortDate(d))}</td>
 
-        <td>
-          ${dateObj.toLocaleDateString("en-US", {
-            weekday: "short",
-          })}
-        </td>
+          <td>
+            ${dateObj.toLocaleDateString("en-US", {
+              weekday: "short",
+            })}
+          </td>
 
-        <td>${escapeHtml(item.checkIn || "—")}</td>
+          <td>${escapeHtml(item.checkIn || "—")}</td>
 
-        <td>${escapeHtml(item.checkOut || "—")}</td>
+          <td>${escapeHtml(item.checkOut || "—")}</td>
 
-        <td>${Number(item.lunchMinutes) || 0}m</td>
+          <td>${Number(item.lunchMinutes) || 0}m</td>
 
-        <td>
-          ${formatDuration(calc.actualMinutes)}
-        </td>
+          <td>
+            ${formatDuration(calc.actualMinutes)}
+          </td>
 
-        <td>
-          ${formatDuration(calc.normalMinutes)}
-        </td>
+          <td>
+            ${formatDuration(calc.normalMinutes)}
+          </td>
 
-        <td class="${flexiClass}">
-          ${calc.flexiMinutes > 0 ? "+" + formatFlexi(calc.flexiMinutes) : formatFlexi(0)}
-        </td>
-      </tr>
-    `;
+          <td class="${flexiClass}">
+            ${
+              calc.flexiMinutes > 0
+                ? "+" + formatFlexi(calc.flexiMinutes)
+                : formatFlexi(0)
+            }
+          </td>
+
+          <td>
+            ${editButton}
+          </td>
+        </tr>
+      `;
     })
     .join("");
 }
@@ -5877,9 +5910,22 @@ function bindActions() {
       addClientType();
     }
   });
-  $("editWorkDayBtn").onclick = () => openWorkDayModal(today());
+ $("editWorkDayBtn").onclick = () => openWorkDayModal(today());
 
-  $("workDayForm").onsubmit = saveWorkDay;
+// Edit any day directly from the weekly Work Hours table
+$("workWeekTableBody").addEventListener("click", (e) => {
+  const button = e.target.closest("[data-edit-work-day]");
+
+  if (!button) return;
+
+  const date = button.dataset.editWorkDay;
+
+  if (!date) return;
+
+  openWorkDayModal(date);
+});
+
+$("workDayForm").onsubmit = saveWorkDay;
 
   $("workDayCheckIn").oninput = updateWorkDayPreview;
 
