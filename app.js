@@ -1931,7 +1931,7 @@ function ensureTasksBoardStyles() {
        * Each Asset Type scrolls vertically
        * independently.
        */
-      max-height: calc(100vh - 300px);
+      max-height: calc(81vh - 300px);
 
       overflow-y: auto;
       overflow-x: hidden;
