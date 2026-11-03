@@ -1807,11 +1807,11 @@ function ensureTasksBoardStyles() {
     ========================================================= */
 
     .task-column {
-      flex: 0 0 370px !important;
+      flex: 0 0 390px !important;
 
-      width: 370px;
-      min-width: 370px;
-      max-width: 370px;
+      width: 390px;
+      min-width: 390px;
+      max-width: 390px;
 
       display: flex;
       flex-direction: column;
@@ -1931,7 +1931,7 @@ function ensureTasksBoardStyles() {
        * Each Asset Type scrolls vertically
        * independently.
        */
-      max-height: calc(81vh - 300px);
+      max-height: calc(90vh - 300px);
 
       overflow-y: auto;
       overflow-x: hidden;
