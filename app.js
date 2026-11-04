@@ -5037,15 +5037,15 @@ async function saveTime(e) {
         );
       }
 
-     await addActivity(
+    
+await addActivity(
   taskId,
   "time_updated",
   {
-    duration: requiredMinutes,
-    requiredMinutes,
     date,
   },
 );
+
 
       closeModal("timeModal");
 
