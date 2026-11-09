@@ -264,7 +264,7 @@ let dataLockTimer = null;
 let appLockPasswordHash = "";
 
 let unsubscribeListeners = [];
-
+let selectedWorkWeekDate = "";
 async function hashPassword(password) {
   const encoder = new TextEncoder();
 
@@ -2640,12 +2640,161 @@ function updateDashboard() {
   renderWorkHours();
 }
 
+function ensureWorkWeekNavigation() {
+  const label = $("workWeekLabel");
+
+  if (!label) return;
+
+  let nav = $("workWeekNavigation");
+
+  if (!nav) {
+    nav = document.createElement("div");
+    nav.id = "workWeekNavigation";
+    nav.className = "work-week-navigation";
+
+    label.insertAdjacentElement("afterend", nav);
+  }
+
+  const currentMonday = getMonday(today());
+  const selectedMonday = getMonday(selectedWorkWeekDate);
+
+  const isCurrentWeek = selectedMonday === currentMonday;
+
+  nav.innerHTML = `
+    <button
+      type="button"
+      class="work-week-nav-btn"
+      data-week-nav="prev"
+    >
+      ← Previous week
+    </button>
+
+    ${
+      !isCurrentWeek
+        ? `
+          <button
+            type="button"
+            class="work-week-nav-btn current"
+            data-week-nav="current"
+          >
+            This week
+          </button>
+        `
+        : `
+          <span class="work-week-current-label">
+            Current week
+          </span>
+        `
+    }
+
+    <button
+      type="button"
+      class="work-week-nav-btn"
+      data-week-nav="next"
+      ${isCurrentWeek ? "disabled" : ""}
+    >
+      Next week →
+    </button>
+  `;
+
+  nav.querySelector('[data-week-nav="prev"]').onclick = () => {
+    changeSelectedWorkWeek(-1);
+  };
+
+  nav.querySelector('[data-week-nav="next"]').onclick = () => {
+    changeSelectedWorkWeek(1);
+  };
+
+  nav.querySelector('[data-week-nav="current"]')?.addEventListener(
+    "click",
+    () => {
+      selectedWorkWeekDate = today();
+      renderWorkHours();
+    }
+  );
+}
+
+function changeSelectedWorkWeek(offset) {
+  const monday = new Date(
+    `${getMonday(selectedWorkWeekDate)}T00:00:00`
+  );
+
+  monday.setDate(monday.getDate() + offset * 7);
+
+  const nextWeek = localDateString(monday);
+
+  // Không cho xem tuần tương lai
+  if (getMonday(nextWeek) > getMonday(today())) {
+    return;
+  }
+
+  selectedWorkWeekDate = nextWeek;
+
+  renderWorkHours();
+}
+
+// function renderWorkHours() {
+//   const date = today();
+//   const day = getWorkDay(date);
+
+//   const calc = day
+//     ? calculateWorkDay(day.checkIn, day.checkOut, day.lunchMinutes)
+//     : {
+//         actualMinutes: 0,
+//         normalMinutes: 0,
+//         flexiMinutes: 0,
+//         valid: false,
+//       };
+
+//   $("workTodayActual").textContent = formatDuration(calc.actualMinutes);
+
+//   $("workTodayFlexi").textContent = formatFlexi(calc.flexiMinutes);
+
+//   $("workWeekActual").textContent = formatDuration(weekActualMinutes(date));
+
+//   $("flexiOpening").textContent = formatFlexi(openingFlexiMinutes);
+
+//   $("flexiWeekAdded").textContent = formatFlexi(weekFlexiMinutes(date));
+
+//   $("flexiAvailable").textContent = formatFlexi(availableFlexiMinutes(date));
+
+//   $("workAvailableFlexi").textContent = formatFlexi(availableFlexiMinutes(date));
+
+//   $("workFlexiHelper").textContent = `${formatFlexi(openingFlexiMinutes)} opening + ${formatFlexi(weekFlexiMinutes(date))} this week`;
+
+//   $("workWeekFlexi").textContent = `${formatFlexi(weekFlexiMinutes(date))} flexi`;
+
+//   const monday = getMonday(date);
+//   const sunday = getSunday(date);
+
+//   $("workWeekLabel").textContent = `${dateLabel(monday)} → ${dateLabel(sunday)}`;
+
+//   renderTodayWorkDay(day, calc);
+//   renderWorkWeekTable(date);
+// }
+
 function renderWorkHours() {
-  const date = today();
-  const day = getWorkDay(date);
+  const todayDate = today();
+
+  // Initialize selected week
+  if (!selectedWorkWeekDate) {
+    selectedWorkWeekDate = todayDate;
+  }
+
+  const selectedDate = selectedWorkWeekDate;
+
+  // =========================
+  // TODAY DATA
+  // =========================
+
+  const day = getWorkDay(todayDate);
 
   const calc = day
-    ? calculateWorkDay(day.checkIn, day.checkOut, day.lunchMinutes)
+    ? calculateWorkDay(
+        day.checkIn,
+        day.checkOut,
+        day.lunchMinutes
+      )
     : {
         actualMinutes: 0,
         normalMinutes: 0,
@@ -2653,31 +2802,66 @@ function renderWorkHours() {
         valid: false,
       };
 
-  $("workTodayActual").textContent = formatDuration(calc.actualMinutes);
+  // Today's metrics always remain today's data
+  $("workTodayActual").textContent =
+    formatDuration(calc.actualMinutes);
 
-  $("workTodayFlexi").textContent = formatFlexi(calc.flexiMinutes);
+  $("workTodayFlexi").textContent =
+    formatFlexi(calc.flexiMinutes);
 
-  $("workWeekActual").textContent = formatDuration(weekActualMinutes(date));
 
-  $("flexiOpening").textContent = formatFlexi(openingFlexiMinutes);
+  // =========================
+  // SELECTED WEEK DATA
+  // =========================
 
-  $("flexiWeekAdded").textContent = formatFlexi(weekFlexiMinutes(date));
+  $("workWeekActual").textContent =
+    formatDuration(weekActualMinutes(selectedDate));
 
-  $("flexiAvailable").textContent = formatFlexi(availableFlexiMinutes(date));
+  $("flexiWeekAdded").textContent =
+    formatFlexi(weekFlexiMinutes(selectedDate));
 
-  $("workAvailableFlexi").textContent = formatFlexi(availableFlexiMinutes(date));
+  $("workWeekFlexi").textContent =
+    `${formatFlexi(weekFlexiMinutes(selectedDate))} flexi`;
 
-  $("workFlexiHelper").textContent = `${formatFlexi(openingFlexiMinutes)} opening + ${formatFlexi(weekFlexiMinutes(date))} this week`;
 
-  $("workWeekFlexi").textContent = `${formatFlexi(weekFlexiMinutes(date))} flexi`;
+  // =========================
+  // CURRENT FLEXI BALANCE
+  // Keep current balance unchanged
+  // =========================
 
-  const monday = getMonday(date);
-  const sunday = getSunday(date);
+  $("flexiOpening").textContent =
+    formatFlexi(openingFlexiMinutes);
 
-  $("workWeekLabel").textContent = `${dateLabel(monday)} → ${dateLabel(sunday)}`;
+  $("flexiAvailable").textContent =
+    formatFlexi(availableFlexiMinutes(todayDate));
+
+  $("workAvailableFlexi").textContent =
+    formatFlexi(availableFlexiMinutes(todayDate));
+
+  $("workFlexiHelper").textContent =
+    `${formatFlexi(openingFlexiMinutes)} opening + ${formatFlexi(weekFlexiMinutes(todayDate))} this week`;
+
+
+  // =========================
+  // WEEK LABEL
+  // =========================
+
+  const monday = getMonday(selectedDate);
+  const sunday = getSunday(selectedDate);
+
+  $("workWeekLabel").textContent =
+    `${dateLabel(monday)} → ${dateLabel(sunday)}`;
+
+
+  // =========================
+  // RENDER
+  // =========================
 
   renderTodayWorkDay(day, calc);
-  renderWorkWeekTable(date);
+
+  ensureWorkWeekNavigation();
+
+  renderWorkWeekTable(selectedDate);
 }
 
 function renderTodayWorkDay(day, calc) {

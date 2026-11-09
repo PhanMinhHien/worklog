@@ -142,7 +142,62 @@ body {
   margin-top: auto;
   padding: 18px
 }
+/* =========================================
+   WORK WEEK NAVIGATION
+========================================= */
 
+.work-week-navigation {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+
+  margin-top: 10px;
+  margin-bottom: 14px;
+}
+
+.work-week-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  min-height: 34px;
+  padding: 6px 12px;
+
+  border: 1px solid var(--border, #334155);
+  border-radius: 8px;
+
+  background: var(--card, #1e293b);
+  color: var(--text, #e2e8f0);
+
+  font-size: 12px;
+  font-weight: 600;
+
+  cursor: pointer;
+
+  transition: 0.2s ease;
+}
+
+.work-week-nav-btn:hover:not(:disabled) {
+  background: rgba(148, 163, 184, 0.15);
+  border-color: var(--primary, #64748b);
+}
+
+.work-week-nav-btn.current {
+  background: var(--primary, #334155);
+  color: white;
+}
+
+.work-week-nav-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.work-week-current-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted, #94a3b8);
+}
 .connection {
   font-size: 12px;
   color: #9ca3af;
