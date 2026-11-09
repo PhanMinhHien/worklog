@@ -40,7 +40,7 @@ import { collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot, serverTimest
 //     return;
 //   }
 // });
-
+let selectedWorkWeekDate = "";
 const $ = (id) => document.getElementById(id);
 
 function applyTheme(theme) {
@@ -264,7 +264,7 @@ let dataLockTimer = null;
 let appLockPasswordHash = "";
 
 let unsubscribeListeners = [];
-let selectedWorkWeekDate = "";
+
 async function hashPassword(password) {
   const encoder = new TextEncoder();
 
@@ -723,8 +723,19 @@ function weekActualMinutes(date = today()) {
   return getWeekWorkDays(date).reduce((sum, x) => sum + (Number(x.actualMinutes) || 0), 0);
 }
 
+// function availableFlexiMinutes(date = today()) {
+//   return openingFlexiMinutes + weekFlexiMinutes(date);
+// }
+
 function availableFlexiMinutes(date = today()) {
-  return openingFlexiMinutes + weekFlexiMinutes(date);
+  const accumulatedFlexi = state.workDays
+    .filter((x) => x.date && x.date <= date)
+    .reduce(
+      (sum, x) => sum + (Number(x.flexiMinutes) || 0),
+      0,
+    );
+
+  return openingFlexiMinutes + accumulatedFlexi;
 }
 
 function formatFlexi(mins = 0) {
@@ -2772,7 +2783,6 @@ function changeSelectedWorkWeek(offset) {
 //   renderTodayWorkDay(day, calc);
 //   renderWorkWeekTable(date);
 // }
-
 function renderWorkHours() {
   const todayDate = today();
 
@@ -2838,9 +2848,13 @@ function renderWorkHours() {
   $("workAvailableFlexi").textContent =
     formatFlexi(availableFlexiMinutes(todayDate));
 
-  $("workFlexiHelper").textContent =
-    `${formatFlexi(openingFlexiMinutes)} opening + ${formatFlexi(weekFlexiMinutes(todayDate))} this week`;
+  // $("workFlexiHelper").textContent =
+  //   `${formatFlexi(openingFlexiMinutes)} opening + ${formatFlexi(weekFlexiMinutes(todayDate))} this week`;
 
+  const accumulatedFlexi = availableFlexiMinutes(todayDate) - openingFlexiMinutes;
+
+$("workFlexiHelper").textContent =
+  `${formatFlexi(openingFlexiMinutes)} opening + ${formatFlexi(accumulatedFlexi)} accumulated`;
 
   // =========================
   // WEEK LABEL
