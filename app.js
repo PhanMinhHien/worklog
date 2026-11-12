@@ -54,6 +54,42 @@ import {
 // });
 let selectedWorkWeekDate = "";
 const $ = (id) => document.getElementById(id);
+// ========================================
+// PERSISTENT UI PREFERENCES
+// ========================================
+
+const UI_PREFERENCES_KEY = "worklog-ui-preferences-v1";
+
+// Đọc thiết lập đã lưu
+function readUiPreferences() {
+  try {
+    const value = JSON.parse(localStorage.getItem(UI_PREFERENCES_KEY) || "{}");
+
+    return value && typeof value === "object" && !Array.isArray(value)
+      ? value
+      : {};
+  } catch (err) {
+    console.warn("Could not read saved UI preferences:", err);
+    return {};
+  }
+}
+
+// Lưu hoặc cập nhật một phần thiết lập
+function saveUiPreferences(patch) {
+  try {
+    const current = readUiPreferences();
+
+    localStorage.setItem(
+      UI_PREFERENCES_KEY,
+      JSON.stringify({
+        ...current,
+        ...patch,
+      }),
+    );
+  } catch (err) {
+    console.warn("Could not save UI preferences:", err);
+  }
+}
 
 function applyTheme(theme) {
   const isDark = theme === "dark";
@@ -93,7 +129,7 @@ function initTheme() {
 }
 
 initTheme();
-
+initSidebarToggle();
 const TASK_TYPES = [
   "Article page creation",
   "Article page versioning",
@@ -5085,6 +5121,64 @@ const VALID_APP_PAGES = [
   "reports",
   "settings",
 ];
+// ========================================
+// COLLAPSIBLE SIDEBAR
+// ========================================
+
+function applySidebarState(collapsed) {
+  const app = $("app");
+  const button = $("sidebarToggleBtn");
+  const icon = $("sidebarToggleIcon");
+  const label = $("sidebarToggleLabel");
+
+  if (!app) return;
+
+  app.classList.toggle("sidebar-collapsed", Boolean(collapsed));
+
+  if (button) {
+    const expanded = !collapsed;
+
+    button.setAttribute("aria-expanded", String(expanded));
+
+    button.setAttribute(
+      "aria-label",
+      expanded ? "Hide sidebar" : "Show sidebar",
+    );
+
+    button.title = expanded ? "Hide sidebar" : "Show sidebar";
+  }
+
+  if (icon) {
+    icon.textContent = collapsed ? "☰" : "◧";
+  }
+
+  if (label) {
+    label.textContent = collapsed ? "Show sidebar" : "Hide sidebar";
+  }
+}
+
+function initSidebarToggle() {
+  const button = $("sidebarToggleBtn");
+
+  if (!button) return;
+
+  // Restore saved state
+  const saved = readUiPreferences().sidebarCollapsed === true;
+
+  applySidebarState(saved);
+
+  // Toggle Sidebar
+  button.addEventListener("click", () => {
+    const collapsed = !$("app")?.classList.contains("sidebar-collapsed");
+
+    applySidebarState(collapsed);
+
+    // Save preference
+    saveUiPreferences({
+      sidebarCollapsed: collapsed,
+    });
+  });
+}
 function setPage(page) {
   if (!VALID_APP_PAGES.includes(page)) {
     page = "dashboard";
