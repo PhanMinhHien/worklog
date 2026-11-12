@@ -671,11 +671,15 @@ function calculateWorkDay(checkIn, checkOut, lunchMinutes = 0) {
   }
 
   const actual = Math.max(0, gross - lunch);
-  const target = dailyTargetMinutes;
+  const target = dailyTargetMinutes || 480;
+
   return {
     actualMinutes: actual,
     normalMinutes: Math.min(actual, target),
-    flexiMinutes: Math.max(0, actual - target),
+
+    // Flexi có thể âm nếu làm chưa đủ giờ
+    flexiMinutes: actual - target,
+
     valid: true,
   };
 }
@@ -715,33 +719,82 @@ function getWeekWorkDays(date = today()) {
   return state.workDays.filter((x) => dates.has(x.date)).sort((a, b) => a.date.localeCompare(b.date));
 }
 
+// function weekFlexiMinutes(date = today()) {
+//   return getWeekWorkDays(date).reduce((sum, x) => sum + (Number(x.flexiMinutes) || 0), 0);
+// }
+
+// function weekActualMinutes(date = today()) {
+//   return getWeekWorkDays(date).reduce((sum, x) => sum + (Number(x.actualMinutes) || 0), 0);
+// }
+function getWorkDayFlexiMinutes(day) {
+  if (!day) return 0;
+
+  // Leave luôn trừ 8 tiếng
+  if (day.isLeave) {
+    return -480;
+  }
+
+  // Tính lại cả dữ liệu cũ để những ngày trước đây
+  // làm thiếu giờ cũng được trừ Flexi.
+  const actual = Number(day.actualMinutes) || 0;
+  const target = dailyTargetMinutes || 480;
+
+  return actual - target;
+}
+
 function weekFlexiMinutes(date = today()) {
-  return getWeekWorkDays(date).reduce((sum, x) => sum + (Number(x.flexiMinutes) || 0), 0);
+  return getWeekWorkDays(date).reduce(
+    (sum, day) => sum + getWorkDayFlexiMinutes(day),
+    0
+  );
 }
 
 function weekActualMinutes(date = today()) {
-  return getWeekWorkDays(date).reduce((sum, x) => sum + (Number(x.actualMinutes) || 0), 0);
+  return getWeekWorkDays(date).reduce(
+    (sum, day) => sum + (Number(day.actualMinutes) || 0),
+    0
+  );
 }
-
-// function availableFlexiMinutes(date = today()) {
-//   return openingFlexiMinutes + weekFlexiMinutes(date);
-// }
 
 function availableFlexiMinutes(date = today()) {
   const accumulatedFlexi = state.workDays
-    .filter((x) => x.date && x.date <= date)
+    .filter((day) => day.date && day.date <= date)
     .reduce(
-      (sum, x) => sum + (Number(x.flexiMinutes) || 0),
-      0,
+      (sum, day) => sum + getWorkDayFlexiMinutes(day),
+      0
     );
 
   return openingFlexiMinutes + accumulatedFlexi;
 }
 
 function formatFlexi(mins = 0) {
-  const value = Math.max(0, Math.round(Number(mins) || 0));
+  const value = Math.round(Number(mins) || 0);
+
+  if (value < 0) {
+    return "-" + formatDuration(Math.abs(value));
+  }
+
   return formatDuration(value);
 }
+// function availableFlexiMinutes(date = today()) {
+//   return openingFlexiMinutes + weekFlexiMinutes(date);
+// }
+
+// function availableFlexiMinutes(date = today()) {
+//   const accumulatedFlexi = state.workDays
+//     .filter((x) => x.date && x.date <= date)
+//     .reduce(
+//       (sum, x) => sum + (Number(x.flexiMinutes) || 0),
+//       0,
+//     );
+
+//   return openingFlexiMinutes + accumulatedFlexi;
+// }
+
+// function formatFlexi(mins = 0) {
+//   const value = Math.max(0, Math.round(Number(mins) || 0));
+//   return formatDuration(value);
+// }
 function notify(message, type = "success", duration = 3200) {
   const el = document.createElement("div");
   el.className = `toast ${type}`;
@@ -2799,19 +2852,25 @@ function renderWorkHours() {
 
   const day = getWorkDay(todayDate);
 
-  const calc = day
-    ? calculateWorkDay(
+const calc = day
+  ? day.isLeave
+    ? {
+        actualMinutes: 0,
+        normalMinutes: 0,
+        flexiMinutes: -480,
+        valid: true,
+      }
+    : calculateWorkDay(
         day.checkIn,
         day.checkOut,
         day.lunchMinutes
       )
-    : {
-        actualMinutes: 0,
-        normalMinutes: 0,
-        flexiMinutes: 0,
-        valid: false,
-      };
-
+  : {
+      actualMinutes: 0,
+      normalMinutes: 0,
+      flexiMinutes: 0,
+      valid: false,
+    };
   // Today's metrics always remain today's data
   $("workTodayActual").textContent =
     formatDuration(calc.actualMinutes);
@@ -2877,7 +2936,6 @@ $("workFlexiHelper").textContent =
 
   renderWorkWeekTable(selectedDate);
 }
-
 function renderTodayWorkDay(day, calc) {
   if (!day) {
     $("todayWorkDayCard").innerHTML = `
@@ -2885,6 +2943,22 @@ function renderTodayWorkDay(day, calc) {
         <div class="empty-title">No work hours recorded today</div>
         <div class="empty-text">
           Add your check-in, check-out and lunch break.
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  if (day.isLeave) {
+    $("todayWorkDayCard").innerHTML = `
+      <div class="work-day-empty">
+        <div class="empty-title">🌴 Leave</div>
+        <div class="empty-text">
+          8h deducted from your Flexi balance.
+        </div>
+        <div class="work-day-metric" style="margin-top:12px">
+          <span>Flexi deducted</span>
+          <strong class="below-target">-8h</strong>
         </div>
       </div>
     `;
@@ -2905,8 +2979,10 @@ function renderTodayWorkDay(day, calc) {
       </div>
 
       <div class="work-day-metric">
-        <span>Flexi earned</span>
-        <strong>${formatFlexi(calc.flexiMinutes)}</strong>
+        <span>Flexi</span>
+        <strong class="${calc.flexiMinutes < 0 ? "below-target" : "flexi-positive"}">
+          ${formatFlexi(calc.flexiMinutes)}
+        </strong>
       </div>
 
     </div>
@@ -2931,7 +3007,6 @@ function renderTodayWorkDay(day, calc) {
     </div>
   `;
 }
-
 function renderWorkWeekTable(date = today()) {
   const dates = getWeekDates(date);
 
@@ -2939,6 +3014,10 @@ function renderWorkWeekTable(date = today()) {
     .map((d) => {
       const item = getWorkDay(d);
       const dateObj = new Date(`${d}T00:00:00`);
+
+      const weekday = dateObj.toLocaleDateString("en-US", {
+        weekday: "short",
+      });
 
       const editButton = `
         <button
@@ -2950,28 +3029,38 @@ function renderWorkWeekTable(date = today()) {
         </button>
       `;
 
-      // No work-day record yet
       if (!item) {
         return `
           <tr>
             <td>${escapeHtml(shortDate(d))}</td>
+            <td>${weekday}</td>
+            <td>—</td>
+            <td>—</td>
+            <td>—</td>
+            <td>—</td>
+            <td>—</td>
+            <td>—</td>
+            <td>${editButton}</td>
+          </tr>
+        `;
+      }
 
-            <td>
-              ${dateObj.toLocaleDateString("en-US", {
-                weekday: "short",
-              })}
+      // Leave day
+      if (item.isLeave) {
+        return `
+          <tr>
+            <td>${escapeHtml(shortDate(d))}</td>
+            <td>${weekday}</td>
+
+            <td colspan="5">
+              <span class="below-target">🌴 Leave</span>
             </td>
 
-            <td>—</td>
-            <td>—</td>
-            <td>—</td>
-            <td>—</td>
-            <td>—</td>
-            <td>—</td>
-
-            <td>
-              ${editButton}
+            <td class="below-target">
+              -8h
             </td>
+
+            <td>${editButton}</td>
           </tr>
         `;
       }
@@ -2985,59 +3074,191 @@ function renderWorkWeekTable(date = today()) {
       const flexiClass =
         calc.flexiMinutes > 0
           ? "flexi-positive"
-          : calc.actualMinutes < dailyTargetMinutes
+          : calc.flexiMinutes < 0
             ? "below-target"
             : "";
 
       return `
         <tr>
           <td>${escapeHtml(shortDate(d))}</td>
-
-          <td>
-            ${dateObj.toLocaleDateString("en-US", {
-              weekday: "short",
-            })}
-          </td>
+          <td>${weekday}</td>
 
           <td>${escapeHtml(item.checkIn || "—")}</td>
-
           <td>${escapeHtml(item.checkOut || "—")}</td>
-
           <td>${Number(item.lunchMinutes) || 0}m</td>
 
-          <td>
-            ${formatDuration(calc.actualMinutes)}
-          </td>
+          <td>${formatDuration(calc.actualMinutes)}</td>
+          <td>${formatDuration(calc.normalMinutes)}</td>
 
-          <td>
-            ${formatDuration(calc.normalMinutes)}
-          </td>
+         <td class="${flexiClass}">
+  ${
+    calc.flexiMinutes > 0
+      ? "+" + formatFlexi(calc.flexiMinutes)
+      : formatFlexi(calc.flexiMinutes)
+  }
+</td>
 
-          <td class="${flexiClass}">
-            ${
-              calc.flexiMinutes > 0
-                ? "+" + formatFlexi(calc.flexiMinutes)
-                : formatFlexi(0)
-            }
-          </td>
-
-          <td>
-            ${editButton}
-          </td>
+          <td>${editButton}</td>
         </tr>
       `;
     })
     .join("");
 }
+// function openWorkDayModal(date = today()) {
+//   const item = getWorkDay(date);
+
+//   $("workDayDate").value = date;
+//   $("workDayCheckIn").value = item?.checkIn || "";
+//   $("workDayCheckOut").value = item?.checkOut || "";
+//   $("workDayLunch").value = item?.lunchMinutes ?? 60;
+
+//   $("workDayModalTitle").textContent = date === today() ? "Today's Work Hours" : `Work Hours · ${dateLabel(date)}`;
+
+//   updateWorkDayPreview();
+
+//   openModal("workDayModal");
+// }
+
+// function updateWorkDayPreview() {
+//   const calc = calculateWorkDay($("workDayCheckIn").value, $("workDayCheckOut").value, $("workDayLunch").value);
+
+//   if (!calc.valid) {
+//     $("workDayPreview").innerHTML = "Enter check-in and check-out to see the calculation.";
+//     return;
+//   }
+
+//   const target = dailyTargetMinutes;
+
+//   $("workDayPreview").innerHTML = `
+//     <div>
+//       Actual worked:
+//       <strong>${formatDuration(calc.actualMinutes)}</strong>
+//     </div>
+
+//     <div style="margin-top:5px">
+//       Daily target:
+//       <strong>${formatDuration(target)}</strong>
+//     </div>
+
+//     <div style="margin-top:5px">
+//       Flexi earned:
+//       <strong>${formatFlexi(calc.flexiMinutes)}</strong>
+//     </div>
+//   `;
+// }
+
+// async function saveWorkDay(e) {
+//   e.preventDefault();
+
+//   const date = $("workDayDate").value;
+//   const checkIn = $("workDayCheckIn").value;
+//   const checkOut = $("workDayCheckOut").value;
+//   const lunchMinutes = Math.max(0, Number($("workDayLunch").value) || 0);
+
+//   if (!date || !checkIn || !checkOut) {
+//     return notify("Please enter date, check-in and check-out.", "warning");
+//   }
+
+//   const calc = calculateWorkDay(checkIn, checkOut, lunchMinutes);
+
+//   if (!calc.valid || calc.actualMinutes <= 0) {
+//     return notify("The working time is not valid.", "warning");
+//   }
+
+//   try {
+//     const existing = getWorkDay(date);
+
+//     const data = {
+//       date,
+//       checkIn,
+//       checkOut,
+//       lunchMinutes,
+//       actualMinutes: calc.actualMinutes,
+//       normalMinutes: calc.normalMinutes,
+//       flexiMinutes: calc.flexiMinutes,
+//       updatedAt: serverTimestamp(),
+//     };
+
+//     if (existing) {
+//       await updateDoc(doc(db, "workDays", existing.id), data);
+//     } else {
+//       data.createdAt = serverTimestamp();
+
+//       await addDoc(collection(db, "workDays"), data);
+//     }
+
+//     closeModal("workDayModal");
+
+//     notify("Work hours saved.");
+
+//     renderWorkHours();
+//   } catch (err) {
+//     notify(err.message || "Could not save work hours.", "error");
+//   }
+// }
+function ensureWorkDayLeaveOption() {
+  const form = $("workDayForm");
+
+  if (!form || $("workDayLeaveOption")) return;
+
+  const wrapper = document.createElement("label");
+
+  wrapper.id = "workDayLeaveOption";
+  wrapper.style.cssText = `
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin:14px 0;
+    padding:12px 14px;
+    border:1px solid var(--border);
+    border-radius:10px;
+    cursor:pointer;
+  `;
+
+  wrapper.innerHTML = `
+    <input
+      type="checkbox"
+      id="workDayIsLeave"
+      style="width:17px;height:17px;"
+    >
+
+    <span>
+      🌴 Mark as Leave
+      <small style="display:block;opacity:.7;margin-top:3px">
+        Deduct 8 hours from Flexi balance
+      </small>
+    </span>
+  `;
+
+  const preview = $("workDayPreview");
+
+  if (preview) {
+    preview.insertAdjacentElement("beforebegin", wrapper);
+  } else {
+    form.appendChild(wrapper);
+  }
+
+  $("workDayIsLeave").addEventListener("change", () => {
+    updateWorkDayPreview();
+  });
+}
+
 function openWorkDayModal(date = today()) {
   const item = getWorkDay(date);
+
+  ensureWorkDayLeaveOption();
 
   $("workDayDate").value = date;
   $("workDayCheckIn").value = item?.checkIn || "";
   $("workDayCheckOut").value = item?.checkOut || "";
   $("workDayLunch").value = item?.lunchMinutes ?? 60;
 
-  $("workDayModalTitle").textContent = date === today() ? "Today's Work Hours" : `Work Hours · ${dateLabel(date)}`;
+  $("workDayIsLeave").checked = Boolean(item?.isLeave);
+
+  $("workDayModalTitle").textContent =
+    date === today()
+      ? "Today's Work Hours"
+      : `Work Hours · ${dateLabel(date)}`;
 
   updateWorkDayPreview();
 
@@ -3045,14 +3266,54 @@ function openWorkDayModal(date = today()) {
 }
 
 function updateWorkDayPreview() {
-  const calc = calculateWorkDay($("workDayCheckIn").value, $("workDayCheckOut").value, $("workDayLunch").value);
+  const isLeave = $("workDayIsLeave")?.checked || false;
 
-  if (!calc.valid) {
-    $("workDayPreview").innerHTML = "Enter check-in and check-out to see the calculation.";
+  const checkIn = $("workDayCheckIn");
+  const checkOut = $("workDayCheckOut");
+  const lunch = $("workDayLunch");
+
+  // Disable work-time inputs while Leave is selected
+  [checkIn, checkOut, lunch].forEach((input) => {
+    if (input) input.disabled = isLeave;
+  });
+
+  if (isLeave) {
+    $("workDayPreview").innerHTML = `
+      <div>
+        Day type:
+        <strong>🌴 Leave</strong>
+      </div>
+
+      <div style="margin-top:5px">
+        Flexi deduction:
+        <strong class="below-target">-8h</strong>
+      </div>
+
+      <div style="margin-top:5px;opacity:.7">
+        This date will deduct 8 hours from your accumulated Flexi balance.
+      </div>
+    `;
+
     return;
   }
 
-  const target = dailyTargetMinutes;
+  const calc = calculateWorkDay(
+    checkIn.value,
+    checkOut.value,
+    lunch.value
+  );
+
+  if (!calc.valid) {
+    $("workDayPreview").innerHTML =
+      "Enter check-in and check-out to see the calculation.";
+
+    return;
+  }
+
+  const flexiClass =
+    calc.flexiMinutes < 0
+      ? "below-target"
+      : "flexi-positive";
 
   $("workDayPreview").innerHTML = `
     <div>
@@ -3062,12 +3323,14 @@ function updateWorkDayPreview() {
 
     <div style="margin-top:5px">
       Daily target:
-      <strong>${formatDuration(target)}</strong>
+      <strong>${formatDuration(dailyTargetMinutes || 480)}</strong>
     </div>
 
     <div style="margin-top:5px">
-      Flexi earned:
-      <strong>${formatFlexi(calc.flexiMinutes)}</strong>
+      Flexi:
+      <strong class="${flexiClass}">
+        ${formatFlexi(calc.flexiMinutes)}
+      </strong>
     </div>
   `;
 }
@@ -3076,52 +3339,114 @@ async function saveWorkDay(e) {
   e.preventDefault();
 
   const date = $("workDayDate").value;
-  const checkIn = $("workDayCheckIn").value;
-  const checkOut = $("workDayCheckOut").value;
-  const lunchMinutes = Math.max(0, Number($("workDayLunch").value) || 0);
+  const isLeave = $("workDayIsLeave")?.checked || false;
 
-  if (!date || !checkIn || !checkOut) {
-    return notify("Please enter date, check-in and check-out.", "warning");
+  if (!date) {
+    return notify("Please select a date.", "warning");
   }
 
-  const calc = calculateWorkDay(checkIn, checkOut, lunchMinutes);
-
-  if (!calc.valid || calc.actualMinutes <= 0) {
-    return notify("The working time is not valid.", "warning");
-  }
+  const existing = getWorkDay(date);
 
   try {
-    const existing = getWorkDay(date);
+    let data;
 
-    const data = {
-      date,
-      checkIn,
-      checkOut,
-      lunchMinutes,
-      actualMinutes: calc.actualMinutes,
-      normalMinutes: calc.normalMinutes,
-      flexiMinutes: calc.flexiMinutes,
-      updatedAt: serverTimestamp(),
-    };
+    if (isLeave) {
+      data = {
+        date,
+
+        isLeave: true,
+
+        checkIn: "",
+        checkOut: "",
+        lunchMinutes: 0,
+
+        actualMinutes: 0,
+        normalMinutes: 0,
+
+        // Fixed 8-hour deduction
+        flexiMinutes: -480,
+
+        updatedAt: serverTimestamp(),
+      };
+    } else {
+      const checkIn = $("workDayCheckIn").value;
+      const checkOut = $("workDayCheckOut").value;
+
+      const lunchMinutes = Math.max(
+        0,
+        Number($("workDayLunch").value) || 0
+      );
+
+      if (!checkIn || !checkOut) {
+        return notify(
+          "Please enter check-in and check-out.",
+          "warning"
+        );
+      }
+
+      const calc = calculateWorkDay(
+        checkIn,
+        checkOut,
+        lunchMinutes
+      );
+
+      if (!calc.valid || calc.actualMinutes <= 0) {
+        return notify(
+          "The working time is not valid.",
+          "warning"
+        );
+      }
+
+      data = {
+        date,
+
+        isLeave: false,
+
+        checkIn,
+        checkOut,
+        lunchMinutes,
+
+        actualMinutes: calc.actualMinutes,
+        normalMinutes: calc.normalMinutes,
+        flexiMinutes: calc.flexiMinutes,
+
+        updatedAt: serverTimestamp(),
+      };
+    }
 
     if (existing) {
-      await updateDoc(doc(db, "workDays", existing.id), data);
+      await updateDoc(
+        doc(db, "workDays", existing.id),
+        data
+      );
     } else {
       data.createdAt = serverTimestamp();
 
-      await addDoc(collection(db, "workDays"), data);
+      await addDoc(
+        collection(db, "workDays"),
+        data
+      );
     }
 
     closeModal("workDayModal");
 
-    notify("Work hours saved.");
+    notify(
+      isLeave
+        ? "Leave day saved. 8h deducted from Flexi."
+        : "Work hours saved."
+    );
 
     renderWorkHours();
+
   } catch (err) {
-    notify(err.message || "Could not save work hours.", "error");
+    console.error("Failed to save work day:", err);
+
+    notify(
+      err.message || "Could not save work hours.",
+      "error"
+    );
   }
 }
-
 let clientTypesDraft = [];
 let clientFixedTimesDraft = {};
 
@@ -6233,35 +6558,35 @@ function renderReport() {
           statusLabel = "LOGGED";
         }
 
-        console.log(
-          "REPORT TASK CHECK:",
-          {
-            task:
-              row.task.title,
+        // console.log(
+        //   "REPORT TASK CHECK:",
+        //   {
+        //     task:
+        //       row.task.title,
 
-            fixedMinutes,
+        //     fixedMinutes,
 
-            requiredMinutes,
+        //     requiredMinutes,
 
-            normal:
-              taskNormal,
+        //     normal:
+        //       taskNormal,
 
-            correction:
-              taskCorrection,
+        //     correction:
+        //       taskCorrection,
 
-            total:
-              taskTotal,
+        //     total:
+        //       taskTotal,
 
-            logged:
-              taskLogged,
+        //     logged:
+        //       taskLogged,
 
-            remaining:
-              taskRemaining,
+        //     remaining:
+        //       taskRemaining,
 
-            status:
-              statusLabel,
-          },
-        );
+        //     status:
+        //       statusLabel,
+        //   },
+        // );
 
         return `
           <tr class="${rowClass}">
