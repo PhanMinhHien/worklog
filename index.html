@@ -136,7 +136,7 @@
             <div class="stat-card">
               <div class="stat-label">OPEN TASKS</div>
               <div id="statOpenTasks" class="stat-value">0</div>
-              <div class="stat-helper">Active + waiting</div>
+              <div class="stat-helper">Active tasks</div>
             </div>
           </div>
 
@@ -349,8 +349,7 @@
               <select id="taskStatusFilter">
                 <option value="all">All statuses</option>
                 <option value="open">🟡 New</option>
-                <option value="in_progress">🔵 In Approval</option>
-                <option value="waiting">🟣 Waiting</option>
+                <option value="in_approval">🔵 In Approval</option>
                 <!-- <option value="blocked">🟠 Blocked</option> -->
                 <option value="completed">🟢 Completed</option>
                 <option value="archived">⚫ Archived</option>
@@ -494,52 +493,51 @@
                 <div>
                   <h2>App Lock</h2>
                   <p>Protect WorkLog with a password when the app is locked.</p>
-                  
                 </div>
                 <button
-                    id="dataUnlockBtn"
-                    class="btn btn-secondary btn-block"
-                    type="button"
-                  >
-                    🔓 Show Work Data
-                  </button>
+                  id="dataUnlockBtn"
+                  class="btn btn-secondary btn-block"
+                  type="button"
+                >
+                  🔓 Show Work Data
+                </button>
 
-                  <button
-                    id="dataLockBtn"
-                    class="btn btn-secondary btn-block hidden"
-                    type="button"
-                  >
-                    🔒 Lock Work Data
-                  </button>
+                <button
+                  id="dataLockBtn"
+                  class="btn btn-secondary btn-block hidden"
+                  type="button"
+                >
+                  🔒 Lock Work Data
+                </button>
               </div>
 
-             <div class="settings-actions app-lock-actions">
-  <div>
-    <strong>Password</strong>
+              <div class="settings-actions app-lock-actions">
+                <div>
+                  <strong>Password</strong>
 
-    <p id="appLockStatus" class="settings-description">
-      Checking...
-    </p>
-  </div>
+                  <p id="appLockStatus" class="settings-description">
+                    Checking...
+                  </p>
+                </div>
 
-  <button
-    id="appLockPasswordBtn"
-    class="btn btn-secondary"
-    type="button"
-  >
-    Set Password
-  </button>
-</div>
+                <button
+                  id="appLockPasswordBtn"
+                  class="btn btn-secondary"
+                  type="button"
+                >
+                  Set Password
+                </button>
+              </div>
 
-<div class="settings-actions app-lock-actions">
-  <div>
-    <strong>Session</strong>
+              <div class="settings-actions app-lock-actions">
+                <div>
+                  <strong>Session</strong>
 
-    <p id="appLockSessionStatus" class="settings-description">
-      Locked
-    </p>
-  </div>
-</div>
+                  <p id="appLockSessionStatus" class="settings-description">
+                    Locked
+                  </p>
+                </div>
+              </div>
             </div>
             <!-- BACKUP -->
             <div class="panel">
@@ -622,34 +620,30 @@
                   + Add Client
                 </button>
               </div>
-<div class="form-grid" style="margin-bottom: 20px;">
-  <div class="field">
-    <label for="defaultTaskClientId">
-      Default Client
-    </label>
+              <div class="form-grid" style="margin-bottom: 20px">
+                <div class="field">
+                  <label for="defaultTaskClientId"> Default Client </label>
 
-    <select id="defaultTaskClientId">
-      <option value="">No default client</option>
-    </select>
-  </div>
-  <div class="settings-actions">
-  <button
-    id="saveTaskDefaultsBtn"
-    type="button"
-    class="btn btn-secondary"
-  >
-    Save Default Client
-  </button>
-</div>
-</div>
-
+                  <select id="defaultTaskClientId">
+                    <option value="">No default client</option>
+                  </select>
+                </div>
+                <div class="settings-actions">
+                  <button
+                    id="saveTaskDefaultsBtn"
+                    type="button"
+                    class="btn btn-secondary"
+                  >
+                    Save Default Client
+                  </button>
+                </div>
+              </div>
 
               <div id="clientsList" class="clients-list">
                 <div class="empty-state">No clients configured yet.</div>
               </div>
             </div>
 
-            
             <!-- ==================== WORK HOURS SETTINGS ==================== -->
 
             <div class="panel full-width">
@@ -1100,37 +1094,37 @@
               <input id="timeDate" type="date" required />
             </div>
 
-           <div class="field field-full">
-  <label> Required </label>
+            <div class="field field-full">
+              <label> Required </label>
 
-  <div class="time-row">
-    <div class="field">
-      <label for="timeRequiredHours"> Hours </label>
+              <div class="time-row">
+                <div class="field">
+                  <label for="timeRequiredHours"> Hours </label>
 
-      <input
-        id="timeRequiredHours"
-        type="number"
-        min="0"
-        max="999"
-        value="0"
-      />
-    </div>
+                  <input
+                    id="timeRequiredHours"
+                    type="number"
+                    min="0"
+                    max="999"
+                    value="0"
+                  />
+                </div>
 
-    <div class="field">
-      <label for="timeRequiredMinutes"> Minutes </label>
+                <div class="field">
+                  <label for="timeRequiredMinutes"> Minutes </label>
 
-      <input
-        id="timeRequiredMinutes"
-        type="number"
-        min="0"
-        max="59"
-        value="0"
-      />
-    </div>
-  </div>
-</div>
+                  <input
+                    id="timeRequiredMinutes"
+                    type="number"
+                    min="0"
+                    max="59"
+                    value="0"
+                  />
+                </div>
+              </div>
+            </div>
 
-<!-- <div class="field field-full">
+            <!-- <div class="field field-full">
   <label> Logged </label>
 
   <div class="time-row">

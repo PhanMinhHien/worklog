@@ -1,5 +1,17 @@
 import { db } from "./firebase.js";
-import { collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot, serverTimestamp, getDocs, getDoc, setDoc, writeBatch } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js";
+import {
+  collection,
+  addDoc,
+  doc,
+  updateDoc,
+  deleteDoc,
+  onSnapshot,
+  serverTimestamp,
+  getDocs,
+  getDoc,
+  setDoc,
+  writeBatch,
+} from "https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js";
 
 // ==================== BASIC UI PROTECTION ====================
 
@@ -128,10 +140,8 @@ const STATUS = {
   OPEN: "open",
   IN_PRODUCTION: "in_production",
   IN_APPROVAL: "in_approval",
-  IN_CORRECTION: "in_correction",
   EXECUTION_PROOF: "execution_proof",
   COMPLETED: "completed",
-  WAITING: "waiting",
   ARCHIVED: "archived",
 };
 
@@ -154,12 +164,6 @@ const STATUS_META = {
     cls: "status-approval",
   },
 
-  [STATUS.IN_CORRECTION]: {
-    label: "In Correction",
-    icon: "🟠",
-    cls: "status-correction",
-  },
-
   [STATUS.EXECUTION_PROOF]: {
     label: "Execution Proof",
     icon: "🟣",
@@ -170,12 +174,6 @@ const STATUS_META = {
     label: "Completed",
     icon: "🟢",
     cls: "status-completed",
-  },
-
-  [STATUS.WAITING]: {
-    label: "Waiting",
-    icon: "⚪",
-    cls: "status-waiting",
   },
 
   [STATUS.ARCHIVED]: {
@@ -196,7 +194,17 @@ const state = {
   showArchived: false,
   pendingConfirm: null,
 };
+// ========================================
+// TASK BOARD VIEW + BULK SELECTION
+// ========================================
 
+let taskViewMode = localStorage.getItem("worklog_task_view_mode") || "status";
+
+let selectedAssetType = "all";
+
+const selectedTaskIds = new Set();
+
+let currentVisibleTaskIds = [];
 let dataLockCountdownTimer = null;
 
 function clearDataLockCountdown() {
@@ -221,7 +229,9 @@ function renderDataLockCountdown() {
 
   if (!el) return;
 
-  const expiresAt = Number(sessionStorage.getItem(DATA_UNLOCK_EXPIRES_KEY) || 0);
+  const expiresAt = Number(
+    sessionStorage.getItem(DATA_UNLOCK_EXPIRES_KEY) || 0,
+  );
 
   if (!dataUnlocked || !expiresAt) {
     el.textContent = "Locked";
@@ -257,7 +267,8 @@ const DATA_SESSION_MS = DATA_SESSION_MINUTES * 60 * 1000;
 
 const DATA_UNLOCK_EXPIRES_KEY = "worklog-data-unlock-expires-at";
 
-let dataUnlocked = Number(sessionStorage.getItem(DATA_UNLOCK_EXPIRES_KEY) || 0) > Date.now();
+let dataUnlocked =
+  Number(sessionStorage.getItem(DATA_UNLOCK_EXPIRES_KEY) || 0) > Date.now();
 
 let dataLockTimer = null;
 
@@ -333,7 +344,7 @@ function renderTaskDefaultsSettings() {
   if (!select) return;
 
   const clients = [...state.clients].sort((a, b) =>
-    String(a.name || "").localeCompare(String(b.name || ""))
+    String(a.name || "").localeCompare(String(b.name || "")),
   );
 
   select.innerHTML =
@@ -343,19 +354,16 @@ function renderTaskDefaultsSettings() {
         (client) =>
           `<option value="${escapeHtml(client.id)}">
             ${escapeHtml(client.name)}
-          </option>`
+          </option>`,
       )
       .join("");
 
-  const exists = clients.some(
-    (client) => client.id === defaultTaskClientId
-  );
+  const exists = clients.some((client) => client.id === defaultTaskClientId);
 
   select.value = exists ? defaultTaskClientId : "";
 }
 async function saveTaskDefaultsSettings() {
-  const defaultClientId =
-    $("defaultTaskClientId")?.value || "";
+  const defaultClientId = $("defaultTaskClientId")?.value || "";
 
   try {
     await setDoc(
@@ -366,22 +374,16 @@ async function saveTaskDefaultsSettings() {
       },
       {
         merge: true,
-      }
+      },
     );
 
     defaultTaskClientId = defaultClientId;
 
     notify("Default client saved.");
   } catch (err) {
-    console.error(
-      "Failed to save task defaults settings:",
-      err
-    );
+    console.error("Failed to save task defaults settings:", err);
 
-    notify(
-      "Failed to save default client.",
-      "error"
-    );
+    notify("Failed to save default client.", "error");
   }
 }
 
@@ -427,7 +429,10 @@ async function saveWorkHoursSettings(e) {
 
   const dailyTarget = Math.max(0, Number($("dailyTargetMinutes")?.value) || 0);
 
-  const openingFlexi = Math.max(0, Number($("openingFlexiMinutes")?.value) || 0);
+  const openingFlexi = Math.max(
+    0,
+    Number($("openingFlexiMinutes")?.value) || 0,
+  );
 
   try {
     await setDoc(
@@ -514,8 +519,7 @@ const timeAgo = (ts) => {
   // Firebase Timestamp-like object
   else if (typeof ts === "object" && Number.isFinite(Number(ts.seconds))) {
     millis =
-      Number(ts.seconds) * 1000 +
-      Math.floor(Number(ts.nanoseconds || 0) / 1e6);
+      Number(ts.seconds) * 1000 + Math.floor(Number(ts.nanoseconds || 0) / 1e6);
   }
 
   // JavaScript Date
@@ -563,7 +567,11 @@ function getClientTypes(clientId) {
 function getClientFixedTimes(clientId) {
   const client = getClient(clientId);
 
-  if (!client || !client.fixedTimeTypes || typeof client.fixedTimeTypes !== "object") {
+  if (
+    !client ||
+    !client.fixedTimeTypes ||
+    typeof client.fixedTimeTypes !== "object"
+  ) {
     return {};
   }
 
@@ -620,7 +628,13 @@ function getClientByName(name) {
 }
 
 function getAllClientTypes() {
-  return [...new Set(state.clients.flatMap((client) => (Array.isArray(client.types) ? client.types : [])))].sort();
+  return [
+    ...new Set(
+      state.clients.flatMap((client) =>
+        Array.isArray(client.types) ? client.types : [],
+      ),
+    ),
+  ].sort();
 }
 // const taskMinutes = (id) => state.workSessions.filter((x) => x.taskId === id).reduce((s, x) => s + (Number(x.duration) || 0), 0) + state.corrections.filter((x) => x.taskId === id).reduce((s, x) => s + (Number(x.duration) || 0), 0);
 // const normalMinutes = (id) => state.workSessions.filter((x) => x.taskId === id).reduce((s, x) => s + (Number(x.duration) || 0), 0);
@@ -716,7 +730,9 @@ function getWorkDay(date) {
 
 function getWeekWorkDays(date = today()) {
   const dates = new Set(getWeekDates(date));
-  return state.workDays.filter((x) => dates.has(x.date)).sort((a, b) => a.date.localeCompare(b.date));
+  return state.workDays
+    .filter((x) => dates.has(x.date))
+    .sort((a, b) => a.date.localeCompare(b.date));
 }
 
 // function weekFlexiMinutes(date = today()) {
@@ -745,24 +761,21 @@ function getWorkDayFlexiMinutes(day) {
 function weekFlexiMinutes(date = today()) {
   return getWeekWorkDays(date).reduce(
     (sum, day) => sum + getWorkDayFlexiMinutes(day),
-    0
+    0,
   );
 }
 
 function weekActualMinutes(date = today()) {
   return getWeekWorkDays(date).reduce(
     (sum, day) => sum + (Number(day.actualMinutes) || 0),
-    0
+    0,
   );
 }
 
 function availableFlexiMinutes(date = today()) {
   const accumulatedFlexi = state.workDays
     .filter((day) => day.date && day.date <= date)
-    .reduce(
-      (sum, day) => sum + getWorkDayFlexiMinutes(day),
-      0
-    );
+    .reduce((sum, day) => sum + getWorkDayFlexiMinutes(day), 0);
 
   return openingFlexiMinutes + accumulatedFlexi;
 }
@@ -795,18 +808,258 @@ function formatFlexi(mins = 0) {
 //   const value = Math.max(0, Math.round(Number(mins) || 0));
 //   return formatDuration(value);
 // }
-function notify(message, type = "success", duration = 3200) {
-  const el = document.createElement("div");
-  el.className = `toast ${type}`;
-  el.textContent = message;
-  $("toastContainer").appendChild(el);
 
-  if (duration > 0) {
-    setTimeout(() => el.remove(), duration);
+let notificationQueue = [];
+let activeNotification = null;
+
+function ensureNotificationModalStyles() {
+  if (document.getElementById("notificationModalStyles")) return;
+
+  const style = document.createElement("style");
+  style.id = "notificationModalStyles";
+
+  style.textContent = `
+    .app-notify-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 99999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: rgba(0, 0, 0, .55);
+      backdrop-filter: blur(4px);
+      animation: notifyFadeIn .18s ease;
+    }
+
+    .app-notify-dialog {
+      width: 100%;
+      max-width: 390px;
+      padding: 26px;
+      border: 1px solid var(--border, #333);
+      border-radius: 16px;
+      background: var(--card, #1e1e1e);
+      color: var(--text, #fff);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, .3);
+      text-align: center;
+      animation: notifyScaleIn .2s ease;
+    }
+
+    .app-notify-icon {
+      width: 52px;
+      height: 52px;
+      margin: 0 auto 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      font-size: 25px;
+      font-weight: 700;
+    }
+
+    .app-notify-dialog.success .app-notify-icon {
+      background: rgba(34, 197, 94, .13);
+      color: #22c55e;
+    }
+
+    .app-notify-dialog.error .app-notify-icon {
+      background: rgba(239, 68, 68, .13);
+      color: #ef4444;
+    }
+
+    .app-notify-dialog.warning .app-notify-icon {
+      background: rgba(245, 158, 11, .13);
+      color: #f59e0b;
+    }
+
+    .app-notify-dialog.info .app-notify-icon {
+      background: rgba(59, 130, 246, .13);
+      color: #3b82f6;
+    }
+
+    .app-notify-title {
+      margin: 0 0 9px;
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .app-notify-message {
+      margin: 0;
+      color: var(--muted, #999);
+      font-size: 13px;
+      line-height: 1.65;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+
+    .app-notify-button {
+      width: 100%;
+      margin-top: 23px;
+      padding: 11px 16px;
+      border: none;
+      border-radius: 9px;
+      background: var(--primary, #6366f1);
+      color: white;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity .2s, transform .2s;
+    }
+
+    .app-notify-button:hover {
+      opacity: .88;
+      transform: translateY(-1px);
+    }
+
+    .app-notify-loading {
+      width: 25px;
+      height: 25px;
+      margin: 0 auto 15px;
+      border: 3px solid var(--border, #444);
+      border-top-color: var(--primary, #6366f1);
+      border-radius: 50%;
+      animation: notifySpin .8s linear infinite;
+    }
+
+    @keyframes notifyFadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    @keyframes notifyScaleIn {
+      from {
+        opacity: 0;
+        transform: scale(.96) translateY(8px);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+      }
+    }
+
+    @keyframes notifySpin {
+      to { transform: rotate(360deg); }
+    }
+
+    @media (max-width: 480px) {
+      .app-notify-dialog {
+        padding: 22px;
+      }
+    }
+  `;
+
+  document.head.appendChild(style);
+}
+
+function renderNextNotification() {
+  if (activeNotification || !notificationQueue.length) return;
+
+  const item = notificationQueue.shift();
+  activeNotification = item;
+
+  ensureNotificationModalStyles();
+
+  const overlay = document.createElement("div");
+  overlay.className = "app-notify-overlay";
+
+  const dialog = document.createElement("div");
+  dialog.className = `app-notify-dialog ${item.type}`;
+  dialog.setAttribute("role", item.loading ? "status" : "alertdialog");
+  dialog.setAttribute("aria-modal", "true");
+
+  if (item.loading) {
+    dialog.innerHTML = `
+      <div class="app-notify-loading"></div>
+      <h3 class="app-notify-title">Please wait</h3>
+      <p class="app-notify-message"></p>
+    `;
+  } else {
+    const icons = {
+      success: "✓",
+      error: "×",
+      warning: "!",
+      info: "i",
+    };
+
+    const titles = {
+      success: "Success",
+      error: "Something went wrong",
+      warning: "Attention",
+      info: "Information",
+    };
+
+    const icon = document.createElement("div");
+    icon.className = "app-notify-icon";
+    icon.textContent = icons[item.type] || icons.info;
+
+    const title = document.createElement("h3");
+    title.className = "app-notify-title";
+    title.textContent = titles[item.type] || titles.info;
+
+    const button = document.createElement("button");
+    button.className = "app-notify-button";
+    button.type = "button";
+    button.textContent = "OK";
+    button.addEventListener("click", item.remove);
+
+    dialog.append(icon, title, button);
+
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) item.remove();
+    });
   }
 
-  return el;
+  const message = dialog.querySelector(".app-notify-message");
+
+  if (message) {
+    message.textContent = item.message;
+  } else {
+    const p = document.createElement("p");
+    p.className = "app-notify-message";
+    p.textContent = item.message;
+    dialog.insertBefore(p, dialog.querySelector(".app-notify-button"));
+  }
+
+  overlay.appendChild(dialog);
+  document.body.appendChild(overlay);
+
+  item.overlay = overlay;
+
+  if (!item.loading) {
+    dialog.querySelector(".app-notify-button")?.focus();
+  }
 }
+
+function notify(message, type = "success", duration = 3200) {
+  const normalizedType = ["success", "error", "warning", "info"].includes(type)
+    ? type
+    : "info";
+
+  const item = {
+    message: String(message ?? ""),
+    type: normalizedType,
+    loading: duration === 0,
+    overlay: null,
+    remove: null,
+  };
+
+  item.remove = () => {
+    if (activeNotification === item) {
+      item.overlay?.remove();
+      activeNotification = null;
+      renderNextNotification();
+      return;
+    }
+
+    notificationQueue = notificationQueue.filter((queued) => queued !== item);
+  };
+
+  notificationQueue.push(item);
+  renderNextNotification();
+
+  return item;
+}
+
 function openModal(id) {
   $(id)?.classList.remove("hidden");
 }
@@ -819,12 +1072,16 @@ function statusBadge(status) {
 }
 
 function taskDates(id) {
-  const dates = [...state.workSessions, ...state.corrections].filter((x) => x.taskId === id && x.date).map((x) => x.date);
+  const dates = [...state.workSessions, ...state.corrections]
+    .filter((x) => x.taskId === id && x.date)
+    .map((x) => x.date);
 
   return [...new Set(dates)].sort().reverse();
 }
 function lastActivity(id) {
-  const a = state.activities.filter((x) => x.taskId === id).sort((x, y) => dateValue(y.createdAt) - dateValue(x.createdAt))[0];
+  const a = state.activities
+    .filter((x) => x.taskId === id)
+    .sort((x, y) => dateValue(y.createdAt) - dateValue(x.createdAt))[0];
   return a ? timeAgo(a.createdAt) : "No activity yet";
 }
 function dateValue(ts) {
@@ -840,8 +1097,7 @@ function dateValue(ts) {
 
   if (typeof ts === "object" && Number.isFinite(Number(ts.seconds))) {
     return (
-      Number(ts.seconds) * 1000 +
-      Math.floor(Number(ts.nanoseconds || 0) / 1e6)
+      Number(ts.seconds) * 1000 + Math.floor(Number(ts.nanoseconds || 0) / 1e6)
     );
   }
 
@@ -849,10 +1105,7 @@ function dateValue(ts) {
     return ts.getTime();
   }
 
-  const n =
-    typeof ts === "number"
-      ? ts
-      : new Date(ts).getTime();
+  const n = typeof ts === "number" ? ts : new Date(ts).getTime();
 
   return Number.isFinite(n) ? n : 0;
 }
@@ -860,10 +1113,7 @@ function sortNewest(a, b) {
   return dateValue(b.createdAt) - dateValue(a.createdAt);
 }
 function getTaskTimeSummary(taskOrId) {
-  const task =
-    typeof taskOrId === "string"
-      ? getTask(taskOrId)
-      : taskOrId;
+  const task = typeof taskOrId === "string" ? getTask(taskOrId) : taskOrId;
 
   if (!task) {
     return {
@@ -878,51 +1128,31 @@ function getTaskTimeSummary(taskOrId) {
     };
   }
 
-  const fixedMinutes = Math.max(
-    0,
-    Number(task.fixedMinutes) || 0,
-  );
+  const fixedMinutes = Math.max(0, Number(task.fixedMinutes) || 0);
 
   const isFixedTask = fixedMinutes > 0;
 
   // Normal WorkLog entries only.
   // "fixed" shadow WorkLog must not be counted.
   const workLogSessions = state.workSessions.filter(
-    (x) =>
-      x.taskId === task.id &&
-      x.source !== "fixed",
+    (x) => x.taskId === task.id && x.source !== "fixed",
   );
 
   // Actual WorkLog duration
-  const workLogDurationMinutes =
-    workLogSessions.reduce(
-      (sum, x) =>
-        sum + (Number(x.duration) || 0),
-      0,
-    );
+  const workLogDurationMinutes = workLogSessions.reduce(
+    (sum, x) => sum + (Number(x.duration) || 0),
+    0,
+  );
 
   // Required Time is ONE current value stored on the task.
   // It is NOT summed from individual WorkLog entries.
-  const workLogRequiredMinutes = Math.max(
-    0,
-    Number(task.requiredMinutes) || 0,
-  );
+  const workLogRequiredMinutes = Math.max(0, Number(task.requiredMinutes) || 0);
 
-  const correctionMinutesValue =
-    state.corrections
-      .filter(
-        (x) => x.taskId === task.id,
-      )
-      .reduce(
-        (sum, x) =>
-          sum + (Number(x.duration) || 0),
-        0,
-      );
+  const correctionMinutesValue = state.corrections
+    .filter((x) => x.taskId === task.id)
+    .reduce((sum, x) => sum + (Number(x.duration) || 0), 0);
 
-  const loggedMinutes = Math.max(
-    0,
-    Number(task.loggedMinutes) || 0,
-  );
+  const loggedMinutes = Math.max(0, Number(task.loggedMinutes) || 0);
 
   // Fixed Time tasks keep their existing behavior.
   if (isFixedTask) {
@@ -931,8 +1161,7 @@ function getTaskTimeSummary(taskOrId) {
       isFixedTask: true,
       workLogDurationMinutes,
       workLogRequiredMinutes,
-      correctionMinutes:
-        correctionMinutesValue,
+      correctionMinutes: correctionMinutesValue,
       requiredMinutes: fixedMinutes,
       loggedMinutes,
       remainingMinutes: 0,
@@ -943,22 +1172,16 @@ function getTaskTimeSummary(taskOrId) {
   // Required = current task Required
   // + Correction
   // Logged = external Logged value
-  const requiredMinutes =
-    workLogRequiredMinutes +
-    correctionMinutesValue;
+  const requiredMinutes = workLogRequiredMinutes + correctionMinutesValue;
 
-  const remainingMinutes = Math.max(
-    0,
-    requiredMinutes - loggedMinutes,
-  );
+  const remainingMinutes = Math.max(0, requiredMinutes - loggedMinutes);
 
   return {
     fixedMinutes: 0,
     isFixedTask: false,
     workLogDurationMinutes,
     workLogRequiredMinutes,
-    correctionMinutes:
-      correctionMinutesValue,
+    correctionMinutes: correctionMinutesValue,
     requiredMinutes,
     loggedMinutes,
     remainingMinutes,
@@ -1008,7 +1231,9 @@ const normalMinutes = (id) => {
 };
 
 const correctionMinutes = (id) => {
-  return state.corrections.filter((x) => x.taskId === id).reduce((sum, x) => sum + (Number(x.duration) || 0), 0);
+  return state.corrections
+    .filter((x) => x.taskId === id)
+    .reduce((sum, x) => sum + (Number(x.duration) || 0), 0);
 };
 // function renderTask(task, compact = false) {
 //   const total = taskMinutes(task.id),
@@ -1200,10 +1425,7 @@ function renderTaskTypeNavigation(orderedTypes, groups) {
     nav = document.createElement("div");
     nav.id = "taskTypeQuickNav";
 
-    tasksList.parentNode.insertBefore(
-      nav,
-      tasksList,
-    );
+    tasksList.parentNode.insertBefore(nav, tasksList);
   }
 
   if (!orderedTypes.length) {
@@ -1229,8 +1451,7 @@ function renderTaskTypeNavigation(orderedTypes, groups) {
 
       ${orderedTypes
         .map((type, index) => {
-          const count =
-            groups.get(type)?.length || 0;
+          const count = groups.get(type)?.length || 0;
 
           return `
             <button
@@ -1259,10 +1480,19 @@ function renderTask(task, compact = false) {
   const dates = taskDates(task.id);
   const s = STATUS_META[task.status] || STATUS_META.open;
 
-const firstWorkDate = dates.length ? dates[0] : "";
+  const firstWorkDate = dates.length ? dates[0] : "";
   const worked = firstWorkDate ? shortDate(firstWorkDate) : "No work date yet";
 
-  const { fixedMinutes, isFixedTask, workLogDurationMinutes, workLogRequiredMinutes, correctionMinutes: taskCorrectionMinutes, requiredMinutes, loggedMinutes, remainingMinutes } = summary;
+  const {
+    fixedMinutes,
+    isFixedTask,
+    workLogDurationMinutes,
+    workLogRequiredMinutes,
+    correctionMinutes: taskCorrectionMinutes,
+    requiredMinutes,
+    loggedMinutes,
+    remainingMinutes,
+  } = summary;
 
   /*
    * Fixed Time:
@@ -1282,14 +1512,11 @@ const firstWorkDate = dates.length ? dates[0] : "";
   //     `
   //     : "";
 
-  const quickLogRemainingMinutes = Math.max(
-  0,
-  requiredMinutes - loggedMinutes
-);
+  const quickLogRemainingMinutes = Math.max(0, requiredMinutes - loggedMinutes);
 
-const quickLogButton =
-  quickLogRemainingMinutes > 0
-    ? `
+  const quickLogButton =
+    quickLogRemainingMinutes > 0
+      ? `
       <button
         class="task-action quick-log-action"
         data-action="log-remaining"
@@ -1298,49 +1525,60 @@ const quickLogButton =
         ✓ Log ${formatDuration(quickLogRemainingMinutes)}
       </button>
     `
-    : "";
+      : "";
 
   /*
-  * Log status
-  */
- let logStatus = "NO PLAN";
- let logStatusClass = "no-plan";
+   * Log status
+   */
+  let logStatus = "NO PLAN";
+  let logStatusClass = "no-plan";
 
- const statusRequiredMinutes =
-   isFixedTask
-     ? fixedMinutes
-     : requiredMinutes;
+  const statusRequiredMinutes = isFixedTask ? fixedMinutes : requiredMinutes;
 
- if (
-   statusRequiredMinutes > 0 &&
-   loggedMinutes <= 0
- ) {
-   logStatus = "NOT LOGGED";
-   logStatusClass = "not-logged";
- } else if (
-   statusRequiredMinutes > 0 &&
-   loggedMinutes < statusRequiredMinutes
- ) {
-   logStatus = "INCOMPLETE";
-   logStatusClass = "incomplete";
- } else if (
-   statusRequiredMinutes > 0 &&
-   loggedMinutes >= statusRequiredMinutes
- ) {
-   logStatus = "LOGGED";
-   logStatusClass = "complete";
- }
+  if (statusRequiredMinutes > 0 && loggedMinutes <= 0) {
+    logStatus = "NOT LOGGED";
+    logStatusClass = "not-logged";
+  } else if (
+    statusRequiredMinutes > 0 &&
+    loggedMinutes < statusRequiredMinutes
+  ) {
+    logStatus = "INCOMPLETE";
+    logStatusClass = "incomplete";
+  } else if (
+    statusRequiredMinutes > 0 &&
+    loggedMinutes >= statusRequiredMinutes
+  ) {
+    logStatus = "LOGGED";
+    logStatusClass = "complete";
+  }
 
   return `
     <div class="task-row ${task.status === STATUS.ARCHIVED ? "is-archived" : ""}">
 
       <div class="task-main">
 
-        <div class="task-title-line">
-          <div class="task-title">
-            ${escapeHtml(task.title)}
-          </div>
-        </div>
+    <div class="task-title-line">
+
+  ${
+    !compact
+      ? `
+        <label class="task-select-wrap">
+          <input
+            type="checkbox"
+            class="task-select-checkbox"
+            data-select-task="${task.id}"
+            ${selectedTaskIds.has(task.id) ? "checked" : ""}
+          >
+        </label>
+      `
+      : ""
+  }
+
+  <div class="task-title">
+    ${escapeHtml(task.title)}
+  </div>
+
+</div>
 
         <div class="task-meta">
           <span>
@@ -1581,108 +1819,326 @@ const quickLogButton =
     </div>
   `;
 }
-function renderTasks() {
-  const q = ($("taskSearch").value || "").toLowerCase().trim();
 
-  const sf = $("taskStatusFilter").value;
-  const tf = $("taskTypeFilter").value;
+// ========================================
+// TASK BOARD CONTROLS
+// ========================================
+
+function ensureTaskBoardControls() {
+  const tasksList = $("tasksList");
+
+  if (!tasksList) return null;
+
+  let controls = $("taskBoardControls");
+
+  if (!controls) {
+    controls = document.createElement("div");
+    controls.id = "taskBoardControls";
+
+    tasksList.parentNode.insertBefore(controls, tasksList);
+  }
+
+  return controls;
+}
+
+function renderTaskBoardControls(types) {
+  const controls = ensureTaskBoardControls();
+
+  if (!controls) return;
+
+  const selectedCount = selectedTaskIds.size;
+
+  const allSelected =
+    currentVisibleTaskIds.length > 0 &&
+    currentVisibleTaskIds.every((id) => selectedTaskIds.has(id));
+
+  controls.innerHTML = `
+
+    <div class="task-view-toolbar">
+
+      <div class="task-view-switch">
+
+        <button
+          type="button"
+          class="task-view-btn ${taskViewMode === "status" ? "active" : ""}"
+          data-task-view="status"
+        >
+          <span>▦</span>
+          By Status
+        </button>
+
+        <button
+          type="button"
+          class="task-view-btn ${taskViewMode === "asset" ? "active" : ""}"
+          data-task-view="asset"
+        >
+          <span>▤</span>
+          By Asset Type
+        </button>
+
+      </div>
+
+      ${
+        taskViewMode === "asset"
+          ? `
+            <div class="task-asset-view-filter">
+
+              <label>Asset Type</label>
+
+              <select id="taskBoardAssetType">
+
+                <option value="all">
+                  All Asset Types
+                </option>
+
+                ${types
+                  .map(
+                    (type) => `
+                  <option
+                    value="${escapeHtml(type)}"
+                    ${selectedAssetType === type ? "selected" : ""}
+                  >
+                    ${escapeHtml(type)}
+                  </option>
+                `,
+                  )
+                  .join("")}
+
+              </select>
+
+            </div>
+          `
+          : ""
+      }
+
+    </div>
+
+
+    <div class="task-bulk-toolbar">
+
+     ${
+       taskViewMode === "asset"
+         ? `
+      <label class="task-select-all">
+
+        <input
+          type="checkbox"
+          id="taskSelectAllVisible"
+          ${allSelected ? "checked" : ""}
+        >
+
+        Select visible
+
+      </label>
+    `
+         : ""
+     }
+      <span class="task-selected-count">
+        ${selectedCount} selected
+      </span>
+
+      <select id="taskBulkStatus">
+
+        <option value="">
+          Change status to...
+        </option>
+
+        ${Object.entries(STATUS_META)
+          .filter(([key]) => key !== STATUS.ARCHIVED)
+          .map(
+            ([key, meta]) => `
+            <option value="${key}">
+              ${meta.icon} ${meta.label}
+            </option>
+          `,
+          )
+          .join("")}
+
+      </select>
+
+      <button
+        type="button"
+        id="taskBulkApplyBtn"
+        ${selectedCount === 0 ? "disabled" : ""}
+      >
+        Apply to selected
+      </button>
+
+      <button
+        type="button"
+        id="taskClearSelectionBtn"
+        ${selectedCount === 0 ? "disabled" : ""}
+      >
+        Clear
+      </button>
+
+    </div>
+
+  `;
+}
+
+// ========================================
+// BULK CHANGE TASK STATUS
+// ========================================
+
+async function bulkChangeTaskStatus() {
+  const statusSelect = $("taskBulkStatus");
+  const newStatus = statusSelect?.value || "";
+
+  const ids = [...selectedTaskIds].filter((id) =>
+    currentVisibleTaskIds.includes(id),
+  );
+
+  if (!ids.length) {
+    return notify("Please select at least one task.", "warning");
+  }
+
+  if (!newStatus) {
+    return notify("Please select a status.", "warning");
+  }
+
+  const targetMeta = STATUS_META[newStatus];
+
+  if (!targetMeta) return;
+
+  const tasksToUpdate = ids
+    .map((id) => getTask(id))
+    .filter(Boolean)
+    .filter((task) => task.status !== newStatus);
+
+  if (!tasksToUpdate.length) {
+    return notify("All selected tasks already have this status.", "warning");
+  }
+
+  // Mở Confirm Modal thay cho window.confirm()
+  confirmAction(
+    "Apply status to selected tasks?",
+    `You are about to change the status of ${tasksToUpdate.length} task(s) to "${targetMeta.label}".`,
+    async () => {
+      await applyBulkTaskStatus(tasksToUpdate, newStatus, targetMeta);
+    },
+    "Apply changes",
+  );
+}
+
+// ========================================
+// APPLY BULK TASK STATUS
+// ========================================
+
+async function applyBulkTaskStatus(tasksToUpdate, newStatus, targetMeta) {
+  const button = $("taskBulkApplyBtn");
+
+  if (button) {
+    button.disabled = true;
+    button.textContent = "Updating...";
+  }
+
+  let successCount = 0;
+  let failedCount = 0;
+
+  for (const task of tasksToUpdate) {
+    try {
+      const previousStatus = task.status;
+
+      await updateDoc(doc(db, "tasks", task.id), {
+        status: newStatus,
+        updatedAt: serverTimestamp(),
+      });
+
+      await addActivity(task.id, "status_changed", {
+        from: previousStatus,
+        to: newStatus,
+        bulk: true,
+      });
+
+      successCount++;
+    } catch (err) {
+      console.error("Bulk status update failed:", task.id, err);
+
+      failedCount++;
+    }
+  }
+
+  selectedTaskIds.clear();
+
+  renderTasks();
+
+  if (failedCount > 0) {
+    notify(`${successCount} updated, ${failedCount} failed.`, "warning");
+  } else {
+    notify(`Updated ${successCount} task(s) to ${targetMeta.label}.`);
+  }
+}
+
+function renderTasks() {
+  const q = ($("taskSearch")?.value || "").toLowerCase().trim();
+
+  const sf = $("taskStatusFilter")?.value || "all";
+  const tf = $("taskTypeFilter")?.value || "all";
   const lf = $("taskLogFilter")?.value || "all";
 
   const df = $("taskDateFilter")?.value || "all";
   const customDate = $("taskCustomDate")?.value || "";
 
   let tasks = state.tasks.filter(
-    (t) => state.showArchived || t.status !== STATUS.ARCHIVED
+    (t) => state.showArchived || t.status !== STATUS.ARCHIVED,
   );
 
-  // =========================
   // STATUS FILTER
-  // =========================
   if (sf !== "all") {
     tasks = tasks.filter((t) => t.status === sf);
   }
 
-  // =========================
   // ASSET TYPE FILTER
-  // =========================
   if (tf !== "all") {
     tasks = tasks.filter((t) => t.type === tf);
   }
 
-  // =========================
   // LOG FILTER
-  // =========================
   if (lf !== "all") {
     tasks = tasks.filter((t) => {
-      const loggedMinutes = Math.max(
-        0,
-        Number(t.loggedMinutes) || 0
-      );
+      const loggedMinutes = Math.max(0, Number(t.loggedMinutes) || 0);
 
-      return lf === "logged"
-        ? loggedMinutes > 0
-        : loggedMinutes === 0;
+      return lf === "logged" ? loggedMinutes > 0 : loggedMinutes === 0;
     });
   }
 
-  // =========================
   // DATE FILTER
-  // =========================
-  tasks = tasks.filter(
-    (t) => taskMatchesDateFilter(t, df, customDate)
-  );
+  tasks = tasks.filter((t) => taskMatchesDateFilter(t, df, customDate));
 
-  // =========================
   // SEARCH
-  // =========================
   if (q) {
     tasks = tasks.filter((t) =>
-      [t.title, t.project, t.note, t.type, t.url].some((v) =>
-        String(v || "")
+      [t.title, t.project, t.note, t.type, t.url].some((value) =>
+        String(value || "")
           .toLowerCase()
-          .includes(q)
-      )
+          .includes(q),
+      ),
     );
   }
 
-  // =========================
   // SORT
-  // =========================
   tasks.sort((a, b) => {
     const getLogPriority = (task) => {
       const summary = getTaskTimeSummary(task);
 
-      // No required time -> always last
-      if (summary.requiredMinutes <= 0) {
-        return 3;
-      }
+      if (summary.requiredMinutes <= 0) return 3;
 
-      // NOT LOGGED
-      if (summary.loggedMinutes <= 0) {
-        return 0;
-      }
+      if (summary.loggedMinutes <= 0) return 0;
 
-      // INCOMPLETE
-      if (summary.loggedMinutes < summary.requiredMinutes) {
-        return 1;
-      }
+      if (summary.loggedMinutes < summary.requiredMinutes) return 1;
 
-      // LOGGED
       return 2;
     };
 
-    // 1. Status first
-    const statusCompare =
-      getLogPriority(a) - getLogPriority(b);
+    const statusCompare = getLogPriority(a) - getLogPriority(b);
 
     if (statusCompare !== 0) {
       return statusCompare;
     }
 
-    // 2. Newest Worked date first
     const getLatestWorkDate = (task) => {
       const dates = taskDates(task.id);
-
       return dates.length ? dates[0] : "";
     };
 
@@ -1696,7 +2152,6 @@ function renderTasks() {
       return dateB.localeCompare(dateA);
     }
 
-    // 3. Fallback
     return (
       dateValue(b.updatedAt || b.createdAt) -
       dateValue(a.updatedAt || a.createdAt)
@@ -1705,12 +2160,19 @@ function renderTasks() {
 
   const container = $("tasksList");
 
-  // =========================
+  if (!container) return;
+
   // EMPTY STATE
-  // =========================
   if (!tasks.length) {
+    currentVisibleTaskIds = [];
+
+    selectedTaskIds.clear();
+
+    renderTaskBoardControls([]);
+
     container.innerHTML = `
       <div class="empty-state">
+
         <div class="empty-title">
           No tasks found
         </div>
@@ -1718,21 +2180,14 @@ function renderTasks() {
         <div class="empty-text">
           Try another filter or create a new task.
         </div>
+
       </div>
     `;
 
     return;
   }
 
-  // =========================
-  // TASK TYPE GROUPING
-  // =========================
-
-  /*
-   * Keep the same order as TASK_TYPES.
-   * Any custom/new type not found in TASK_TYPES
-   * will appear after the standard types.
-   */
+  // GET ASSET TYPES
   const groupedTasks = new Map();
 
   tasks.forEach((task) => {
@@ -1745,72 +2200,533 @@ function renderTasks() {
     groupedTasks.get(type).push(task);
   });
 
-  // =========================
-  // ORDER COLUMNS
-  // =========================
-
+  // ORDER ASSET TYPES
   const orderedTypes = [];
 
-  // First: types from TASK_TYPES
   TASK_TYPES.forEach((type) => {
     if (groupedTasks.has(type)) {
       orderedTypes.push(type);
     }
   });
 
-  // Then: any custom/new types
   groupedTasks.forEach((_, type) => {
     if (!orderedTypes.includes(type)) {
       orderedTypes.push(type);
     }
   });
 
-  // =========================
-  // RENDER COLUMNS
-  // =========================
-renderTaskTypeNavigation(
-  orderedTypes,
-  groupedTasks
-);
-  container.innerHTML = `
-    <div class="tasks-board">
-      ${orderedTypes
-        .map((type) => {
-          const typeTasks = groupedTasks.get(type) || [];
+  // KEEP ONLY VISIBLE SELECTIONS
+  currentVisibleTaskIds = tasks.map((t) => t.id);
 
-          return `
-<section
-  class="task-column"
-  data-task-column-index="${orderedTypes.indexOf(type)}"
->              
+  if (taskViewMode === "asset" && selectedAssetType !== "all") {
+    currentVisibleTaskIds = tasks
+      .filter(
+        (task) =>
+          (String(task.type || "").trim() || "Other") === selectedAssetType,
+      )
+      .map((task) => task.id);
+  }
+
+  [...selectedTaskIds].forEach((id) => {
+    if (!currentVisibleTaskIds.includes(id)) {
+      selectedTaskIds.delete(id);
+    }
+  });
+
+  // HIDE OLD TYPE NAVIGATION
+  const oldNav = $("taskTypeQuickNav");
+
+  if (oldNav) {
+    oldNav.style.display = "none";
+  }
+
+  // RENDER TOOLBAR
+  renderTaskBoardControls(orderedTypes);
+
+  // ========================================
+  // BY STATUS VIEW
+  // ========================================
+
+  if (taskViewMode === "status") {
+    const statusOrder = [
+      STATUS.OPEN,
+      STATUS.IN_PRODUCTION,
+      STATUS.IN_APPROVAL,
+      STATUS.EXECUTION_PROOF,
+      STATUS.COMPLETED,
+    ];
+
+    container.innerHTML = `
+
+      <div class="tasks-board status-view">
+
+        ${statusOrder
+          .map((status) => {
+            const meta = STATUS_META[status];
+
+            const statusTasks = tasks.filter((task) => task.status === status);
+
+            return `
+
+            <section class="task-column">
+
               <div class="task-column-header">
-                <div class="task-column-title">
-                  ${escapeHtml(type)}
-                </div>
 
-                <div class="task-column-count">
-                  ${typeTasks.length}
-                </div>
-              </div>
+  <div class="task-column-title">
+    ${meta.icon}
+    ${escapeHtml(meta.label)}
+  </div>
+
+  <div class="task-column-actions">
+
+    <label class="task-column-select-all">
+      <input
+        type="checkbox"
+        data-select-status="${status}"
+        ${
+          statusTasks.length > 0 &&
+          statusTasks.every((task) => selectedTaskIds.has(task.id))
+            ? "checked"
+            : ""
+        }
+      >
+
+      <span>Select all</span>
+    </label>
+
+    <div class="task-column-count">
+      ${statusTasks.length}
+    </div>
+
+  </div>
+
+</div>
 
               <div class="task-column-body">
-                ${typeTasks
-                  .map((task) => renderTask(task))
-                  .join("")}
+
+                ${
+                  statusTasks.length
+                    ? statusTasks.map((task) => renderTask(task)).join("")
+                    : `
+                      <div class="task-empty-column">
+                        No tasks
+                      </div>
+                    `
+                }
+
               </div>
 
             </section>
+
           `;
-        })
-        .join("")}
-    </div>
+          })
+          .join("")}
+
+      </div>
+
+    `;
+  }
+
+  // ========================================
+  // BY ASSET TYPE VIEW
+  // ========================================
+  else {
+    let visibleTasks = tasks;
+
+    if (selectedAssetType !== "all") {
+      visibleTasks = tasks.filter(
+        (task) =>
+          (String(task.type || "").trim() || "Other") === selectedAssetType,
+      );
+    }
+
+    container.innerHTML = `
+
+      <div class="tasks-board asset-view">
+
+        <div class="task-asset-list">
+
+          ${
+            visibleTasks.length
+              ? visibleTasks.map((task) => renderTask(task)).join("")
+              : `
+                <div class="empty-state">
+                  <div class="empty-title">
+                    No tasks in this Asset Type
+                  </div>
+                </div>
+              `
+          }
+
+        </div>
+
+      </div>
+
+    `;
+  }
+
+  // APPLY STYLES
+  ensureTasksBoardStyles();
+  ensureTaskRedesignStyles();
+}
+// ========================================
+// TASK REDESIGN STYLES
+// ========================================
+
+function ensureTaskRedesignStyles() {
+  if ($("taskRedesignStyles")) return;
+
+  const style = document.createElement("style");
+
+  style.id = "taskRedesignStyles";
+
+  style.textContent = `
+
+    /* VIEW TOOLBAR */
+
+    #taskBoardControls {
+      margin: 14px 20px;
+    }
+.task-column-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.task-column-select-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.task-column-select-all input {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+    .task-view-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .task-view-switch {
+      display: flex;
+      gap: 6px;
+      padding: 4px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--card);
+    }
+
+    .task-view-btn {
+      border: 0;
+      border-radius: 7px;
+      padding: 9px 14px;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    .task-view-btn.active {
+      background: var(--primary);
+      color: white;
+    }
+
+    .task-asset-view-filter {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .task-asset-view-filter label {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .task-asset-view-filter select {
+      min-width: 180px;
+    }
+
+
+    /* BULK TOOLBAR */
+
+    .task-bulk-toolbar {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--card);
+    }
+
+    .task-select-all {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    .task-selected-count {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .task-bulk-toolbar select {
+      min-width: 180px;
+    }
+
+    .task-bulk-toolbar button {
+      padding: 9px 13px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--card);
+      color: var(--text);
+      cursor: pointer;
+    }
+
+    .task-bulk-toolbar #taskBulkApplyBtn {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+      font-weight: 600;
+    }
+
+    .task-bulk-toolbar button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+
+    /* TASK SELECTION */
+
+    .task-title-line {
+      display: flex;
+      align-items: flex-start;
+      gap: 9px;
+    }
+
+    .task-select-wrap {
+      flex: 0 0 auto;
+      display: flex;
+      align-items: center;
+      padding-top: 3px;
+      cursor: pointer;
+    }
+
+    .task-select-checkbox {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--primary);
+      cursor: pointer;
+    }
+
+
+    /* STATUS BOARD */
+
+    .tasks-board.status-view {
+      display: grid !important;
+      grid-template-columns:
+        repeat(auto-fit, minmax(min(100%, 280px), 1fr)) !important;
+      gap: 14px;
+      width: 100%;
+      max-width: 100%;
+      overflow: visible !important;
+      padding: 4px 0 14px;
+      box-sizing: border-box;
+    }
+
+    .tasks-board.status-view .task-column {
+      flex: initial !important;
+      width: auto !important;
+      min-width: 0 !important;
+      max-width: none !important;
+      scroll-snap-align: none;
+    }
+
+    .tasks-board.status-view .task-column-body {
+      max-height: 70vh;
+      min-height: 120px;
+    }
+
+    .task-empty-column {
+      padding: 24px 10px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+      opacity: 0.7;
+    }
+
+
+    /* ASSET TYPE LIST */
+
+    .tasks-board.asset-view {
+      display: block !important;
+      width: 100%;
+      max-width: 100%;
+      overflow: visible !important;
+      padding: 4px 0 14px;
+    }
+
+    .task-asset-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      width: 100%;
+    }
+
+    .task-asset-list .task-row {
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+
+    /* RESPONSIVE */
+
+    @media (max-width: 700px) {
+
+      .task-view-toolbar {
+        align-items: stretch;
+      }
+
+      .task-view-switch {
+        width: 100%;
+      }
+
+      .task-view-btn {
+        flex: 1;
+      }
+
+      .task-asset-view-filter {
+        width: 100%;
+      }
+
+      .task-asset-view-filter select {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .task-bulk-toolbar {
+        align-items: stretch;
+      }
+
+      .task-bulk-toolbar select {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .tasks-board.status-view {
+        grid-template-columns: 1fr !important;
+      }
+
+    }
+      /* Bulk status selector */
+#taskBulkStatus {
+  min-width: 170px;
+  height: 38px;
+  padding: 0 36px 0 12px;
+
+  color: var(--text);
+  background-color: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  outline: none;
+
+  appearance: none;
+  -webkit-appearance: none;
+
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23949baa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 11px center;
+  background-size: 15px;
+}
+
+#taskBulkStatus:hover {
+  border-color: var(--primary);
+}
+
+#taskBulkStatus:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+}
+
+#taskBulkStatus option {
+  color: var(--text);
+  background: var(--card);
+}
+/* ========================================
+   TASK BOARD ASSET TYPE SELECT
+======================================== */
+
+#taskBoardAssetType {
+  min-width: 170px;
+  height: 38px;
+  padding: 0 36px 0 12px;
+
+  appearance: none;
+  -webkit-appearance: none;
+
+  border: 1px solid var(--border);
+  border-radius: 8px;
+
+  background-color: var(--surface);
+  color: var(--text-primary);
+
+  font-size: 13px;
+  font-weight: 500;
+
+  cursor: pointer;
+  outline: none;
+
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background-color 0.2s ease;
+}
+
+#taskBoardAssetType:hover {
+  border-color: var(--primary-color);
+}
+
+#taskBoardAssetType:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+}
+
+#taskBoardAssetType:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+#taskBoardAssetType option {
+  background: var(--surface);
+  color: var(--text-primary);
+}
   `;
 
-  // =========================
-  // APPLY BOARD STYLES
-  // =========================
-
-  ensureTasksBoardStyles();
+  document.head.appendChild(style);
 }
 function ensureTasksBoardStyles() {
   if (document.getElementById("tasksBoardStyles")) return;
@@ -2537,18 +3453,32 @@ function taskMatchesDateFilter(task, filter, customDate = "") {
 function renderDashboardTasks() {
   const tasks = state.tasks
     .filter((t) => t.status !== STATUS.ARCHIVED)
-    .sort((a, b) => dateValue(b.updatedAt || b.createdAt) - dateValue(a.updatedAt || a.createdAt))
+    .sort(
+      (a, b) =>
+        dateValue(b.updatedAt || b.createdAt) -
+        dateValue(a.updatedAt || a.createdAt),
+    )
     .slice(0, 5);
-  $("dashboardTasks").innerHTML = tasks.length ? tasks.map((t) => renderTask(t, true)).join("") : `<div class="empty-state"><div class="empty-title">No tasks yet</div><div class="empty-text">Create your first task to get started.</div></div>`;
+  $("dashboardTasks").innerHTML = tasks.length
+    ? tasks.map((t) => renderTask(t, true)).join("")
+    : `<div class="empty-state"><div class="empty-title">No tasks yet</div><div class="empty-text">Create your first task to get started.</div></div>`;
 }
 
 function renderToday() {
   const date = today();
-  const entries = [...state.workSessions.filter((x) => x.date === date).map((x) => ({ ...x, kind: "normal" })), ...state.corrections.filter((x) => x.date === date).map((x) => ({ ...x, kind: "correction" }))].sort((a, b) => dateValue(b.createdAt) - dateValue(a.createdAt));
+  const entries = [
+    ...state.workSessions
+      .filter((x) => x.date === date)
+      .map((x) => ({ ...x, kind: "normal" })),
+    ...state.corrections
+      .filter((x) => x.date === date)
+      .map((x) => ({ ...x, kind: "correction" })),
+  ].sort((a, b) => dateValue(b.createdAt) - dateValue(a.createdAt));
   const total = entries.reduce((s, x) => s + (Number(x.duration) || 0), 0);
   $("todayTimelineTotal").textContent = formatDuration(total);
   if (!entries.length) {
-    $("todayWorkList").innerHTML = `<div class="empty-state"><div class="empty-title">No work logged today</div><div class="empty-text">Add time to a task and your daily timeline will appear here.</div></div>`;
+    $("todayWorkList").innerHTML =
+      `<div class="empty-state"><div class="empty-title">No work logged today</div><div class="empty-text">Add time to a task and your daily timeline will appear here.</div></div>`;
     return;
   }
   const groups = [];
@@ -2619,13 +3549,18 @@ function activityIcon(a) {
     }[a] || "•"
   );
 }
+const LEGACY_STATUS_LABELS = {
+  in_correction: "In Correction",
+  waiting: "Waiting",
+};
+
+function getStatusLabel(status) {
+  return STATUS_META[status]?.label || LEGACY_STATUS_LABELS[status] || status;
+}
 function activityLabel(a) {
   const m = a.metadata || {};
 
-  const duration =
-    Number(m.duration) ||
-    Number(m.requiredMinutes) ||
-    0;
+  const duration = Number(m.duration) || Number(m.requiredMinutes) || 0;
 
   if (a.action === "time_added") {
     return `Time logged · ${formatDuration(duration)} · ${m.date || ""}`;
@@ -2644,7 +3579,7 @@ function activityLabel(a) {
   }
 
   if (a.action === "status_changed") {
-    return `Status: ${STATUS_META[m.from]?.label || m.from} → ${STATUS_META[m.to]?.label || m.to}`;
+    return `Status: ${getStatusLabel(m.from)} → ${getStatusLabel(m.to)}`;
   }
 
   if (a.action === "task_archived") {
@@ -2682,7 +3617,9 @@ function updateDashboard() {
 
   const total = nm + cm;
 
-  const ids = new Set([...normal, ...corr].map((x) => x.taskId).filter((id) => getTask(id)));
+  const ids = new Set(
+    [...normal, ...corr].map((x) => x.taskId).filter((id) => getTask(id)),
+  );
 
   $("statTodayTime").textContent = formatDuration(total);
 
@@ -2690,7 +3627,16 @@ function updateDashboard() {
 
   $("statCorrections").textContent = corr.length;
 
-  $("statOpenTasks").textContent = state.tasks.filter((t) => [STATUS.OPEN, STATUS.IN_PROGRESS, STATUS.WAITING, STATUS.BLOCKED].includes(t.status)).length;
+  const activeStatuses = [
+    STATUS.OPEN,
+    STATUS.IN_PRODUCTION,
+    STATUS.IN_APPROVAL,
+    STATUS.EXECUTION_PROOF,
+  ];
+
+  $("statOpenTasks").textContent = state.tasks.filter((t) =>
+    activeStatuses.includes(t.status),
+  ).length;
 
   $("summaryWorked").textContent = formatDuration(total);
 
@@ -2769,19 +3715,16 @@ function ensureWorkWeekNavigation() {
     changeSelectedWorkWeek(1);
   };
 
-  nav.querySelector('[data-week-nav="current"]')?.addEventListener(
-    "click",
-    () => {
+  nav
+    .querySelector('[data-week-nav="current"]')
+    ?.addEventListener("click", () => {
       selectedWorkWeekDate = today();
       renderWorkHours();
-    }
-  );
+    });
 }
 
 function changeSelectedWorkWeek(offset) {
-  const monday = new Date(
-    `${getMonday(selectedWorkWeekDate)}T00:00:00`
-  );
+  const monday = new Date(`${getMonday(selectedWorkWeekDate)}T00:00:00`);
 
   monday.setDate(monday.getDate() + offset * 7);
 
@@ -2852,68 +3795,62 @@ function renderWorkHours() {
 
   const day = getWorkDay(todayDate);
 
-const calc = day
-  ? day.isLeave
-    ? {
+  const calc = day
+    ? day.isLeave
+      ? {
+          actualMinutes: 0,
+          normalMinutes: 0,
+          flexiMinutes: -480,
+          valid: true,
+        }
+      : calculateWorkDay(day.checkIn, day.checkOut, day.lunchMinutes)
+    : {
         actualMinutes: 0,
         normalMinutes: 0,
-        flexiMinutes: -480,
-        valid: true,
-      }
-    : calculateWorkDay(
-        day.checkIn,
-        day.checkOut,
-        day.lunchMinutes
-      )
-  : {
-      actualMinutes: 0,
-      normalMinutes: 0,
-      flexiMinutes: 0,
-      valid: false,
-    };
+        flexiMinutes: 0,
+        valid: false,
+      };
   // Today's metrics always remain today's data
-  $("workTodayActual").textContent =
-    formatDuration(calc.actualMinutes);
+  $("workTodayActual").textContent = formatDuration(calc.actualMinutes);
 
-  $("workTodayFlexi").textContent =
-    formatFlexi(calc.flexiMinutes);
-
+  $("workTodayFlexi").textContent = formatFlexi(calc.flexiMinutes);
 
   // =========================
   // SELECTED WEEK DATA
   // =========================
 
-  $("workWeekActual").textContent =
-    formatDuration(weekActualMinutes(selectedDate));
+  $("workWeekActual").textContent = formatDuration(
+    weekActualMinutes(selectedDate),
+  );
 
-  $("flexiWeekAdded").textContent =
-    formatFlexi(weekFlexiMinutes(selectedDate));
+  $("flexiWeekAdded").textContent = formatFlexi(weekFlexiMinutes(selectedDate));
 
   $("workWeekFlexi").textContent =
     `${formatFlexi(weekFlexiMinutes(selectedDate))} flexi`;
-
 
   // =========================
   // CURRENT FLEXI BALANCE
   // Keep current balance unchanged
   // =========================
 
-  $("flexiOpening").textContent =
-    formatFlexi(openingFlexiMinutes);
+  $("flexiOpening").textContent = formatFlexi(openingFlexiMinutes);
 
-  $("flexiAvailable").textContent =
-    formatFlexi(availableFlexiMinutes(todayDate));
+  $("flexiAvailable").textContent = formatFlexi(
+    availableFlexiMinutes(todayDate),
+  );
 
-  $("workAvailableFlexi").textContent =
-    formatFlexi(availableFlexiMinutes(todayDate));
+  $("workAvailableFlexi").textContent = formatFlexi(
+    availableFlexiMinutes(todayDate),
+  );
 
   // $("workFlexiHelper").textContent =
   //   `${formatFlexi(openingFlexiMinutes)} opening + ${formatFlexi(weekFlexiMinutes(todayDate))} this week`;
 
-  const accumulatedFlexi = availableFlexiMinutes(todayDate) - openingFlexiMinutes;
+  const accumulatedFlexi =
+    availableFlexiMinutes(todayDate) - openingFlexiMinutes;
 
-$("workFlexiHelper").textContent =
-  `${formatFlexi(openingFlexiMinutes)} opening + ${formatFlexi(accumulatedFlexi)} accumulated`;
+  $("workFlexiHelper").textContent =
+    `${formatFlexi(openingFlexiMinutes)} opening + ${formatFlexi(accumulatedFlexi)} accumulated`;
 
   // =========================
   // WEEK LABEL
@@ -2924,7 +3861,6 @@ $("workFlexiHelper").textContent =
 
   $("workWeekLabel").textContent =
     `${dateLabel(monday)} → ${dateLabel(sunday)}`;
-
 
   // =========================
   // RENDER
@@ -3068,7 +4004,7 @@ function renderWorkWeekTable(date = today()) {
       const calc = calculateWorkDay(
         item.checkIn,
         item.checkOut,
-        item.lunchMinutes
+        item.lunchMinutes,
       );
 
       const flexiClass =
@@ -3256,9 +4192,7 @@ function openWorkDayModal(date = today()) {
   $("workDayIsLeave").checked = Boolean(item?.isLeave);
 
   $("workDayModalTitle").textContent =
-    date === today()
-      ? "Today's Work Hours"
-      : `Work Hours · ${dateLabel(date)}`;
+    date === today() ? "Today's Work Hours" : `Work Hours · ${dateLabel(date)}`;
 
   updateWorkDayPreview();
 
@@ -3297,11 +4231,7 @@ function updateWorkDayPreview() {
     return;
   }
 
-  const calc = calculateWorkDay(
-    checkIn.value,
-    checkOut.value,
-    lunch.value
-  );
+  const calc = calculateWorkDay(checkIn.value, checkOut.value, lunch.value);
 
   if (!calc.valid) {
     $("workDayPreview").innerHTML =
@@ -3310,10 +4240,7 @@ function updateWorkDayPreview() {
     return;
   }
 
-  const flexiClass =
-    calc.flexiMinutes < 0
-      ? "below-target"
-      : "flexi-positive";
+  const flexiClass = calc.flexiMinutes < 0 ? "below-target" : "flexi-positive";
 
   $("workDayPreview").innerHTML = `
     <div>
@@ -3372,29 +4299,16 @@ async function saveWorkDay(e) {
       const checkIn = $("workDayCheckIn").value;
       const checkOut = $("workDayCheckOut").value;
 
-      const lunchMinutes = Math.max(
-        0,
-        Number($("workDayLunch").value) || 0
-      );
+      const lunchMinutes = Math.max(0, Number($("workDayLunch").value) || 0);
 
       if (!checkIn || !checkOut) {
-        return notify(
-          "Please enter check-in and check-out.",
-          "warning"
-        );
+        return notify("Please enter check-in and check-out.", "warning");
       }
 
-      const calc = calculateWorkDay(
-        checkIn,
-        checkOut,
-        lunchMinutes
-      );
+      const calc = calculateWorkDay(checkIn, checkOut, lunchMinutes);
 
       if (!calc.valid || calc.actualMinutes <= 0) {
-        return notify(
-          "The working time is not valid.",
-          "warning"
-        );
+        return notify("The working time is not valid.", "warning");
       }
 
       data = {
@@ -3415,17 +4329,11 @@ async function saveWorkDay(e) {
     }
 
     if (existing) {
-      await updateDoc(
-        doc(db, "workDays", existing.id),
-        data
-      );
+      await updateDoc(doc(db, "workDays", existing.id), data);
     } else {
       data.createdAt = serverTimestamp();
 
-      await addDoc(
-        collection(db, "workDays"),
-        data
-      );
+      await addDoc(collection(db, "workDays"), data);
     }
 
     closeModal("workDayModal");
@@ -3433,18 +4341,14 @@ async function saveWorkDay(e) {
     notify(
       isLeave
         ? "Leave day saved. 8h deducted from Flexi."
-        : "Work hours saved."
+        : "Work hours saved.",
     );
 
     renderWorkHours();
-
   } catch (err) {
     console.error("Failed to save work day:", err);
 
-    notify(
-      err.message || "Could not save work hours.",
-      "error"
-    );
+    notify(err.message || "Could not save work hours.", "error");
   }
 }
 let clientTypesDraft = [];
@@ -3455,7 +4359,9 @@ function populateTaskClients(selectedClientId = "") {
 
   if (!select) return;
 
-  const clients = [...state.clients].sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+  const clients = [...state.clients].sort((a, b) =>
+    String(a.name || "").localeCompare(String(b.name || "")),
+  );
 
   select.innerHTML =
     `<option value="">Select client</option>` +
@@ -3468,7 +4374,10 @@ function populateTaskClients(selectedClientId = "") {
       )
       .join("");
 
-  if (selectedClientId && clients.some((client) => client.id === selectedClientId)) {
+  if (
+    selectedClientId &&
+    clients.some((client) => client.id === selectedClientId)
+  ) {
     select.value = selectedClientId;
   }
 }
@@ -3524,7 +4433,12 @@ function populateTaskTypeFilter() {
    * Include configured client types
    * + legacy types still used by old tasks.
    */
-  const types = [...new Set([...getAllClientTypes(), ...state.tasks.map((task) => task.type).filter(Boolean)])].sort();
+  const types = [
+    ...new Set([
+      ...getAllClientTypes(),
+      ...state.tasks.map((task) => task.type).filter(Boolean),
+    ]),
+  ].sort();
 
   select.innerHTML =
     `<option value="all">All types</option>` +
@@ -3568,7 +4482,10 @@ function populateTaskStatusFilter() {
       )
       .join("");
 
-  if (selectedStatus === "all" || statuses.some((status) => status.value === selectedStatus)) {
+  if (
+    selectedStatus === "all" ||
+    statuses.some((status) => status.value === selectedStatus)
+  ) {
     select.value = selectedStatus;
   } else {
     select.value = "all";
@@ -3603,7 +4520,10 @@ function populateTaskLogFilter() {
       )
       .join("");
 
-  if (selectedLog === "all" || options.some((option) => option.value === selectedLog)) {
+  if (
+    selectedLog === "all" ||
+    options.some((option) => option.value === selectedLog)
+  ) {
     select.value = selectedLog;
   } else {
     select.value = "all";
@@ -3653,7 +4573,9 @@ function renderClients() {
     return;
   }
 
-  const clients = [...state.clients].sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+  const clients = [...state.clients].sort((a, b) =>
+    String(a.name || "").localeCompare(String(b.name || "")),
+  );
 
   container.innerHTML = clients
     .map((client) => {
@@ -3698,7 +4620,10 @@ function renderClients() {
               types.length
                 ? types
                     .map((type) => {
-                      const fixedMinutes = getFixedMinutesPerAsset(client.id, type);
+                      const fixedMinutes = getFixedMinutesPerAsset(
+                        client.id,
+                        type,
+                      );
 
                       return `
       <span class="client-type-chip">
@@ -3729,21 +4654,25 @@ function renderClients() {
     })
     .join("");
 
-  container.querySelectorAll('[data-client-action="edit"]').forEach((button) => {
-    button.onclick = () => {
-      const client = getClient(button.dataset.clientId);
+  container
+    .querySelectorAll('[data-client-action="edit"]')
+    .forEach((button) => {
+      button.onclick = () => {
+        const client = getClient(button.dataset.clientId);
 
-      if (client) {
-        openClientModal(client);
-      }
-    };
-  });
+        if (client) {
+          openClientModal(client);
+        }
+      };
+    });
 
-  container.querySelectorAll('[data-client-action="delete"]').forEach((button) => {
-    button.onclick = () => {
-      deleteClient(button.dataset.clientId);
-    };
-  });
+  container
+    .querySelectorAll('[data-client-action="delete"]')
+    .forEach((button) => {
+      button.onclick = () => {
+        deleteClient(button.dataset.clientId);
+      };
+    });
 }
 
 function renderClientTypeDraft() {
@@ -3763,7 +4692,10 @@ function renderClientTypeDraft() {
 
   container.innerHTML = clientTypesDraft
     .map((type, index) => {
-      const fixedEnabled = Object.prototype.hasOwnProperty.call(clientFixedTimesDraft, type);
+      const fixedEnabled = Object.prototype.hasOwnProperty.call(
+        clientFixedTimesDraft,
+        type,
+      );
 
       const minutes = Number(clientFixedTimesDraft[type]) || 0;
 
@@ -3857,7 +4789,9 @@ function renderClientTypeDraft() {
          * For legacy types, use the old global
          * Fixed Time value as the initial value.
          */
-        if (!Object.prototype.hasOwnProperty.call(clientFixedTimesDraft, type)) {
+        if (
+          !Object.prototype.hasOwnProperty.call(clientFixedTimesDraft, type)
+        ) {
           clientFixedTimesDraft[type] = Number(FIXED_ASSET_TIMES[type]) || 0;
         }
       } else {
@@ -3900,7 +4834,11 @@ function openClientModal(client = null) {
    */
   clientFixedTimesDraft = {};
 
-  if (client && client.fixedTimeTypes && typeof client.fixedTimeTypes === "object") {
+  if (
+    client &&
+    client.fixedTimeTypes &&
+    typeof client.fixedTimeTypes === "object"
+  ) {
     Object.entries(client.fixedTimeTypes).forEach(([type, value]) => {
       if (clientTypesDraft.includes(type)) {
         const minutes = Math.max(0, Number(value) || 0);
@@ -3941,7 +4879,9 @@ function addClientType() {
     return notify("Enter a task type first.", "warning");
   }
 
-  const exists = clientTypesDraft.some((type) => type.toLowerCase() === value.toLowerCase());
+  const exists = clientTypesDraft.some(
+    (type) => type.toLowerCase() === value.toLowerCase(),
+  );
 
   if (exists) {
     return notify("This task type already exists.", "warning");
@@ -4089,7 +5029,10 @@ async function deleteClient(clientId) {
   );
 
   if (affectedTasks.length) {
-    return notify(`Cannot delete "${client.name}" because ${affectedTasks.length} task(s) are using this client.`, "warning");
+    return notify(
+      `Cannot delete "${client.name}" because ${affectedTasks.length} task(s) are using this client.`,
+      "warning",
+    );
   }
 
   state.pendingConfirm = async () => {
@@ -4133,28 +5076,52 @@ function fillSelects() {
     )
     .join("");
 }
+const ACTIVE_PAGE_STORAGE_KEY = "worklog_active_page";
+
+const VALID_APP_PAGES = [
+  "dashboard",
+  "work-hours",
+  "tasks",
+  "reports",
+  "settings",
+];
 function setPage(page) {
+  if (!VALID_APP_PAGES.includes(page)) {
+    page = "dashboard";
+  }
+
   state.activePage = page;
-  document.querySelectorAll(".page").forEach((x) => x.classList.toggle("active", x.id === `page-${page}`));
-  document.querySelectorAll(".nav-item").forEach((x) => x.classList.toggle("active", x.dataset.page === page));
+
+  // Save the last selected navigation page
+  try {
+    localStorage.setItem(ACTIVE_PAGE_STORAGE_KEY, page);
+  } catch (err) {
+    console.warn("Could not save the active page:", err);
+  }
+
+  document
+    .querySelectorAll(".page")
+    .forEach((x) => x.classList.toggle("active", x.id === `page-${page}`));
+
+  document
+    .querySelectorAll(".nav-item")
+    .forEach((x) => x.classList.toggle("active", x.dataset.page === page));
+
   const meta = {
     dashboard: ["Dashboard", "Track your work, rework, and daily progress."],
-
     "work-hours": ["Work Hours", "Track office hours and flexi time."],
-
     tasks: ["Tasks", "Work items, time history, and status."],
-
     reports: ["Reports", "Understand where your time is going."],
-
     settings: ["Settings", "Backup and manage your WorkLog data."],
   }[page];
+
   $("pageTitle").textContent = meta[0];
   $("pageSubtitle").textContent = meta[1];
+
   if (page === "tasks") renderTasks();
   if (page === "reports") renderReport();
   if (page === "work-hours") renderWorkHours();
 }
-
 function updateAssetTimePreview() {
   const clientId = $("taskClient")?.value || "";
 
@@ -4175,20 +5142,26 @@ function updateAssetTimePreview() {
   $("assetAmountField").style.display = "";
 
   if (!amount) {
-    $("assetTimePreview").textContent = `Fixed time: ${minutesPerAsset}m per asset`;
+    $("assetTimePreview").textContent =
+      `Fixed time: ${minutesPerAsset}m per asset`;
 
     return;
   }
 
   const totalMinutes = amount * minutesPerAsset;
 
-  $("assetTimePreview").textContent = `Fixed time: ${amount} × ${minutesPerAsset}m = ${formatDuration(totalMinutes)}`;
+  $("assetTimePreview").textContent =
+    `Fixed time: ${amount} × ${minutesPerAsset}m = ${formatDuration(totalMinutes)}`;
 }
 
 function updateLoggedTimePreview() {
-  const loggedMinutes = Math.max(0, Math.round(Number($("taskLoggedHours").value) || 0));
+  const loggedMinutes = Math.max(
+    0,
+    Math.round(Number($("taskLoggedHours").value) || 0),
+  );
 
-  $("loggedTimePreview").textContent = `Logged: ${formatDuration(loggedMinutes)}`;
+  $("loggedTimePreview").textContent =
+    `Logged: ${formatDuration(loggedMinutes)}`;
 }
 // function openLoggedTimeModal(task) {
 //   if (!task) return;
@@ -4257,9 +5230,13 @@ function openLoggedTimeModal(task) {
 }
 
 function updateQuickLoggedTimePreview() {
-  const loggedMinutes = Math.max(0, Math.round(Number($("loggedTimeHours").value) || 0));
+  const loggedMinutes = Math.max(
+    0,
+    Math.round(Number($("loggedTimeHours").value) || 0),
+  );
 
-  $("quickLoggedTimePreview").textContent = `Logged: ${formatDuration(loggedMinutes)}`;
+  $("quickLoggedTimePreview").textContent =
+    `Logged: ${formatDuration(loggedMinutes)}`;
 }
 
 async function saveLoggedTime(e) {
@@ -4277,7 +5254,10 @@ async function saveLoggedTime(e) {
     return notify("Task not found.", "error");
   }
 
-  const loggedMinutes = Math.max(0, Math.round(Number($("loggedTimeHours").value) || 0));
+  const loggedMinutes = Math.max(
+    0,
+    Math.round(Number($("loggedTimeHours").value) || 0),
+  );
 
   try {
     await updateDoc(doc(db, "tasks", taskId), {
@@ -4387,13 +5367,13 @@ async function quickLogTask(task) {
   // }
 
   const quickLogRemainingMinutes = Math.max(
-  0,
-  summary.requiredMinutes - summary.loggedMinutes
-);
+    0,
+    summary.requiredMinutes - summary.loggedMinutes,
+  );
 
-if (quickLogRemainingMinutes <= 0) {
-  return;
-}
+  if (quickLogRemainingMinutes <= 0) {
+    return;
+  }
   try {
     /*
      * Quick Log means:
@@ -4413,7 +5393,7 @@ if (quickLogRemainingMinutes <= 0) {
       source: "quick_log",
     });
 
-    notify(`Logged ${formatDuration(summary.remainingMinutes)}.`);
+    notify(`Logged ${formatDuration(quickLogRemainingMinutes)}.`);
   } catch (err) {
     notify(err.message || "Could not update logged time.", "error");
   }
@@ -4468,21 +5448,15 @@ function openTaskModal(task = null) {
 
   $("taskTitle").value = task?.title || "";
 
-const inferredClient =
-  task?.clientId
+  const inferredClient = task?.clientId
     ? getClient(task.clientId)
     : getClientByName(task?.project);
 
-const clientId =
-  inferredClient?.id ||
-  (!task ? defaultTaskClientId : "");
+  const clientId = inferredClient?.id || (!task ? defaultTaskClientId : "");
 
-populateTaskClients(clientId);
+  populateTaskClients(clientId);
 
-populateTaskTypes(
-  clientId,
-  task?.type || ""
-);
+  populateTaskTypes(clientId, task?.type || "");
 
   $("taskStatus").value = task?.status || STATUS.OPEN;
 
@@ -4551,8 +5525,7 @@ function openTimeModal(taskId, entry = null) {
   const t = getTask(taskId);
   if (!t) return;
 
-  const isFixedTask =
-    (Number(t.fixedMinutes) || 0) > 0;
+  const isFixedTask = (Number(t.fixedMinutes) || 0) > 0;
 
   // Fixed Time uses its existing shadow WorkLog.
   if (isFixedTask && !entry) {
@@ -4561,24 +5534,19 @@ function openTimeModal(taskId, entry = null) {
         (x) =>
           x.taskId === taskId &&
           x.source === "fixed" &&
-          x.fixedTaskId === taskId
+          x.fixedTaskId === taskId,
       ) || null;
   }
 
-  $("timeTaskId").value =
-    taskId;
+  $("timeTaskId").value = taskId;
 
-  $("timeModalTaskName").textContent =
-    t.title;
+  $("timeModalTaskName").textContent = t.title;
 
-  $("timeEntryId").value =
-    entry?.id || "";
+  $("timeEntryId").value = entry?.id || "";
 
   // Fixed Time → use its Worked date / fixedDate
   $("timeDate").value =
-    entry?.date ||
-    (isFixedTask ? t.fixedDate : "") ||
-    today();
+    entry?.date || (isFixedTask ? t.fixedDate : "") || today();
 
   // Normal Time → Required Time
   // Fixed Time → show fixedMinutes only
@@ -4586,17 +5554,13 @@ function openTimeModal(taskId, entry = null) {
     ? Number(t.fixedMinutes) || 0
     : Number(t.requiredMinutes) || 0;
 
-  $("timeRequiredHours").value =
-    Math.floor(displayMinutes / 60);
+  $("timeRequiredHours").value = Math.floor(displayMinutes / 60);
 
-  $("timeRequiredMinutes").value =
-    displayMinutes % 60;
+  $("timeRequiredMinutes").value = displayMinutes % 60;
 
-  $("timeNote").value =
-    entry?.note || "";
+  $("timeNote").value = entry?.note || "";
 
-  const title =
-    $("timeModalTitle");
+  const title = $("timeModalTitle");
 
   if (title) {
     title.textContent = isFixedTask
@@ -4631,7 +5595,9 @@ function openCorrectionModal(taskId, entry = null) {
 
   const reason = entry?.reason || "client_feedback";
 
-  const reasonInput = document.querySelector(`input[name="correctionReason"][value="${reason}"]`);
+  const reasonInput = document.querySelector(
+    `input[name="correctionReason"][value="${reason}"]`,
+  );
 
   if (reasonInput) {
     reasonInput.checked = true;
@@ -4653,20 +5619,34 @@ function openCorrectionModal(taskId, entry = null) {
 }
 
 function openHistory(taskId) {
-  
   const t = getTask(taskId);
-    const isFixedTask = (Number(t.fixedMinutes) || 0) > 0;
+  const isFixedTask = (Number(t.fixedMinutes) || 0) > 0;
   if (!t) return;
 
-  const normal = state.workSessions.filter((x) => x.taskId === taskId && x.source !== "fixed").sort((a, b) => String(b.date).localeCompare(String(a.date)) || dateValue(b.createdAt) - dateValue(a.createdAt));
+  const normal = state.workSessions
+    .filter((x) => x.taskId === taskId && x.source !== "fixed")
+    .sort(
+      (a, b) =>
+        String(b.date).localeCompare(String(a.date)) ||
+        dateValue(b.createdAt) - dateValue(a.createdAt),
+    );
 
-  const corr = state.corrections.filter((x) => x.taskId === taskId).sort((a, b) => String(b.date).localeCompare(String(a.date)) || dateValue(b.createdAt) - dateValue(a.createdAt));
+  const corr = state.corrections
+    .filter((x) => x.taskId === taskId)
+    .sort(
+      (a, b) =>
+        String(b.date).localeCompare(String(a.date)) ||
+        dateValue(b.createdAt) - dateValue(a.createdAt),
+    );
 
-  const acts = state.activities.filter((x) => x.taskId === taskId).sort(sortNewest);
+  const acts = state.activities
+    .filter((x) => x.taskId === taskId)
+    .sort(sortNewest);
 
   $("historyTitle").textContent = t.title;
 
-  $("historySubtitle").textContent = `${t.project || "No project"} · ${t.type || "Other"}`;
+  $("historySubtitle").textContent =
+    `${t.project || "No project"} · ${t.type || "Other"}`;
 
   $("historySummary").innerHTML = `
     <div>
@@ -4738,7 +5718,11 @@ function openHistory(taskId) {
       kind: "Correction",
       source: "correction",
     })),
-  ].sort((a, b) => String(b.date).localeCompare(String(a.date)) || dateValue(b.createdAt) - dateValue(a.createdAt));
+  ].sort(
+    (a, b) =>
+      String(b.date).localeCompare(String(a.date)) ||
+      dateValue(b.createdAt) - dateValue(a.createdAt),
+  );
 
   const timeLogHtml = entries.length
     ? entries
@@ -4895,18 +5879,18 @@ function openHistory(taskId) {
   /*
    * Add WorkLog
    */
- const historyAddTimeBtn = $("historyAddTimeBtn");
+  const historyAddTimeBtn = $("historyAddTimeBtn");
 
-if (historyAddTimeBtn) {
-  // historyAddTimeBtn.style.display = isFixedTask ? "none" : "";
+  if (historyAddTimeBtn) {
+    // historyAddTimeBtn.style.display = isFixedTask ? "none" : "";
 
-  historyAddTimeBtn.onclick = () => {
-    // if (isFixedTask) return;
+    historyAddTimeBtn.onclick = () => {
+      // if (isFixedTask) return;
 
-    closeModal("historyModal");
-    openTimeModal(taskId);
-  };
-}
+      closeModal("historyModal");
+      openTimeModal(taskId);
+    };
+  }
   /*
    * Add Correction
    */
@@ -4933,7 +5917,9 @@ let fixedMigrationDone = false;
 async function syncFixedWorkLog(taskId, fixedMinutes, fixedDate) {
   if (!taskId) return;
 
-  const existingEntries = state.workSessions.filter((x) => x.source === "fixed" && x.fixedTaskId === taskId);
+  const existingEntries = state.workSessions.filter(
+    (x) => x.source === "fixed" && x.fixedTaskId === taskId,
+  );
 
   if (Number(fixedMinutes) > 0 && fixedDate) {
     const data = {
@@ -4990,10 +5976,14 @@ async function migrateFixedTasksToWorkLogs() {
       ...d.data(),
     }));
 
-    const fixedTasks = state.tasks.filter((task) => Number(task.fixedMinutes) > 0 && task.fixedDate);
+    const fixedTasks = state.tasks.filter(
+      (task) => Number(task.fixedMinutes) > 0 && task.fixedDate,
+    );
 
     for (const task of fixedTasks) {
-      const entries = workLogs.filter((x) => x.source === "fixed" && x.fixedTaskId === task.id);
+      const entries = workLogs.filter(
+        (x) => x.source === "fixed" && x.fixedTaskId === task.id,
+      );
 
       const data = {
         taskId: task.id,
@@ -5172,13 +6162,20 @@ async function saveTask(e) {
 
   const minutesPerAsset = getFixedMinutesPerAsset(clientId, type);
 
-  const assetAmount = minutesPerAsset > 0 ? Math.max(0, Number($("taskAssetAmount").value) || 0) : 0;
+  const assetAmount =
+    minutesPerAsset > 0
+      ? Math.max(0, Number($("taskAssetAmount").value) || 0)
+      : 0;
 
-  const fixedMinutes = minutesPerAsset > 0 && assetAmount > 0 ? assetAmount * minutesPerAsset : 0;
+  const fixedMinutes =
+    minutesPerAsset > 0 && assetAmount > 0 ? assetAmount * minutesPerAsset : 0;
 
   const existingTask = id ? getTask(id) : null;
 
-  const fixedDate = minutesPerAsset > 0 && fixedMinutes > 0 ? existingTask?.fixedDate || today() : "";
+  const fixedDate =
+    minutesPerAsset > 0 && fixedMinutes > 0
+      ? existingTask?.fixedDate || today()
+      : "";
 
   const data = {
     title: $("taskTitle").value.trim(),
@@ -5469,33 +6466,22 @@ async function saveTask(e) {
 async function saveTime(e) {
   e.preventDefault();
 
-  const taskId =
-    $("timeTaskId").value;
+  const taskId = $("timeTaskId").value;
 
-  const entryId =
-    $("timeEntryId").value.trim();
+  const entryId = $("timeEntryId").value.trim();
 
-  const date =
-    $("timeDate").value;
+  const date = $("timeDate").value;
 
-  const note =
-    $("timeNote").value.trim();
+  const note = $("timeNote").value.trim();
 
-  const task =
-    getTask(taskId);
+  const task = getTask(taskId);
 
   if (!taskId || !date) {
-    return notify(
-      "Please enter a date.",
-      "warning",
-    );
+    return notify("Please enter a date.", "warning");
   }
 
   if (!task) {
-    return notify(
-      "Task not found.",
-      "error",
-    );
+    return notify("Task not found.", "error");
   }
 
   /*
@@ -5510,79 +6496,49 @@ async function saveTime(e) {
    * - loggedMinutes
    * - create another WorkLog
    */
-  const isFixedTask =
-    (Number(task.fixedMinutes) || 0) > 0;
+  const isFixedTask = (Number(task.fixedMinutes) || 0) > 0;
 
   if (isFixedTask) {
     try {
-      const fixedEntry =
-        entryId
-          ? state.workSessions.find(
-              (x) => x.id === entryId
-            )
-          : state.workSessions.find(
-              (x) =>
-                x.taskId === taskId &&
-                x.source === "fixed" &&
-                x.fixedTaskId === taskId
-            );
+      const fixedEntry = entryId
+        ? state.workSessions.find((x) => x.id === entryId)
+        : state.workSessions.find(
+            (x) =>
+              x.taskId === taskId &&
+              x.source === "fixed" &&
+              x.fixedTaskId === taskId,
+          );
 
       // Task is the source of truth for Fixed Worked date
-      await updateDoc(
-        doc(db, "tasks", taskId),
-        {
-          fixedDate: date,
-          updatedAt: serverTimestamp(),
-        },
-      );
+      await updateDoc(doc(db, "tasks", taskId), {
+        fixedDate: date,
+        updatedAt: serverTimestamp(),
+      });
 
       if (fixedEntry) {
         // Only update the date.
         // Keep Fixed Time duration untouched.
-        await updateDoc(
-          doc(
-            db,
-            "workSessions",
-            fixedEntry.id,
-          ),
-          {
-            date,
-            updatedAt: serverTimestamp(),
-          },
-        );
+        await updateDoc(doc(db, "workSessions", fixedEntry.id), {
+          date,
+          updatedAt: serverTimestamp(),
+        });
       } else {
         // Safety fallback in case the fixed shadow WorkLog
         // does not exist yet.
-        await syncFixedWorkLog(
-          taskId,
-          Number(task.fixedMinutes) || 0,
-          date,
-        );
+        await syncFixedWorkLog(taskId, Number(task.fixedMinutes) || 0, date);
       }
 
-    
-await addActivity(
-  taskId,
-  "time_updated",
-  {
-    date,
-  },
-);
-
+      await addActivity(taskId, "time_updated", {
+        date,
+      });
 
       closeModal("timeModal");
 
-      notify(
-        "Fixed Time date updated.",
-      );
+      notify("Fixed Time date updated.");
 
       return;
     } catch (err) {
-      notify(
-        err.message ||
-          "Could not update Fixed Time date.",
-        "error",
-      );
+      notify(err.message || "Could not update Fixed Time date.", "error");
 
       return;
     }
@@ -5600,22 +6556,15 @@ await addActivity(
   );
 
   if (requiredMinutes <= 0) {
-    return notify(
-      "Please enter Required time.",
-      "warning",
-    );
+    return notify("Please enter Required time.", "warning");
   }
 
   try {
     // Required Time belongs to the task
-    await updateDoc(
-      doc(db, "tasks", taskId),
-      {
-        requiredMinutes,
-        updatedAt:
-          serverTimestamp(),
-      },
-    );
+    await updateDoc(doc(db, "tasks", taskId), {
+      requiredMinutes,
+      updatedAt: serverTimestamp(),
+    });
 
     const data = {
       taskId,
@@ -5623,73 +6572,42 @@ await addActivity(
       duration: requiredMinutes,
       note,
       type: "normal",
-      updatedAt:
-        serverTimestamp(),
+      updatedAt: serverTimestamp(),
     };
 
     // EDIT existing WorkLog
     if (entryId) {
-      await updateDoc(
-        doc(
-          db,
-          "workSessions",
-          entryId,
-        ),
-        data,
-      );
+      await updateDoc(doc(db, "workSessions", entryId), data);
 
-      await addActivity(
-        taskId,
-        "time_updated",
-        {
-          requiredMinutes,
-          date,
-        },
-      );
+      await addActivity(taskId, "time_updated", {
+        requiredMinutes,
+        date,
+      });
 
       closeModal("timeModal");
 
-      notify(
-        "WorkLog updated.",
-      );
+      notify("WorkLog updated.");
 
       return;
     }
 
     // ADD new WorkLog
-    await addDoc(
-      collection(
-        db,
-        "workSessions",
-      ),
-      {
-        ...data,
-        createdAt:
-          serverTimestamp(),
-      },
-    );
+    await addDoc(collection(db, "workSessions"), {
+      ...data,
+      createdAt: serverTimestamp(),
+    });
 
-   await addActivity(
-  taskId,
-  "time_added",
-  {
-    duration: requiredMinutes,
-    requiredMinutes,
-    date,
-  },
-);
+    await addActivity(taskId, "time_added", {
+      duration: requiredMinutes,
+      requiredMinutes,
+      date,
+    });
 
     closeModal("timeModal");
 
-    notify(
-      "WorkLog added.",
-    );
+    notify("WorkLog added.");
   } catch (err) {
-    notify(
-      err.message ||
-        "Could not save WorkLog.",
-      "error",
-    );
+    notify(err.message || "Could not save WorkLog.", "error");
   }
 }
 
@@ -5700,7 +6618,12 @@ async function deleteWorkLog(entryId) {
 
   const task = getTask(entry.taskId);
 
-  confirmAction("Delete WorkLog?", `Delete ${formatDuration(entry.duration)} from "${task?.title || "this task"}"? This cannot be undone.`, "", "Delete");
+  confirmAction(
+    "Delete WorkLog?",
+    `Delete ${formatDuration(entry.duration)} from "${task?.title || "this task"}"? This cannot be undone.`,
+    "",
+    "Delete",
+  );
 
   state.pendingConfirm = async () => {
     try {
@@ -5731,7 +6654,12 @@ async function deleteCorrection(entryId) {
 
   const task = getTask(entry.taskId);
 
-  confirmAction("Delete Correction?", `Delete ${formatDuration(entry.duration)} from "${task?.title || "this task"}"? This cannot be undone.`, "", "Delete");
+  confirmAction(
+    "Delete Correction?",
+    `Delete ${formatDuration(entry.duration)} from "${task?.title || "this task"}"? This cannot be undone.`,
+    "",
+    "Delete",
+  );
 
   state.pendingConfirm = async () => {
     try {
@@ -5757,13 +6685,18 @@ async function saveCorrection(e) {
 
   const entryId = $("correctionEntryId").value.trim();
 
-  const duration = minutes($("correctionHours").value, $("correctionMinutes").value);
+  const duration = minutes(
+    $("correctionHours").value,
+    $("correctionMinutes").value,
+  );
 
   const date = $("correctionDate").value;
 
   const note = $("correctionNote").value.trim();
 
-  const reason = document.querySelector('input[name="correctionReason"]:checked')?.value || "other";
+  const reason =
+    document.querySelector('input[name="correctionReason"]:checked')?.value ||
+    "other";
 
   if (!taskId || !date || duration <= 0) {
     return notify("Enter a duration.", "warning");
@@ -5837,35 +6770,25 @@ async function saveCorrection(e) {
 //   }
 // }
 
-
 function nextStatus(current) {
   const order = [
     STATUS.OPEN,
     STATUS.IN_PRODUCTION,
     STATUS.IN_APPROVAL,
-    STATUS.IN_CORRECTION,
     STATUS.EXECUTION_PROOF,
-    STATUS.WAITING,
     STATUS.COMPLETED,
   ];
 
   const i = order.indexOf(current);
 
-  return order[
-    i < 0
-      ? 0
-      : (i + 1) % order.length
-  ];
+  return order[i < 0 ? 0 : (i + 1) % order.length];
 }
 
 async function changeStatus(id) {
   const t = getTask(id);
   if (!t) return;
 
-  const to =
-    t.status === STATUS.COMPLETED
-      ? STATUS.OPEN
-      : nextStatus(t.status);
+  const to = t.status === STATUS.COMPLETED ? STATUS.OPEN : nextStatus(t.status);
 
   try {
     await updateDoc(doc(db, "tasks", id), {
@@ -5880,10 +6803,7 @@ async function changeStatus(id) {
 
     notify(`Status → ${STATUS_META[to].label}`);
   } catch (err) {
-    notify(
-      err.message || "Could not change status.",
-      "error",
-    );
+    notify(err.message || "Could not change status.", "error");
   }
 }
 function confirmAction(title, message, fn, button = "Confirm") {
@@ -5896,7 +6816,11 @@ function confirmAction(title, message, fn, button = "Confirm") {
 async function archiveTask(id) {
   const t = getTask(id);
   if (!t) return;
-  confirmAction("Archive task?", `"${t.title}" will leave the active task list, but all time logs, corrections, reports, and history will remain.`, "");
+  confirmAction(
+    "Archive task?",
+    `"${t.title}" will leave the active task list, but all time logs, corrections, reports, and history will remain.`,
+    "",
+  );
   state.pendingConfirm = async () => {
     await updateDoc(doc(db, "tasks", id), {
       status: STATUS.ARCHIVED,
@@ -5926,48 +6850,32 @@ async function deleteTask(id) {
       );
 
       for (const entry of taskWorkSessions) {
-        await deleteDoc(
-          doc(db, "workSessions", entry.id),
-        );
+        await deleteDoc(doc(db, "workSessions", entry.id));
       }
 
       // Delete all corrections for this task
-      const taskCorrections = state.corrections.filter(
-        (x) => x.taskId === id,
-      );
+      const taskCorrections = state.corrections.filter((x) => x.taskId === id);
 
       for (const entry of taskCorrections) {
-        await deleteDoc(
-          doc(db, "corrections", entry.id),
-        );
+        await deleteDoc(doc(db, "corrections", entry.id));
       }
 
       // Delete all activity/history entries for this task
-      const taskActivities = state.activities.filter(
-        (x) => x.taskId === id,
-      );
+      const taskActivities = state.activities.filter((x) => x.taskId === id);
 
       for (const entry of taskActivities) {
-        await deleteDoc(
-          doc(db, "activities", entry.id),
-        );
+        await deleteDoc(doc(db, "activities", entry.id));
       }
 
       // Finally delete the task itself
-      await deleteDoc(
-        doc(db, "tasks", id),
-      );
+      await deleteDoc(doc(db, "tasks", id));
 
       notify("Task deleted.");
 
       renderTasks();
       updateDashboard?.();
     } catch (err) {
-      notify(
-        err.message ||
-          "Could not delete task.",
-        "error",
-      );
+      notify(err.message || "Could not delete task.", "error");
     }
   };
 }
@@ -5981,9 +6889,20 @@ async function unarchiveTask(id) {
   notify("Task unarchived.");
 }
 async function clearAll() {
-  confirmAction("Clear all WorkLog data?", "This permanently deletes tasks, time logs, corrections, and activity history.", "", "Clear All");
+  confirmAction(
+    "Clear all WorkLog data?",
+    "This permanently deletes tasks, time logs, corrections, and activity history.",
+    "",
+    "Clear All",
+  );
   state.pendingConfirm = async () => {
-    for (const name of ["tasks", "workSessions", "corrections", "activityLogs", "workDays"]) {
+    for (const name of [
+      "tasks",
+      "workSessions",
+      "corrections",
+      "activityLogs",
+      "workDays",
+    ]) {
       const snap = await getDocs(collection(db, name));
       const batch = writeBatch(db);
       snap.forEach((d) => batch.delete(d.ref));
@@ -6015,26 +6934,29 @@ function reportEntries() {
 
     if (!t) return false;
 
-    return (!from || e.date >= from) && (!to || e.date <= to) && (project === "all" || t.project === project);
+    return (
+      (!from || e.date >= from) &&
+      (!to || e.date <= to) &&
+      (project === "all" || t.project === project)
+    );
   });
 }
 function renderBars(target, map) {
   const rows = [...map.entries()].sort((a, b) => b[1] - a[1]);
-  $(target).innerHTML = rows.length ? rows.map(([name, val]) => `<div class="breakdown-row"><div><span>${escapeHtml(name)}</span><strong>${formatDuration(val)}</strong></div><div class="bar"><i style="width:${Math.max(3, Math.round((val / (rows[0]?.[1] || 1)) * 100))}%"></i></div></div>`).join("") : `<div class="empty-small">No data for this period.</div>`;
+  $(target).innerHTML = rows.length
+    ? rows
+        .map(
+          ([name, val]) =>
+            `<div class="breakdown-row"><div><span>${escapeHtml(name)}</span><strong>${formatDuration(val)}</strong></div><div class="bar"><i style="width:${Math.max(3, Math.round((val / (rows[0]?.[1] || 1)) * 100))}%"></i></div></div>`,
+        )
+        .join("")
+    : `<div class="empty-small">No data for this period.</div>`;
 }
 
 function firstWorkLogDate(taskId) {
   const logs = state.workSessions
-    .filter(
-      (x) =>
-        x.taskId === taskId &&
-        x.date,
-    )
-    .sort((a, b) =>
-      String(a.date).localeCompare(
-        String(b.date),
-      ),
-    );
+    .filter((x) => x.taskId === taskId && x.date)
+    .sort((a, b) => String(a.date).localeCompare(String(b.date)));
 
   const first = logs[0];
 
@@ -6083,88 +7005,59 @@ function renderReport() {
    * Do NOT sum per WorkLog entry because one task can have
    * multiple WorkLog records.
    */
-  const normalTime = [...reportTaskIds].reduce(
-    (sum, taskId) => {
-      const task = getTask(taskId);
+  const normalTime = [...reportTaskIds].reduce((sum, taskId) => {
+    const task = getTask(taskId);
 
-      if (!task) {
-        return sum;
-      }
+    if (!task) {
+      return sum;
+    }
 
-      const fixedMinutes =
-        Number(task.fixedMinutes) || 0;
+    const fixedMinutes = Number(task.fixedMinutes) || 0;
 
-      const requiredMinutes =
-        Number(task.requiredMinutes) || 0;
+    const requiredMinutes = Number(task.requiredMinutes) || 0;
 
-      /*
-       * Fixed task:
-       *   Normal = Fixed Time
-       *
-       * Normal task:
-       *   Normal = Required Time
-       */
-      const normalMinutes =
-        fixedMinutes > 0
-          ? fixedMinutes
-          : requiredMinutes;
+    /*
+     * Fixed task:
+     *   Normal = Fixed Time
+     *
+     * Normal task:
+     *   Normal = Required Time
+     */
+    const normalMinutes = fixedMinutes > 0 ? fixedMinutes : requiredMinutes;
 
-      return sum + normalMinutes;
-    },
-    0,
-  );
+    return sum + normalMinutes;
+  }, 0);
 
   /*
    * Correction is still stored per correction entry.
    */
   const correctionTime = entries
-    .filter(
-      (x) => x.kind === "correction",
-    )
-    .reduce(
-      (sum, x) =>
-        sum + (Number(x.duration) || 0),
-      0,
-    );
+    .filter((x) => x.kind === "correction")
+    .reduce((sum, x) => sum + (Number(x.duration) || 0), 0);
 
-  const totalTime =
-    normalTime + correctionTime;
+  const totalTime = normalTime + correctionTime;
 
   /*
    * Logged Time comes only from the external Logged value
    * stored on each task.
    */
-  const loggedTime = [...reportTaskIds].reduce(
-    (sum, taskId) => {
-      const task = getTask(taskId);
+  const loggedTime = [...reportTaskIds].reduce((sum, taskId) => {
+    const task = getTask(taskId);
 
-      return (
-        sum +
-        (Number(task?.loggedMinutes) || 0)
-      );
-    },
-    0,
-  );
+    return sum + (Number(task?.loggedMinutes) || 0);
+  }, 0);
 
-  const remainingTime = Math.max(
-    0,
-    totalTime - loggedTime,
-  );
+  const remainingTime = Math.max(0, totalTime - loggedTime);
 
-  $("reportNormalTime").textContent =
-    formatDuration(normalTime);
+  $("reportNormalTime").textContent = formatDuration(normalTime);
 
-  $("reportCorrectionTime").textContent =
-    formatDuration(correctionTime);
+  $("reportCorrectionTime").textContent = formatDuration(correctionTime);
 
-  $("reportTotalTime").textContent =
-    formatDuration(totalTime);
+  $("reportTotalTime").textContent = formatDuration(totalTime);
 
-  $("reportLoggedTime").textContent =
-    formatDuration(loggedTime);
+  $("reportLoggedTime").textContent = formatDuration(loggedTime);
 
-  $("reportRemainingTime").textContent =
-    formatDuration(remainingTime);
+  $("reportRemainingTime").textContent = formatDuration(remainingTime);
 
   /*
    * =========================================================
@@ -6182,13 +7075,9 @@ function renderReport() {
 
     if (!task) continue;
 
-    const project =
-      task.project?.trim() ||
-      "No project";
+    const project = task.project?.trim() || "No project";
 
-    const type =
-      task.type?.trim() ||
-      "Other";
+    const type = task.type?.trim() || "Other";
 
     /*
      * Project breakdown:
@@ -6198,8 +7087,7 @@ function renderReport() {
      *
      * Correction still uses its duration.
      */
-    let projectMap =
-      byP.get(project);
+    let projectMap = byP.get(project);
 
     if (!projectMap) {
       projectMap = {
@@ -6208,135 +7096,84 @@ function renderReport() {
         taskIds: new Set(),
       };
 
-      byP.set(
-        project,
-        projectMap,
-      );
+      byP.set(project, projectMap);
     }
 
-    if (
-      !projectMap.taskIds.has(
-        e.taskId,
-      )
-    ) {
-      projectMap.taskIds.add(
-        e.taskId,
-      );
+    if (!projectMap.taskIds.has(e.taskId)) {
+      projectMap.taskIds.add(e.taskId);
 
-      const fixedMinutes =
-        Number(task.fixedMinutes) || 0;
+      const fixedMinutes = Number(task.fixedMinutes) || 0;
 
-      const requiredMinutes =
-        Number(task.requiredMinutes) || 0;
+      const requiredMinutes = Number(task.requiredMinutes) || 0;
 
-      projectMap.normal +=
-        fixedMinutes > 0
-          ? fixedMinutes
-          : requiredMinutes;
+      projectMap.normal += fixedMinutes > 0 ? fixedMinutes : requiredMinutes;
     }
 
     if (e.kind === "correction") {
-      projectMap.correction +=
-        Number(e.duration) || 0;
+      projectMap.correction += Number(e.duration) || 0;
     }
 
     /*
      * Type breakdown
      */
-    const existingType =
-      byT.get(type) || {
-        newTime: 0,
-        newAssets: 0,
-        correctionTime: 0,
-        correctionAssets: 0,
+    const existingType = byT.get(type) || {
+      newTime: 0,
+      newAssets: 0,
+      correctionTime: 0,
+      correctionAssets: 0,
 
-        newTaskIds: new Set(),
-        correctionTaskIds: new Set(),
+      newTaskIds: new Set(),
+      correctionTaskIds: new Set(),
 
-        totalTime: 0,
-        loggedTime: 0,
-        totalAssets: 0,
-        taskIds: new Set(),
-      };
+      totalTime: 0,
+      loggedTime: 0,
+      totalAssets: 0,
+      taskIds: new Set(),
+    };
 
-    const assetAmount =
-      Number(task.assetAmount) || 1;
+    const assetAmount = Number(task.assetAmount) || 1;
 
     if (e.kind === "normal") {
-      if (
-        !existingType.newTaskIds.has(
-          e.taskId,
-        )
-      ) {
-        const fixedMinutes =
-          Number(task.fixedMinutes) || 0;
+      if (!existingType.newTaskIds.has(e.taskId)) {
+        const fixedMinutes = Number(task.fixedMinutes) || 0;
 
-        const requiredMinutes =
-          Number(task.requiredMinutes) || 0;
+        const requiredMinutes = Number(task.requiredMinutes) || 0;
 
         existingType.newTime +=
-          fixedMinutes > 0
-            ? fixedMinutes
-            : requiredMinutes;
+          fixedMinutes > 0 ? fixedMinutes : requiredMinutes;
 
-        existingType.newAssets +=
-          assetAmount;
+        existingType.newAssets += assetAmount;
 
-        existingType.newTaskIds.add(
-          e.taskId,
-        );
+        existingType.newTaskIds.add(e.taskId);
       }
     }
 
     if (e.kind === "correction") {
-      existingType.correctionTime +=
-        Number(e.duration) || 0;
+      existingType.correctionTime += Number(e.duration) || 0;
 
-      if (
-        !existingType.correctionTaskIds.has(
-          e.taskId,
-        )
-      ) {
-        existingType.correctionAssets +=
-          assetAmount;
+      if (!existingType.correctionTaskIds.has(e.taskId)) {
+        existingType.correctionAssets += assetAmount;
 
-        existingType.correctionTaskIds.add(
-          e.taskId,
-        );
+        existingType.correctionTaskIds.add(e.taskId);
       }
     }
 
-    if (
-      !existingType.taskIds.has(
-        e.taskId,
-      )
-    ) {
-      existingType.taskIds.add(
-        e.taskId,
-      );
+    if (!existingType.taskIds.has(e.taskId)) {
+      existingType.taskIds.add(e.taskId);
 
-      const fixedMinutes =
-        Number(task.fixedMinutes) || 0;
+      const fixedMinutes = Number(task.fixedMinutes) || 0;
 
-      const requiredMinutes =
-        Number(task.requiredMinutes) || 0;
+      const requiredMinutes = Number(task.requiredMinutes) || 0;
 
       existingType.totalTime +=
-        fixedMinutes > 0
-          ? fixedMinutes
-          : requiredMinutes;
+        fixedMinutes > 0 ? fixedMinutes : requiredMinutes;
 
-      existingType.loggedTime +=
-        Number(task.loggedMinutes) || 0;
+      existingType.loggedTime += Number(task.loggedMinutes) || 0;
 
-      existingType.totalAssets +=
-        assetAmount;
+      existingType.totalAssets += assetAmount;
     }
 
-    byT.set(
-      type,
-      existingType,
-    );
+    byT.set(type, existingType);
 
     /*
      * =======================================================
@@ -6364,23 +7201,17 @@ function renderReport() {
      * Normal WorkLog no longer has duration.
      * The row Normal value comes from task.requiredMinutes.
      */
-    const fixedMinutes =
-      Number(task.fixedMinutes) || 0;
+    const fixedMinutes = Number(task.fixedMinutes) || 0;
 
-    const requiredMinutes =
-      Number(task.requiredMinutes) || 0;
+    const requiredMinutes = Number(task.requiredMinutes) || 0;
 
-    row.normal =
-      fixedMinutes > 0
-        ? fixedMinutes
-        : requiredMinutes;
+    row.normal = fixedMinutes > 0 ? fixedMinutes : requiredMinutes;
 
     /*
      * Correction still comes from entries.
      */
     if (e.kind === "correction") {
-      row.correction +=
-        Number(e.duration) || 0;
+      row.correction += Number(e.duration) || 0;
     }
   }
 
@@ -6390,20 +7221,11 @@ function renderReport() {
    */
   const projectTotals = new Map();
 
-  for (
-    const [project, data] of byP.entries()
-  ) {
-    projectTotals.set(
-      project,
-      data.normal +
-        data.correction,
-    );
+  for (const [project, data] of byP.entries()) {
+    projectTotals.set(project, data.normal + data.correction);
   }
 
-  renderBars(
-    "reportByProject",
-    projectTotals,
-  );
+  renderBars("reportByProject", projectTotals);
 
   renderTypeBreakdown(byT);
 
@@ -6413,84 +7235,49 @@ function renderReport() {
    * =========================================================
    */
 
-  const tableRows =
-    [...rows.values()].sort(
-      (a, b) => {
-        const getStatusPriority =
-          (row) => {
-            const fixedMinutes =
-              Number(
-                row.task.fixedMinutes,
-              ) || 0;
+  const tableRows = [...rows.values()].sort((a, b) => {
+    const getStatusPriority = (row) => {
+      const fixedMinutes = Number(row.task.fixedMinutes) || 0;
 
-            const requiredMinutes =
-              Number(
-                row.task.requiredMinutes,
-              ) || 0;
+      const requiredMinutes = Number(row.task.requiredMinutes) || 0;
 
-            const taskNormal =
-              fixedMinutes > 0
-                ? fixedMinutes
-                : requiredMinutes;
+      const taskNormal = fixedMinutes > 0 ? fixedMinutes : requiredMinutes;
 
-            const taskCorrection =
-              Number(
-                row.correction,
-              ) || 0;
+      const taskCorrection = Number(row.correction) || 0;
 
-            const taskRequired =
-              taskNormal +
-              taskCorrection;
+      const taskRequired = taskNormal + taskCorrection;
 
-            const taskLogged =
-              Number(
-                row.task.loggedMinutes,
-              ) || 0;
+      const taskLogged = Number(row.task.loggedMinutes) || 0;
 
-            if (taskRequired <= 0) {
-              return 3;
-            }
+      if (taskRequired <= 0) {
+        return 3;
+      }
 
-            if (taskLogged <= 0) {
-              return 0;
-            }
+      if (taskLogged <= 0) {
+        return 0;
+      }
 
-            if (
-              taskLogged <
-              taskRequired
-            ) {
-              return 1;
-            }
+      if (taskLogged < taskRequired) {
+        return 1;
+      }
 
-            return 2;
-          };
+      return 2;
+    };
 
-        const statusCompare =
-          getStatusPriority(a) -
-          getStatusPriority(b);
+    const statusCompare = getStatusPriority(a) - getStatusPriority(b);
 
-        if (statusCompare !== 0) {
-          return statusCompare;
-        }
+    if (statusCompare !== 0) {
+      return statusCompare;
+    }
 
-        const dateCompare =
-          String(b.date).localeCompare(
-            String(a.date),
-          );
+    const dateCompare = String(b.date).localeCompare(String(a.date));
 
-        if (dateCompare !== 0) {
-          return dateCompare;
-        }
+    if (dateCompare !== 0) {
+      return dateCompare;
+    }
 
-        return String(
-          a.task.title || "",
-        ).localeCompare(
-          String(
-            b.task.title || "",
-          ),
-        );
-      },
-    );
+    return String(a.task.title || "").localeCompare(String(b.task.title || ""));
+  });
 
   /*
    * =========================================================
@@ -6501,57 +7288,33 @@ function renderReport() {
   $("reportTableBody").innerHTML =
     tableRows
       .map((row) => {
-        const fixedMinutes =
-          Number(
-            row.task.fixedMinutes,
-          ) || 0;
+        const fixedMinutes = Number(row.task.fixedMinutes) || 0;
 
-        const requiredMinutes =
-          Number(
-            row.task.requiredMinutes,
-          ) || 0;
+        const requiredMinutes = Number(row.task.requiredMinutes) || 0;
 
-        const taskNormal =
-          fixedMinutes > 0
-            ? fixedMinutes
-            : requiredMinutes;
+        const taskNormal = fixedMinutes > 0 ? fixedMinutes : requiredMinutes;
 
-        const taskCorrection =
-          Number(row.correction) || 0;
+        const taskCorrection = Number(row.correction) || 0;
 
-        const taskTotal =
-          taskNormal +
-          taskCorrection;
+        const taskTotal = taskNormal + taskCorrection;
 
-        const taskLogged =
-          Number(
-            row.task.loggedMinutes,
-          ) || 0;
+        const taskLogged = Number(row.task.loggedMinutes) || 0;
 
-        const taskRemaining =
-          Math.max(
-            0,
-            taskTotal - taskLogged,
-          );
+        const taskRemaining = Math.max(0, taskTotal - taskLogged);
 
         let rowClass = "";
         let statusLabel = "";
 
         if (taskTotal <= 0) {
-          rowClass =
-            "task-log-missing";
+          rowClass = "task-log-missing";
 
           statusLabel = "NO PLAN";
         } else if (taskLogged <= 0) {
-          rowClass =
-            "task-log-missing";
+          rowClass = "task-log-missing";
 
           statusLabel = "NOT LOGGED";
-        } else if (
-          taskLogged < taskTotal
-        ) {
-          rowClass =
-            "task-log-incomplete";
+        } else if (taskLogged < taskTotal) {
+          rowClass = "task-log-incomplete";
 
           statusLabel = "INCOMPLETE";
         } else {
@@ -6592,65 +7355,44 @@ function renderReport() {
           <tr class="${rowClass}">
 
             <td>
-              ${escapeHtml(
-                dateLabel(row.date),
-              )}
+              ${escapeHtml(dateLabel(row.date))}
             </td>
 
             <td>
               <strong>
-                ${escapeHtml(
-                  row.task.title ||
-                    "Untitled task",
-                )}
+                ${escapeHtml(row.task.title || "Untitled task")}
               </strong>
             </td>
 
             <td>
-              ${escapeHtml(
-                row.task.project ||
-                  "No project",
-              )}
+              ${escapeHtml(row.task.project || "No project")}
             </td>
 
             <td>
-              ${escapeHtml(
-                row.task.type ||
-                  "Other",
-              )}
+              ${escapeHtml(row.task.type || "Other")}
             </td>
 
             <td>
-              ${formatDuration(
-                taskNormal,
-              )}
+              ${formatDuration(taskNormal)}
             </td>
 
             <td>
-              ${formatDuration(
-                taskCorrection,
-              )}
+              ${formatDuration(taskCorrection)}
             </td>
 
             <td>
               <strong>
-                ${formatDuration(
-                  taskTotal,
-                )}
+                ${formatDuration(taskTotal)}
               </strong>
             </td>
 
             <td>
-              ${formatDuration(
-                taskLogged,
-              )}
+              ${formatDuration(taskLogged)}
             </td>
 
             <td>
               <strong>
-                ${formatDuration(
-                  taskRemaining,
-                )}
+                ${formatDuration(taskRemaining)}
               </strong>
             </td>
 
@@ -6944,14 +7686,19 @@ function renderReport() {
 // }
 
 function renderTypeBreakdown(typeMap) {
-  const rows = [...typeMap.entries()].sort((a, b) => b[1].newTime + b[1].correctionTime - (a[1].newTime + a[1].correctionTime));
+  const rows = [...typeMap.entries()].sort(
+    (a, b) =>
+      b[1].newTime + b[1].correctionTime - (a[1].newTime + a[1].correctionTime),
+  );
 
   $("reportByType").innerHTML = rows.length
     ? rows
         .map(([name, data]) => {
           const totalTime = data.newTime + data.correctionTime;
 
-          const maxTime = (rows[0]?.[1]?.newTime || 0) + (rows[0]?.[1]?.correctionTime || 0) || 1;
+          const maxTime =
+            (rows[0]?.[1]?.newTime || 0) +
+              (rows[0]?.[1]?.correctionTime || 0) || 1;
 
           const width = Math.max(3, Math.round((totalTime / maxTime) * 100));
 
@@ -7050,16 +7797,74 @@ function renderTypeBreakdown(typeMap) {
     : `<div class="empty-small">No data for this period.</div>`;
 }
 
+const REPORT_DATE_STORAGE_KEY = "worklog-report-date-range";
+
 function initReportDates() {
-  const d = new Date(),
-    first = new Date(d.getFullYear(), d.getMonth(), 1);
-  $("reportFrom").value = first.toISOString().slice(0, 10);
-  $("reportTo").value = today();
+  const fromInput = $("reportFrom");
+  const toInput = $("reportTo");
+
+  if (!fromInput || !toInput) return;
+
+  // Default: current week (Monday - Sunday)
+  const defaultFrom = getMonday(today());
+  const defaultTo = getSunday(today());
+
+  let savedRange = null;
+
+  try {
+    savedRange = JSON.parse(
+      localStorage.getItem(REPORT_DATE_STORAGE_KEY) || "null",
+    );
+  } catch (err) {
+    console.warn("Could not read saved report dates:", err);
+  }
+
+  const savedFrom = savedRange?.from || "";
+  const savedTo = savedRange?.to || "";
+
+  // Restore previously selected dates
+  if (
+    savedFrom &&
+    savedTo &&
+    /^\d{4}-\d{2}-\d{2}$/.test(savedFrom) &&
+    /^\d{4}-\d{2}-\d{2}$/.test(savedTo) &&
+    savedFrom <= savedTo
+  ) {
+    fromInput.value = savedFrom;
+    toInput.value = savedTo;
+  } else {
+    fromInput.value = defaultFrom;
+    toInput.value = defaultTo;
+
+    saveReportDates();
+  }
 }
+
+function saveReportDates() {
+  const from = $("reportFrom")?.value || "";
+  const to = $("reportTo")?.value || "";
+
+  if (!from || !to || from > to) return;
+
+  localStorage.setItem(
+    REPORT_DATE_STORAGE_KEY,
+    JSON.stringify({
+      from,
+      to,
+    }),
+  );
+}
+
 function populateProjects() {
-  const projects = [...new Set(state.tasks.map((t) => t.project).filter(Boolean))].sort();
+  const projects = [
+    ...new Set(state.tasks.map((t) => t.project).filter(Boolean)),
+  ].sort();
   const current = $("reportProject").value || "all";
-  $("reportProject").innerHTML = `<option value="all">All projects</option>` + projects.map((p) => `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join("");
+  $("reportProject").innerHTML =
+    `<option value="all">All projects</option>` +
+    projects
+      .map((p) => `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`)
+      .join("");
   $("reportProject").value = projects.includes(current) ? current : "all";
 }
 
@@ -7088,17 +7893,48 @@ function generateSummary() {
     .map((id) => ({
       task: getTask(id),
 
-      mins: entries.filter((x) => x.taskId === id).reduce((s, x) => s + (Number(x.duration) || 0), 0),
+      mins: entries
+        .filter((x) => x.taskId === id)
+        .reduce((s, x) => s + (Number(x.duration) || 0), 0),
     }))
     .sort((a, b) => b.mins - a.mins);
 
-  const completed = state.tasks.filter((t) => t.status === STATUS.COMPLETED && ids.includes(t.id)).sort((a, b) => String(a.title || "").localeCompare(String(b.title || "")));
+  const completed = state.tasks
+    .filter((t) => t.status === STATUS.COMPLETED && ids.includes(t.id))
+    .sort((a, b) => String(a.title || "").localeCompare(String(b.title || "")));
 
-  const active = state.tasks.filter((t) => ids.includes(t.id) && t.status !== STATUS.COMPLETED && t.status !== STATUS.ARCHIVED).sort((a, b) => String(a.title || "").localeCompare(String(b.title || "")));
+  const active = state.tasks
+    .filter(
+      (t) =>
+        ids.includes(t.id) &&
+        t.status !== STATUS.COMPLETED &&
+        t.status !== STATUS.ARCHIVED,
+    )
+    .sort((a, b) => String(a.title || "").localeCompare(String(b.title || "")));
 
-  const lines = [dateLabel(d), "", `Worked: ${formatDuration(total)}`, `Tasks: ${ids.length}`, `Corrections: ${corrections}`, "", "Main work:", ...grouped.slice(0, 6).map((x) => `• ${x.task.title} — ${formatDuration(x.mins)}`), "", "Completed:", ...(completed.length ? completed.map((t) => `✓ ${t.title}`) : ["• None recorded today"]), "", "Open:", ...(active.length ? active.map((t) => `• ${t.title}`) : ["• None"])];
+  const lines = [
+    dateLabel(d),
+    "",
+    `Worked: ${formatDuration(total)}`,
+    `Tasks: ${ids.length}`,
+    `Corrections: ${corrections}`,
+    "",
+    "Main work:",
+    ...grouped
+      .slice(0, 6)
+      .map((x) => `• ${x.task.title} — ${formatDuration(x.mins)}`),
+    "",
+    "Completed:",
+    ...(completed.length
+      ? completed.map((t) => `✓ ${t.title}`)
+      : ["• None recorded today"]),
+    "",
+    "Open:",
+    ...(active.length ? active.map((t) => `• ${t.title}`) : ["• None"]),
+  ];
 
-  $("summaryModalSubtitle").textContent = `${dateLabel(d)} · ${formatDuration(total)}`;
+  $("summaryModalSubtitle").textContent =
+    `${dateLabel(d)} · ${formatDuration(total)}`;
 
   $("summaryText").value = lines.join("\n");
 
@@ -7231,8 +8067,12 @@ function openDataUnlockModal() {
   }, 50);
 }
 function bindActions() {
-  document.querySelectorAll(".nav-item").forEach((b) => (b.onclick = () => setPage(b.dataset.page)));
-  document.querySelectorAll("[data-page-link]").forEach((b) => (b.onclick = () => setPage(b.dataset.pageLink)));
+  document
+    .querySelectorAll(".nav-item")
+    .forEach((b) => (b.onclick = () => setPage(b.dataset.page)));
+  document
+    .querySelectorAll("[data-page-link]")
+    .forEach((b) => (b.onclick = () => setPage(b.dataset.pageLink)));
   $("newTaskBtn").onclick = () => openTaskModal();
   $("addClientBtn").onclick = () => openClientModal();
 
@@ -7246,22 +8086,22 @@ function bindActions() {
       addClientType();
     }
   });
- $("editWorkDayBtn").onclick = () => openWorkDayModal(today());
+  $("editWorkDayBtn").onclick = () => openWorkDayModal(today());
 
-// Edit any day directly from the weekly Work Hours table
-$("workWeekTableBody").addEventListener("click", (e) => {
-  const button = e.target.closest("[data-edit-work-day]");
+  // Edit any day directly from the weekly Work Hours table
+  $("workWeekTableBody").addEventListener("click", (e) => {
+    const button = e.target.closest("[data-edit-work-day]");
 
-  if (!button) return;
+    if (!button) return;
 
-  const date = button.dataset.editWorkDay;
+    const date = button.dataset.editWorkDay;
 
-  if (!date) return;
+    if (!date) return;
 
-  openWorkDayModal(date);
-});
+    openWorkDayModal(date);
+  });
 
-$("workDayForm").onsubmit = saveWorkDay;
+  $("workDayForm").onsubmit = saveWorkDay;
 
   $("workDayCheckIn").oninput = updateWorkDayPreview;
 
@@ -7286,25 +8126,142 @@ $("workDayForm").onsubmit = saveWorkDay;
   $("taskSearch").oninput = renderTasks;
   $("taskStatusFilter").onchange = renderTasks;
   $("taskTypeFilter").onchange = renderTasks;
+  // ========================================
+  // TASK BOARD INTERACTIONS
+  // ========================================
+
+  document.addEventListener("click", async (e) => {
+    const target = e.target;
+
+    // VIEW SWITCH
+    const viewButton = target.closest("[data-task-view]");
+
+    if (viewButton) {
+      taskViewMode = viewButton.dataset.taskView;
+
+      localStorage.setItem("worklog_task_view_mode", taskViewMode);
+
+      selectedTaskIds.clear();
+
+      renderTasks();
+
+      return;
+    }
+
+    // BULK APPLY
+    if (target.closest("#taskBulkApplyBtn")) {
+      await bulkChangeTaskStatus();
+
+      return;
+    }
+
+    // CLEAR SELECTION
+    if (target.closest("#taskClearSelectionBtn")) {
+      selectedTaskIds.clear();
+
+      renderTasks();
+
+      return;
+    }
+  });
+
+  document.addEventListener("change", (e) => {
+    const target = e.target;
+
+    // ASSET TYPE SELECTOR
+    if (target.id === "taskBoardAssetType") {
+      selectedAssetType = target.value;
+
+      renderTasks();
+
+      return;
+    }
+
+    // SELECT ALL BY STATUS
+    const statusCheckbox = target.closest("[data-select-status]");
+
+    if (statusCheckbox) {
+      const status = statusCheckbox.dataset.selectStatus;
+
+      const statusTaskIds = currentVisibleTaskIds.filter((id) => {
+        const task = getTask(id);
+        return task && task.status === status;
+      });
+
+      if (statusCheckbox.checked) {
+        statusTaskIds.forEach((id) => {
+          selectedTaskIds.add(id);
+        });
+      } else {
+        statusTaskIds.forEach((id) => {
+          selectedTaskIds.delete(id);
+        });
+      }
+
+      renderTasks();
+
+      return;
+    }
+
+    // SELECT ALL BY ASSET TYPE
+    if (target.id === "taskSelectAllVisible") {
+      if (target.checked) {
+        currentVisibleTaskIds.forEach((id) => {
+          selectedTaskIds.add(id);
+        });
+      } else {
+        currentVisibleTaskIds.forEach((id) => {
+          selectedTaskIds.delete(id);
+        });
+      }
+
+      renderTasks();
+
+      return;
+    }
+
+    // INDIVIDUAL TASK CHECKBOX
+    const checkbox = target.closest("[data-select-task]");
+
+    if (checkbox) {
+      const taskId = checkbox.dataset.selectTask;
+
+      if (checkbox.checked) {
+        selectedTaskIds.add(taskId);
+      } else {
+        selectedTaskIds.delete(taskId);
+      }
+
+      renderTasks();
+    }
+  });
   $("showArchivedBtn").onclick = () => {
     state.showArchived = !state.showArchived;
-    $("showArchivedBtn").textContent = state.showArchived ? "Hide Archived" : "Show Archived";
+    $("showArchivedBtn").textContent = state.showArchived
+      ? "Hide Archived"
+      : "Show Archived";
     renderTasks();
   };
   $("refreshReportBtn").onclick = renderReport;
   $("reportProject").onchange = renderReport;
-  $("reportFrom").onchange = renderReport;
-  $("reportTo").onchange = renderReport;
+
+  $("reportFrom").onchange = () => {
+    saveReportDates();
+    renderReport();
+  };
+
+  $("reportTo").onchange = () => {
+    saveReportDates();
+    renderReport();
+  };
+
   $("exportCsvBtn").onclick = exportCsv;
   $("exportJsonBtn").onclick = exportJson;
   $("restoreJsonBtn").onclick = () => $("restoreFileInput").click();
   $("restoreFileInput").onchange = restoreJson;
   $("clearAllBtn").onclick = clearAll;
   $("workHoursSettingsForm")?.addEventListener("submit", saveWorkHoursSettings);
-$("saveTaskDefaultsBtn")?.addEventListener(
-  "click",
-  saveTaskDefaultsSettings
-);
+  $("saveTaskDefaultsBtn")?.addEventListener("click", saveTaskDefaultsSettings);
   $("appLockPasswordBtn")?.addEventListener("click", () => {
     openAppLockPasswordModal();
   });
@@ -7379,7 +8336,9 @@ $("saveTaskDefaultsBtn")?.addEventListener(
     await unlockData();
   });
 
-  document.querySelectorAll("[data-close-modal]").forEach((b) => (b.onclick = () => closeModal(b.dataset.closeModal)));
+  document
+    .querySelectorAll("[data-close-modal]")
+    .forEach((b) => (b.onclick = () => closeModal(b.dataset.closeModal)));
   document.querySelectorAll("[data-time-preset]").forEach(
     (b) =>
       (b.onclick = () => {
@@ -7414,22 +8373,16 @@ $("saveTaskDefaultsBtn")?.addEventListener(
       const id = b.dataset.taskId;
       const a = b.dataset.action;
       if (a === "toggle-task-more") {
-  const row = b.closest(".task-row");
+        const row = b.closest(".task-row");
 
-  if (!row) return;
+        if (!row) return;
 
-  const isOpen =
-    row.classList.toggle(
-      "task-more-open",
-    );
+        const isOpen = row.classList.toggle("task-more-open");
 
-  b.setAttribute(
-    "aria-expanded",
-    String(isOpen),
-  );
+        b.setAttribute("aria-expanded", String(isOpen));
 
-  return;
-}
+        return;
+      }
       if (a === "add-time") openTimeModal(id);
       if (a === "correction") openCorrectionModal(id);
       if (a === "edit-logged") openLoggedTimeModal(getTask(id));
@@ -7442,56 +8395,38 @@ $("saveTaskDefaultsBtn")?.addEventListener(
       if (a === "unarchive") unarchiveTask(id);
     }),
   );
-  document.addEventListener(
-  "click",
-  (e) => {
-    const button =
-      e.target.closest(
-        "[data-task-nav-index]",
-      );
+  document.addEventListener("click", (e) => {
+    const button = e.target.closest("[data-task-nav-index]");
 
     if (!button) return;
 
-    const board =
-      $("tasksList")?.querySelector(
-        ".tasks-board",
-      );
+    const board = $("tasksList")?.querySelector(".tasks-board");
 
     if (!board) return;
 
-    const index = Number(
-      button.dataset.taskNavIndex,
-    );
+    const index = Number(button.dataset.taskNavIndex);
 
-    const column =
-      board.querySelector(
-        `[data-task-column-index="${index}"]`,
-      );
+    const column = board.querySelector(`[data-task-column-index="${index}"]`);
 
     if (!column) return;
 
     board.scrollTo({
-      left:
-        column.offsetLeft -
-        board.offsetLeft,
+      left: column.offsetLeft - board.offsetLeft,
       behavior: "smooth",
     });
 
     document
-      .querySelectorAll(
-        "#taskTypeQuickNav .task-type-nav-item",
-      )
-      .forEach((item) =>
-        item.classList.remove("active"),
-      );
+      .querySelectorAll("#taskTypeQuickNav .task-type-nav-item")
+      .forEach((item) => item.classList.remove("active"));
 
     button.classList.add("active");
-  },
-);
+  });
 }
 function exportCsv() {
   const entries = reportEntries(),
-    lines = [["Date", "Task", "Project", "Type", "Normal", "Correction", "Total"]];
+    lines = [
+      ["Date", "Task", "Project", "Type", "Normal", "Correction", "Total"],
+    ];
   const map = new Map();
   for (const e of entries) {
     const t = getTask(e.taskId),
@@ -7500,8 +8435,21 @@ function exportCsv() {
     if (!r) map.set(key, (r = { date: e.date, t, normal: 0, correction: 0 }));
     r[e.kind] += e.duration;
   }
-  for (const r of map.values()) lines.push([r.date, r.t.title, r.t.project || "", r.t.type || "", formatDuration(r.normal), formatDuration(r.correction), formatDuration(r.normal + r.correction)]);
-  const csv = lines.map((row) => row.map((v) => `"${String(v).replaceAll('"', '""')}"`).join(",")).join("\n"),
+  for (const r of map.values())
+    lines.push([
+      r.date,
+      r.t.title,
+      r.t.project || "",
+      r.t.type || "",
+      formatDuration(r.normal),
+      formatDuration(r.correction),
+      formatDuration(r.normal + r.correction),
+    ]);
+  const csv = lines
+      .map((row) =>
+        row.map((v) => `"${String(v).replaceAll('"', '""')}"`).join(","),
+      )
+      .join("\n"),
     blob = new Blob([csv], { type: "text/csv" }),
     a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
@@ -7588,10 +8536,7 @@ async function restoreJson(e) {
 
     loadingToast.remove();
 
-    notify(
-      err.message || "Could not restore backup.",
-      "error"
-    );
+    notify(err.message || "Could not restore backup.", "error");
   } finally {
     // Allow selecting the same JSON file again.
     input.value = "";
@@ -7614,7 +8559,7 @@ function subscribe() {
       }));
 
       renderClients();
-renderTaskDefaultsSettings();
+      renderTaskDefaultsSettings();
       populateTaskClients($("taskClient")?.value || "");
 
       populateTaskTypeFilter();
@@ -7730,7 +8675,18 @@ function clearDataUI() {
     workHours.innerHTML = "";
   }
 
-  const workHourValues = ["workTodayActual", "workTodayFlexi", "workWeekActual", "flexiOpening", "flexiWeekAdded", "flexiAvailable", "workAvailableFlexi", "workFlexiHelper", "workWeekFlexi", "workWeekLabel"];
+  const workHourValues = [
+    "workTodayActual",
+    "workTodayFlexi",
+    "workWeekActual",
+    "flexiOpening",
+    "flexiWeekAdded",
+    "flexiAvailable",
+    "workAvailableFlexi",
+    "workFlexiHelper",
+    "workWeekFlexi",
+    "workWeekLabel",
+  ];
 
   workHourValues.forEach((id) => {
     const el = $(id);
@@ -7784,7 +8740,9 @@ function startDataLockTimer() {
   clearDataLockTimer();
   clearDataLockCountdown();
 
-  const expiresAt = Number(sessionStorage.getItem(DATA_UNLOCK_EXPIRES_KEY) || 0);
+  const expiresAt = Number(
+    sessionStorage.getItem(DATA_UNLOCK_EXPIRES_KEY) || 0,
+  );
 
   const remainingMs = expiresAt - Date.now();
 
@@ -7845,14 +8803,17 @@ async function unlockData() {
 
     dataUnlocked = true;
 
-    sessionStorage.setItem(DATA_UNLOCK_EXPIRES_KEY, String(Date.now() + DATA_SESSION_MS));
+    sessionStorage.setItem(
+      DATA_UNLOCK_EXPIRES_KEY,
+      String(Date.now() + DATA_SESSION_MS),
+    );
 
     $("unlockPassword").value = "";
     error?.classList.add("hidden");
 
     $("lockScreen")?.classList.add("hidden");
     await loadWorkHoursSettings();
-await loadTaskDefaultsSettings();
+    await loadTaskDefaultsSettings();
 
     renderWorkHoursSettings();
 
@@ -7927,14 +8888,29 @@ fillSelects();
 initReportDates();
 
 bindActions();
+// Restore the last selected page
+let savedActivePage = "dashboard";
 
+try {
+  const storedPage = localStorage.getItem(ACTIVE_PAGE_STORAGE_KEY);
+
+  if (VALID_APP_PAGES.includes(storedPage)) {
+    savedActivePage = storedPage;
+  }
+} catch (err) {
+  console.warn("Could not restore the active page:", err);
+}
+
+setPage(savedActivePage);
 setConnection(navigator.onLine);
 
 await loadAppLockConfig();
 
 renderAppLockSettings();
 
-const unlockExpiresAt = Number(sessionStorage.getItem(DATA_UNLOCK_EXPIRES_KEY) || 0);
+const unlockExpiresAt = Number(
+  sessionStorage.getItem(DATA_UNLOCK_EXPIRES_KEY) || 0,
+);
 
 if (unlockExpiresAt > Date.now()) {
   dataUnlocked = true;
