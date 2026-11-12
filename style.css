@@ -2696,3 +2696,50 @@ html[data-theme="dark"] ::-webkit-scrollbar-thumb {
 html[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
   background: #475569;
 }
+
+
+/* Collapsible Sidebar */
+  .app.sidebar-collapsed .sidebar {
+    display: none !important;
+  }
+
+  .app.sidebar-collapsed .main-content {
+    width: 100%;
+    max-width: none;
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+
+  .sidebar-toggle-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-width: 40px;
+    height: 40px;
+    padding: 0 12px;
+    border: 1px solid var(--border-color, #d1d5db);
+    border-radius: 10px;
+    background: var(--card-bg, transparent);
+    color: inherit;
+    cursor: pointer;
+    font: inherit;
+    flex-shrink: 0;
+  }
+
+  .sidebar-toggle-btn:hover {
+    filter: brightness(.96);
+  }
+
+  .topbar .topbar-left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+  }
+
+  @media (max-width: 640px) {
+    .sidebar-toggle-btn .sidebar-toggle-label {
+      display: none;
+    }
+  }
