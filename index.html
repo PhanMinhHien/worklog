@@ -96,43 +96,35 @@
           </div>
         </div>
       </aside>
-
+      <button
+        id="sidebarEdgeToggleBtn"
+        class="sidebar-edge-toggle"
+        type="button"
+        aria-label="Pin sidebar open"
+        aria-expanded="false"
+        title="Pin sidebar open"
+      >
+        ›
+      </button>
       <!-- ==================== MAIN ==================== -->
       <main class="main-content">
         <!-- TOPBAR -->
-      <header class="topbar">
-  <div class="topbar-left">
+        <header class="topbar">
+          <div class="topbar-left">
+            <!-- Sidebar Toggle -->
 
-    <!-- Sidebar Toggle -->
-    <button
-      id="sidebarToggleBtn"
-      class="sidebar-toggle-btn"
-      type="button"
-      aria-label="Hide sidebar"
-      aria-expanded="true"
-      title="Hide sidebar"
-    >
-      <span id="sidebarToggleIcon" aria-hidden="true">◧</span>
-      <span id="sidebarToggleLabel" class="sidebar-toggle-label">
-        Hide sidebar
-      </span>
-    </button>
+            <!-- Page Information -->
+            <div>
+              <h1 id="pageTitle">Dashboard</h1>
 
-    <!-- Page Information -->
-    <div>
-      <h1 id="pageTitle">Dashboard</h1>
+              <p id="pageSubtitle">
+                Track your work, rework, and daily progress.
+              </p>
+            </div>
+          </div>
 
-      <p id="pageSubtitle">
-        Track your work, rework, and daily progress.
-      </p>
-    </div>
-
-  </div>
-
-  <button id="newTaskBtn" class="btn btn-primary">
-    + New Task
-  </button>
-</header>
+          <button id="newTaskBtn" class="btn btn-primary">+ New Task</button>
+        </header>
 
         <!-- ==================== DASHBOARD ==================== -->
         <section id="page-dashboard" class="page active">
@@ -515,52 +507,51 @@
                 <div>
                   <h2>App Lock</h2>
                   <p>Protect WorkLog with a password when the app is locked.</p>
-                  
                 </div>
                 <button
-                    id="dataUnlockBtn"
-                    class="btn btn-secondary btn-block"
-                    type="button"
-                  >
-                    🔓 Show Work Data
-                  </button>
+                  id="dataUnlockBtn"
+                  class="btn btn-secondary btn-block"
+                  type="button"
+                >
+                  🔓 Show Work Data
+                </button>
 
-                  <button
-                    id="dataLockBtn"
-                    class="btn btn-secondary btn-block hidden"
-                    type="button"
-                  >
-                    🔒 Lock Work Data
-                  </button>
+                <button
+                  id="dataLockBtn"
+                  class="btn btn-secondary btn-block hidden"
+                  type="button"
+                >
+                  🔒 Lock Work Data
+                </button>
               </div>
 
-             <div class="settings-actions app-lock-actions">
-  <div>
-    <strong>Password</strong>
+              <div class="settings-actions app-lock-actions">
+                <div>
+                  <strong>Password</strong>
 
-    <p id="appLockStatus" class="settings-description">
-      Checking...
-    </p>
-  </div>
+                  <p id="appLockStatus" class="settings-description">
+                    Checking...
+                  </p>
+                </div>
 
-  <button
-    id="appLockPasswordBtn"
-    class="btn btn-secondary"
-    type="button"
-  >
-    Set Password
-  </button>
-</div>
+                <button
+                  id="appLockPasswordBtn"
+                  class="btn btn-secondary"
+                  type="button"
+                >
+                  Set Password
+                </button>
+              </div>
 
-<div class="settings-actions app-lock-actions">
-  <div>
-    <strong>Session</strong>
+              <div class="settings-actions app-lock-actions">
+                <div>
+                  <strong>Session</strong>
 
-    <p id="appLockSessionStatus" class="settings-description">
-      Locked
-    </p>
-  </div>
-</div>
+                  <p id="appLockSessionStatus" class="settings-description">
+                    Locked
+                  </p>
+                </div>
+              </div>
             </div>
             <!-- BACKUP -->
             <div class="panel">
@@ -643,34 +634,30 @@
                   + Add Client
                 </button>
               </div>
-<div class="form-grid" style="margin-bottom: 20px;">
-  <div class="field">
-    <label for="defaultTaskClientId">
-      Default Client
-    </label>
+              <div class="form-grid" style="margin-bottom: 20px">
+                <div class="field">
+                  <label for="defaultTaskClientId"> Default Client </label>
 
-    <select id="defaultTaskClientId">
-      <option value="">No default client</option>
-    </select>
-  </div>
-  <div class="settings-actions">
-  <button
-    id="saveTaskDefaultsBtn"
-    type="button"
-    class="btn btn-secondary"
-  >
-    Save Default Client
-  </button>
-</div>
-</div>
-
+                  <select id="defaultTaskClientId">
+                    <option value="">No default client</option>
+                  </select>
+                </div>
+                <div class="settings-actions">
+                  <button
+                    id="saveTaskDefaultsBtn"
+                    type="button"
+                    class="btn btn-secondary"
+                  >
+                    Save Default Client
+                  </button>
+                </div>
+              </div>
 
               <div id="clientsList" class="clients-list">
                 <div class="empty-state">No clients configured yet.</div>
               </div>
             </div>
 
-            
             <!-- ==================== WORK HOURS SETTINGS ==================== -->
 
             <div class="panel full-width">
@@ -981,28 +968,40 @@
                 Fixed time: —
               </div>
             </div>
-            <div class="field">
-              <label for="taskLoggedHours">Logged Time (minutes)</label>
 
-              <div class="time-input-row">
-                <input
-                  id="taskLoggedHours"
-                  type="number"
-                  min="0"
-                  step="1"
-                  value="0"
-                  placeholder="Minutes"
-                />
+            <div class="field field-full" id="taskRequiredTimeField">
+              <label>Required Time</label>
 
-                <!-- <span class="time-input-unit">hours</span> -->
+              <div class="time-row">
+                <div class="field">
+                  <label for="taskRequiredHours">Hours</label>
+                  <input
+                    id="taskRequiredHours"
+                    type="number"
+                    min="0"
+                    max="999"
+                    step="1"
+                    value="0"
+                    placeholder="Hours"
+                  />
+                </div>
+
+                <div class="field">
+                  <label for="taskRequiredMinutes">Minutes</label>
+                  <input
+                    id="taskRequiredMinutes"
+                    type="number"
+                    min="0"
+                    max="59"
+                    step="1"
+                    value="0"
+                    placeholder="Minutes"
+                  />
+                </div>
               </div>
 
-              <div
-                id="loggedTimePreview"
-                class="field-helper"
-                style="margin-top: 6px"
-              >
-                Logged: 0m
+              <div class="field-helper">
+                Set the estimated time required for this task.
               </div>
             </div>
 
@@ -1121,37 +1120,37 @@
               <input id="timeDate" type="date" required />
             </div>
 
-           <div class="field field-full">
-  <label> Required </label>
+            <div class="field field-full">
+              <label> Required </label>
 
-  <div class="time-row">
-    <div class="field">
-      <label for="timeRequiredHours"> Hours </label>
+              <div class="time-row">
+                <div class="field">
+                  <label for="timeRequiredHours"> Hours </label>
 
-      <input
-        id="timeRequiredHours"
-        type="number"
-        min="0"
-        max="999"
-        value="0"
-      />
-    </div>
+                  <input
+                    id="timeRequiredHours"
+                    type="number"
+                    min="0"
+                    max="999"
+                    value="0"
+                  />
+                </div>
 
-    <div class="field">
-      <label for="timeRequiredMinutes"> Minutes </label>
+                <div class="field">
+                  <label for="timeRequiredMinutes"> Minutes </label>
 
-      <input
-        id="timeRequiredMinutes"
-        type="number"
-        min="0"
-        max="59"
-        value="0"
-      />
-    </div>
-  </div>
-</div>
+                  <input
+                    id="timeRequiredMinutes"
+                    type="number"
+                    min="0"
+                    max="59"
+                    value="0"
+                  />
+                </div>
+              </div>
+            </div>
 
-<!-- <div class="field field-full">
+            <!-- <div class="field field-full">
   <label> Logged </label>
 
   <div class="time-row">
@@ -1409,7 +1408,7 @@
 
         <div class="modal-footer">
           <button id="historyAddTimeBtn" class="btn btn-secondary">
-            + Add Time
+            + Add WorkLog
           </button>
 
           <button id="historyCorrectionBtn" class="btn btn-warning">

@@ -1729,12 +1729,23 @@ function renderTask(task, compact = false) {
 
       </div>
 
-      <div class="task-actions">
+ 
+<div class="task-actions">
+
+  ${
+    quickLogButton
+      ? `
+        <div class="task-quicklog-row">
+          ${quickLogButton}
+        </div>
+      `
+      : ""
+  }
 
   ${
     compact
       ? `
-        <div class="task-actions-primary">
+        <div class="task-action-toolbar">
           <button
             class="task-action"
             data-action="history"
@@ -1745,24 +1756,14 @@ function renderTask(task, compact = false) {
         </div>
       `
       : `
-        <div class="task-actions-primary">
-
-          ${quickLogButton}
-
-          <button
-            class="task-action logged-time-action"
-            data-action="edit-logged"
-            data-task-id="${task.id}"
-          >
-            Logged: ${formatDuration(loggedMinutes)}
-          </button>
+        <div class="task-action-toolbar">
 
           <button
             class="task-action"
-            data-action="correction"
+            data-action="history"
             data-task-id="${task.id}"
           >
-            Correction
+            History
           </button>
 
           <button
@@ -1774,83 +1775,79 @@ function renderTask(task, compact = false) {
             ⋯ More
           </button>
 
-        </div>
+          <div class="task-secondary-actions">
 
-        <div class="task-secondary-actions">
+            <button
+              class="task-action"
+              data-action="edit"
+              data-task-id="${task.id}"
+            >
+              Edit
+            </button>
 
-          ${
-            !isFixedTask
-              ? `
-                <button
-                  class="task-action"
-                  data-action="add-time"
-                  data-task-id="${task.id}"
-                >
-                  + Time
-                </button>
-              `
-              : ""
-          }
+            <button
+              class="task-action"
+              data-action="edit-logged"
+              data-task-id="${task.id}"
+            >
+              Logged: ${formatDuration(loggedMinutes)}
+            </button>
 
-          <button
-            class="task-action"
-            data-action="history"
-            data-task-id="${task.id}"
-          >
-            History
-          </button>
+            <button
+              class="task-action"
+              data-action="correction"
+              data-task-id="${task.id}"
+            >
+              + Correction
+            </button>
 
-          <button
-            class="task-action"
-            data-action="edit"
-            data-task-id="${task.id}"
-          >
-            Edit
-          </button>
+            ${
+              task.status === STATUS.ARCHIVED
+                ? `
+                  <button
+                    class="task-action"
+                    data-action="unarchive"
+                    data-task-id="${task.id}"
+                  >
+                    Unarchive
+                  </button>
+                `
+                : `
+                  <button
+                    class="task-action"
+                    data-action="status-next"
+                    data-task-id="${task.id}"
+                  >
+                    ${task.status === STATUS.COMPLETED ? "Reopen" : "Change Status"}
+                  </button>
 
-          <button
-            class="task-action danger"
-            data-action="delete"
-            data-task-id="${task.id}"
-          >
-            Delete
-          </button>
+                  <button
+                    class="task-action"
+                    data-action="archive"
+                    data-task-id="${task.id}"
+                  >
+                    Archive
+                  </button>
+                `
+            }
 
-          ${
-            task.status === STATUS.ARCHIVED
-              ? `
-                <button
-                  class="task-action"
-                  data-action="unarchive"
-                  data-task-id="${task.id}"
-                >
-                  Unarchive
-                </button>
-              `
-              : `
-                <button
-                  class="task-action"
-                  data-action="status-next"
-                  data-task-id="${task.id}"
-                >
-                  ${task.status === STATUS.COMPLETED ? "Reopen" : "Status"}
-                </button>
+            <button
+              class="task-action danger"
+              data-action="delete"
+              data-task-id="${task.id}"
+            >
+              Delete
+            </button>
 
-                <button
-                  class="task-action danger"
-                  data-action="archive"
-                  data-task-id="${task.id}"
-                >
-                  Archive
-                </button>
-              `
-          }
+          </div>
 
         </div>
       `
   }
 
 </div>
+
+
 
     </div>
   `;
@@ -3155,49 +3152,240 @@ function ensureTasksBoardStyles() {
         max-height: none;
       }
     }
-      /* =========================================================
-   TASK ACTIONS
+ 
+/* =========================================================
+   TASK ACTIONS - QUICK LOG + FIXED MORE MENU
    ========================================================= */
 
-.task-actions {
-  display: flex;
-  flex-direction: column;
+.task-column-body .task-actions {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  flex-wrap: nowrap !important;
+  gap: 9px;
+  width: 100%;
+  margin-top: 12px;
+  box-sizing: border-box;
+}
 
-  gap: 7px;
-
+.task-quicklog-row {
   width: 100%;
 }
 
-.task-actions-primary {
+.task-quicklog-row .quick-log-action {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 42px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  box-sizing: border-box;
+  background: rgba(34,197,94,.13);
+  border: 1px solid rgba(34,197,94,.3);
+  color: #22c55e;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
 
-  gap: 6px;
+.task-quicklog-row .quick-log-action:hover {
+  background: rgba(34,197,94,.2);
+}
 
+.task-action-toolbar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   width: 100%;
 }
 
-.task-secondary-actions {
+.task-action-toolbar > .task-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 7px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+
+.task-action-toolbar > .task-more-toggle {
+  margin-left: auto;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-soft);
+}
+
+.task-more-toggle[aria-expanded="true"] {
+  background: var(--primary-soft);
+  border-color: var(--primary);
+}
+
+/* Đảm bảo menu hiển thị trên các Task Column */
+.task-row.task-more-open {
+  position: relative;
+  z-index: 30;
+}
+
+/* Chỉ sử dụng một bộ CSS cho More menu */
+.task-action-toolbar .task-secondary-actions {
   display: none;
+  position: fixed;
+  z-index: 9999;
 
-  flex-wrap: wrap;
-  align-items: center;
+  top: 0;
+  left: 0;
 
-  gap: 6px;
+  flex-direction: column;
+  align-items: stretch;
+  flex-wrap: nowrap;
+  gap: 3px;
 
-  width: 100%;
+  width: 220px;
+  min-width: 220px;
+  max-width: calc(100vw - 16px);
 
-  padding-top: 2px;
+  padding: 7px;
+
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+
+  box-shadow: 0 12px 32px rgba(0,0,0,.22);
+
+  box-sizing: border-box;
 }
 
 .task-row.task-more-open
-  .task-secondary-actions {
+.task-action-toolbar
+.task-secondary-actions {
   display: flex;
 }
 
-.task-more-toggle {
-  margin-left: auto;
+.task-secondary-actions .task-action {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+
+  width: 100%;
+  min-height: 36px;
+  padding: 8px 11px;
+
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 500;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.task-secondary-actions .task-action:hover {
+  background: var(--primary-soft);
+}
+
+.task-secondary-actions .task-action.danger {
+  color: var(--danger);
+}
+
+.task-actions .task-action {
+  transition:
+    background .18s ease,
+    border-color .18s ease,
+    opacity .18s ease;
+}
+
+.task-actions .task-action:hover {
+  transform: translateY(-1px);
+}
+
+@media (max-width: 600px) {
+  .task-quicklog-row .quick-log-action {
+    min-height: 44px;
+    font-size: 13px;
+  }
+
+  .task-action-toolbar > .task-action {
+    min-height: 36px;
+    padding: 8px 12px;
+  }
+
+  .task-action-toolbar .task-secondary-actions {
+    width: 210px;
+    min-width: 210px;
+  }
+}
+
+
+.task-more-toggle[aria-expanded="true"] {
+  background: var(--surface-secondary, rgba(148, 163, 184, 0.10));
+}
+
+/* Secondary actions */
+.task-secondary-actions {
+  display: none;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+
+  width: 100%;
+  padding: 10px 0 2px;
+
+  border-top: 1px solid var(--border);
+}
+
+.task-row.task-more-open .task-secondary-actions {
+  display: flex;
+}
+
+.task-secondary-actions .task-action {
+  min-height: 32px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+/* Hover */
+.task-actions .task-action {
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    opacity 0.18s ease,
+    transform 0.18s ease;
+}
+
+.task-actions .task-action:hover {
+  transform: translateY(-1px);
+}
+
+/* Mobile */
+@media (max-width: 600px) {
+  .task-actions-primary {
+    gap: 6px;
+  }
+
+  .task-actions-primary .task-action {
+    min-height: 34px;
+    padding: 6px 9px;
+    font-size: 11px;
+  }
+
+  .task-actions-primary .logged-time-action {
+    margin-left: 0;
+  }
+
+  .task-actions-primary .task-more-toggle {
+    margin-left: auto;
+  }
 }
 
 .task-more-toggle[aria-expanded="true"] {
@@ -5121,64 +5309,99 @@ const VALID_APP_PAGES = [
   "reports",
   "settings",
 ];
+
 // ========================================
-// COLLAPSIBLE SIDEBAR
+// HOVER / PIN SIDEBAR
 // ========================================
 
-function applySidebarState(collapsed) {
+function applySidebarState(collapsed, { reveal = false } = {}) {
   const app = $("app");
-  const button = $("sidebarToggleBtn");
-  const icon = $("sidebarToggleIcon");
-  const label = $("sidebarToggleLabel");
+  const button = $("sidebarEdgeToggleBtn");
 
   if (!app) return;
 
+  // collapsed = true: sidebar chưa ghim, chỉ mở khi hover
+  // collapsed = false: sidebar được ghim và luôn mở
   app.classList.toggle("sidebar-collapsed", Boolean(collapsed));
+  app.classList.toggle("sidebar-peek", Boolean(reveal) && Boolean(collapsed));
+  app.classList.toggle("sidebar-pinned", !collapsed);
 
   if (button) {
-    const expanded = !collapsed;
+    const pinned = !collapsed;
 
-    button.setAttribute("aria-expanded", String(expanded));
+    button.setAttribute("aria-expanded", String(pinned || Boolean(reveal)));
 
     button.setAttribute(
       "aria-label",
-      expanded ? "Hide sidebar" : "Show sidebar",
+      pinned ? "Unpin sidebar" : "Pin sidebar open",
     );
 
-    button.title = expanded ? "Hide sidebar" : "Show sidebar";
-  }
+    button.title = pinned ? "Unpin sidebar" : "Pin sidebar open";
 
-  if (icon) {
-    icon.textContent = collapsed ? "☰" : "◧";
-  }
-
-  if (label) {
-    label.textContent = collapsed ? "Show sidebar" : "Hide sidebar";
+    button.textContent = pinned ? "‹" : "›";
   }
 }
 
 function initSidebarToggle() {
-  const button = $("sidebarToggleBtn");
+  const app = $("app");
+  const button = $("sidebarEdgeToggleBtn");
+  const sidebar = app?.querySelector(".sidebar");
 
-  if (!button) return;
+  if (!app || !button || !sidebar) return;
 
-  // Restore saved state
+  // Đọc trạng thái ghim đã lưu
   const saved = readUiPreferences().sidebarCollapsed === true;
 
   applySidebarState(saved);
 
-  // Toggle Sidebar
+  // Hover sát cạnh trái để mở Sidebar
+  app.addEventListener("pointermove", (event) => {
+    if (event.pointerType === "touch") return;
+
+    if (!app.classList.contains("sidebar-collapsed")) return;
+
+    // Rê chuột sát cạnh trái
+    if (event.clientX <= 20) {
+      applySidebarState(true, { reveal: true });
+      return;
+    }
+
+    // Rời Sidebar và nút ghim thì tự ẩn
+    if (
+      app.classList.contains("sidebar-peek") &&
+      !sidebar.contains(event.target) &&
+      !button.contains(event.target)
+    ) {
+      applySidebarState(true);
+    }
+  });
+
+  // Rời toàn bộ vùng app
+  app.addEventListener("pointerleave", (event) => {
+    if (event.pointerType === "touch") return;
+
+    if (app.classList.contains("sidebar-collapsed")) {
+      applySidebarState(true);
+    }
+  });
+
+  // Nhấn nút mũi tên để ghim / bỏ ghim
+  // Hoạt động cả trên màn hình cảm ứng
   button.addEventListener("click", () => {
-    const collapsed = !$("app")?.classList.contains("sidebar-collapsed");
+    const isPinned = app.classList.contains("sidebar-pinned");
 
-    applySidebarState(collapsed);
+    const collapsed = isPinned;
 
-    // Save preference
+    applySidebarState(collapsed, {
+      reveal: !collapsed,
+    });
+
     saveUiPreferences({
       sidebarCollapsed: collapsed,
     });
   });
 }
+
 function setPage(page) {
   if (!VALID_APP_PAGES.includes(page)) {
     page = "dashboard";
@@ -5217,6 +5440,8 @@ function setPage(page) {
   if (page === "work-hours") renderWorkHours();
 }
 function updateAssetTimePreview() {
+  updateTaskRequiredTimeVisibility();
+
   const clientId = $("taskClient")?.value || "";
 
   const type = $("taskType")?.value || "";
@@ -5246,6 +5471,20 @@ function updateAssetTimePreview() {
 
   $("assetTimePreview").textContent =
     `Fixed time: ${amount} × ${minutesPerAsset}m = ${formatDuration(totalMinutes)}`;
+}
+
+function updateTaskRequiredTimeVisibility() {
+  const field = $("taskRequiredTimeField");
+  if (!field) return;
+
+  const clientId = $("taskClient")?.value || "";
+  const type = $("taskType")?.value || "";
+
+  const minutesPerAsset = getFixedMinutesPerAsset(clientId, type);
+
+  const isFixedTask = minutesPerAsset > 0;
+
+  field.style.display = isFixedTask ? "none" : "";
 }
 
 function updateLoggedTimePreview() {
@@ -5535,6 +5774,7 @@ async function quickLogTask(task) {
 
 //   openModal("taskModal");
 // }
+
 function openTaskModal(task = null) {
   $("taskId").value = task?.id || "";
 
@@ -5560,24 +5800,18 @@ function openTaskModal(task = null) {
 
   $("taskAssetAmount").value = task?.assetAmount || 1;
 
-  /*
-   * Logged is display-only here.
-   * It must be edited via the dedicated
-   * Logged button.
-   */
-  const loggedInput = $("taskLoggedHours");
+  // Required Time belongs to the task.
+  const requiredMinutes = Math.max(0, Number(task?.requiredMinutes) || 0);
 
-  if (loggedInput) {
-    loggedInput.value = Number(task?.loggedMinutes) || 0;
+  $("taskRequiredHours").value = Math.floor(requiredMinutes / 60);
 
-    loggedInput.readOnly = Boolean(task);
-  }
+  $("taskRequiredMinutes").value = requiredMinutes % 60;
 
   updateAssetTimePreview();
-  updateLoggedTimePreview();
 
   openModal("taskModal");
 }
+
 // function openTimeModal(taskId, entry = null) {
 //   const t = getTask(taskId);
 //   if (!t) return;
@@ -6263,7 +6497,11 @@ async function saveTask(e) {
 
   const fixedMinutes =
     minutesPerAsset > 0 && assetAmount > 0 ? assetAmount * minutesPerAsset : 0;
-
+  // Required Time is only available for normal tasks.
+  const requiredMinutes =
+    minutesPerAsset > 0
+      ? 0
+      : minutes($("taskRequiredHours").value, $("taskRequiredMinutes").value);
   const existingTask = id ? getTask(id) : null;
 
   const fixedDate =
@@ -6294,6 +6532,8 @@ async function saveTask(e) {
     fixedMinutes,
 
     fixedDate,
+
+    requiredMinutes,
 
     /*
      * IMPORTANT:
@@ -8460,24 +8700,78 @@ function bindActions() {
     closeModal("confirmModal");
     if (fn) await fn();
   };
+
   ["tasksList", "dashboardTasks"].forEach((id) =>
     $(id).addEventListener("click", async (e) => {
       const b = e.target.closest("[data-action]");
       if (!b) return;
       const id = b.dataset.taskId;
       const a = b.dataset.action;
+
       if (a === "toggle-task-more") {
         const row = b.closest(".task-row");
 
         if (!row) return;
 
+        // Đóng tất cả menu khác trước
+        document
+          .querySelectorAll(".task-row.task-more-open")
+          .forEach((otherRow) => {
+            if (otherRow === row) return;
+
+            otherRow.classList.remove("task-more-open");
+
+            otherRow
+              .querySelector('[data-action="toggle-task-more"]')
+              ?.setAttribute("aria-expanded", "false");
+          });
+
         const isOpen = row.classList.toggle("task-more-open");
 
         b.setAttribute("aria-expanded", String(isOpen));
 
+        if (isOpen) {
+          const menu = row.querySelector(".task-secondary-actions");
+
+          if (menu) {
+            const rect = b.getBoundingClientRect();
+
+            // Đọc kích thước sau khi menu đã được hiển thị
+            const menuWidth = menu.offsetWidth || 220;
+            const menuHeight = menu.offsetHeight || 180;
+
+            // Căn menu theo nút More
+            let left = rect.right - menuWidth;
+
+            // Không để menu tràn khỏi cạnh trái/phải màn hình
+            left = Math.max(
+              8,
+              Math.min(left, window.innerWidth - menuWidth - 8),
+            );
+
+            // Mặc định mở xuống dưới
+            let top = rect.bottom + 6;
+
+            // Không đủ chỗ phía dưới thì mở lên trên
+            if (top + menuHeight > window.innerHeight - 8) {
+              top = rect.top - menuHeight - 6;
+            }
+
+            // Giữ menu nằm trong viewport
+            top = Math.max(
+              8,
+              Math.min(top, window.innerHeight - menuHeight - 8),
+            );
+
+            menu.style.left = `${left}px`;
+            menu.style.top = `${top}px`;
+          }
+        }
+
         return;
       }
-      if (a === "add-time") openTimeModal(id);
+
+      // if (a === "add-time") openTimeModal(id);
       if (a === "correction") openCorrectionModal(id);
       if (a === "edit-logged") openLoggedTimeModal(getTask(id));
       if (a === "log-remaining") quickLogTask(getTask(id));
@@ -8490,6 +8784,20 @@ function bindActions() {
     }),
   );
   document.addEventListener("click", (e) => {
+    // Đóng More menu khi click bên ngoài
+    if (
+      !e.target.closest(".task-action-toolbar") &&
+      !e.target.closest(".task-secondary-actions")
+    ) {
+      document.querySelectorAll(".task-row.task-more-open").forEach((row) => {
+        row.classList.remove("task-more-open");
+
+        row
+          .querySelector('[data-action="toggle-task-more"]')
+          ?.setAttribute("aria-expanded", "false");
+      });
+    }
+
     const button = e.target.closest("[data-task-nav-index]");
 
     if (!button) return;
@@ -8515,6 +8823,21 @@ function bindActions() {
 
     button.classList.add("active");
   });
+
+  // Đóng More menu khi cuộn trang hoặc cuộn Task Column
+  document.addEventListener(
+    "scroll",
+    () => {
+      document.querySelectorAll(".task-row.task-more-open").forEach((row) => {
+        row.classList.remove("task-more-open");
+
+        row
+          .querySelector('[data-action="toggle-task-more"]')
+          ?.setAttribute("aria-expanded", "false");
+      });
+    },
+    true,
+  );
 }
 function exportCsv() {
   const entries = reportEntries(),
@@ -8952,7 +9275,7 @@ $("taskClient")?.addEventListener("change", () => {
   populateTaskTypes($("taskClient").value);
 });
 $("taskAssetAmount").addEventListener("input", updateAssetTimePreview);
-$("taskLoggedHours").addEventListener("input", updateLoggedTimePreview);
+// $("taskLoggedHours").addEventListener("input", updateLoggedTimePreview);
 $("taskLogFilter")?.addEventListener("change", () => {
   renderTasks();
 });
