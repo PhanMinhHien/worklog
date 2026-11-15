@@ -2697,49 +2697,120 @@ html[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
   background: #475569;
 }
 
+/* =========================================================
+   HOVER-REVEAL / PINNABLE SIDEBAR
+   ========================================================= */
 
-/* Collapsible Sidebar */
-  .app.sidebar-collapsed .sidebar {
-    display: none !important;
+.app {
+  position: relative;
+}
+
+.app .sidebar {
+  position: fixed;
+  z-index: 500;
+
+  inset: 0 auto 0 0;
+
+  width: 235px;
+  height: 100vh;
+
+  overflow-y: auto;
+
+  transform: translateX(0);
+  transition: transform .22s ease;
+
+  box-shadow: 8px 0 28px rgba(0,0,0,.16);
+}
+
+/* Sidebar được ghim */
+.app.sidebar-pinned .sidebar {
+  transform: translateX(0);
+}
+
+.app.sidebar-pinned .main-content {
+  margin-left: 235px;
+}
+
+/* Sidebar chưa ghim và đang đóng */
+.app.sidebar-collapsed .sidebar {
+  transform: translateX(-100%);
+}
+
+.app.sidebar-collapsed .main-content {
+  margin-left: 0;
+}
+
+/* Sidebar mở tạm thời khi hover */
+.app.sidebar-peek .sidebar {
+  transform: translateX(0);
+}
+
+/* Nút mũi tên ở cạnh Sidebar */
+.sidebar-edge-toggle {
+  position: fixed;
+  z-index: 510;
+
+  left: 0;
+  top: 50%;
+
+  transform: translateY(-50%);
+
+  width: 25px;
+  height: 58px;
+
+  display: grid;
+  place-items: center;
+
+  padding: 0;
+
+  border: 1px solid var(--border);
+  border-left: 0;
+  border-radius: 0 10px 10px 0;
+
+  background: var(--panel);
+  color: var(--text);
+
+  box-shadow: 3px 2px 12px rgba(0,0,0,.16);
+
+  font-size: 23px;
+  font-weight: 700;
+
+  cursor: pointer;
+
+  transition:
+    left .22s ease,
+    background .18s ease;
+}
+
+/* Nút di chuyển theo cạnh Sidebar khi đang mở */
+.app.sidebar-peek .sidebar-edge-toggle,
+.app.sidebar-pinned .sidebar-edge-toggle {
+  left: 235px;
+}
+
+.sidebar-edge-toggle:hover {
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+/* Mobile / màn hình cảm ứng */
+@media (max-width: 700px) {
+  .app .sidebar {
+    width: min(300px, 86vw);
+    max-width: 86vw;
   }
 
-  .app.sidebar-collapsed .main-content {
-    width: 100%;
-    max-width: none;
-    flex: 1 1 100%;
-    min-width: 0;
+  /* Mobile không đẩy nội dung sang phải */
+  .app.sidebar-pinned .main-content {
+    margin-left: 0;
   }
 
-  .sidebar-toggle-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    min-width: 40px;
-    height: 40px;
-    padding: 0 12px;
-    border: 1px solid var(--border-color, #d1d5db);
-    border-radius: 10px;
-    background: var(--card-bg, transparent);
-    color: inherit;
-    cursor: pointer;
-    font: inherit;
-    flex-shrink: 0;
+  .app.sidebar-peek .sidebar-edge-toggle,
+  .app.sidebar-pinned .sidebar-edge-toggle {
+    left: min(300px, 86vw);
   }
 
-  .sidebar-toggle-btn:hover {
-    filter: brightness(.96);
+  .app.sidebar-pinned .sidebar {
+    box-shadow: 8px 0 28px rgba(0,0,0,.22);
   }
-
-  .topbar .topbar-left {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    min-width: 0;
-  }
-
-  @media (max-width: 640px) {
-    .sidebar-toggle-btn .sidebar-toggle-label {
-      display: none;
-    }
-  }
+}
