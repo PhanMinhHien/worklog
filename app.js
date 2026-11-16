@@ -7848,38 +7848,26 @@ function renderTypeBreakdown(typeMap) {
 }
 
 const REPORT_DATE_STORAGE_KEY = "worklog-report-date-range";
-
 function initReportDates() {
   const fromInput = $("reportFrom");
   const toInput = $("reportTo");
 
   if (!fromInput || !toInput) return;
 
-  // Default: current week (Monday - Sunday)
-  const defaultFrom = getMonday(today());
-  const defaultTo = getSunday(today());
+  // Luôn tự động chọn tuần hiện tại: Monday - Sunday
+  const currentWeekFrom = getMonday(today());
+  const currentWeekTo = getSunday(today());
 
-  let savedRange = null;
+  fromInput.value = currentWeekFrom;
+  toInput.value = currentWeekTo;
 
-  try {
-    savedRange = JSON.parse(localStorage.getItem(REPORT_DATE_STORAGE_KEY) || "null");
-  } catch (err) {
-    console.warn("Could not read saved report dates:", err);
-  }
+  // Cập nhật khoảng tuần mới vào localStorage
+  saveReportDates();
 
-  const savedFrom = savedRange?.from || "";
-  const savedTo = savedRange?.to || "";
-
-  // Restore previously selected dates
-  if (savedFrom && savedTo && /^\d{4}-\d{2}-\d{2}$/.test(savedFrom) && /^\d{4}-\d{2}-\d{2}$/.test(savedTo) && savedFrom <= savedTo) {
-    fromInput.value = savedFrom;
-    toInput.value = savedTo;
-  } else {
-    fromInput.value = defaultFrom;
-    toInput.value = defaultTo;
-
-    saveReportDates();
-  }
+  console.log("[Reports] Current week:", {
+    from: currentWeekFrom,
+    to: currentWeekTo,
+  });
 }
 
 function saveReportDates() {
