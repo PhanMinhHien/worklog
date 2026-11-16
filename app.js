@@ -237,37 +237,37 @@ const STATUS = {
 const STATUS_META = {
   [STATUS.OPEN]: {
     label: "New",
-    icon: "🟡",
+    icon: "1.",
     cls: "status-open",
   },
 
   [STATUS.IN_PRODUCTION]: {
     label: "In Production",
-    icon: "🟤",
+    icon: "2.",
     cls: "status-production",
   },
 
   [STATUS.IN_APPROVAL]: {
     label: "In Approval",
-    icon: "🔵",
+    icon: "3.",
     cls: "status-approval",
   },
 
   [STATUS.EXECUTION_PROOF]: {
     label: "Execution Proof",
-    icon: "🟣",
+    icon: "4.",
     cls: "status-execution-proof",
   },
 
   [STATUS.COMPLETED]: {
     label: "Completed",
-    icon: "🟢",
+    icon: "5.",
     cls: "status-completed",
   },
 
   [STATUS.ARCHIVED]: {
     label: "Archived",
-    icon: "⚫",
+    icon: "6.",
     cls: "status-archived",
   },
 };
