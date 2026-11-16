@@ -349,9 +349,22 @@
                 <p>Work items, time history, and status.</p>
               </div>
 
-              <button id="showArchivedBtn" class="btn btn-ghost btn-small">
-                Show Archived
-              </button>
+              <div
+                style="
+                  display: flex;
+                  gap: 8px;
+                  align-items: center;
+                  flex-wrap: wrap;
+                "
+              >
+                <button id="createComboBtn" class="btn btn-secondary">
+                  + Create Combo
+                </button>
+
+                <button id="showArchivedBtn" class="btn btn-ghost btn-small">
+                  Show Archived
+                </button>
+              </div>
             </div>
 
             <div class="task-filters">
@@ -902,6 +915,106 @@
 
             <button type="submit" class="btn btn-primary">
               Save Work Hours
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+    <!-- ==================== COMBO MODAL ==================== -->
+    <div id="comboModal" class="modal-overlay hidden">
+      <div class="modal combo-edit-modal">
+        <div class="modal-header">
+          <div>
+            <h2 id="comboModalTitle">Create Combo</h2>
+            <p>Manage the Main Ticket and all its Subtasks.</p>
+          </div>
+
+          <button
+            class="modal-close"
+            type="button"
+            data-close-modal="comboModal"
+          >
+            ×
+          </button>
+        </div>
+
+        <form id="comboForm">
+          <input id="comboEditId" type="hidden" />
+
+          <div class="form-grid">
+            <div class="field field-full">
+              <label for="comboName">Main Ticket Name *</label>
+              <input
+                id="comboName"
+                required
+                placeholder="e.g. Newsletter November"
+              />
+            </div>
+
+            <div class="field field-full">
+              <label for="comboMainUrl">Main Ticket Link</label>
+              <input id="comboMainUrl" type="url" placeholder="https://..." />
+            </div>
+
+            <div class="field">
+              <label for="comboClient">Client *</label>
+              <select id="comboClient" required>
+                <option value="">Select client</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label for="comboType">Asset Type *</label>
+              <select id="comboType" required>
+                <option value="">Select type</option>
+              </select>
+            </div>
+
+            <div class="field field-full">
+              <label for="comboDate">Date *</label>
+              <input id="comboDate" type="date" required />
+            </div>
+
+            <div class="field field-full">
+              <label for="comboSubtasks"> Subtasks * </label>
+
+              <div class="field-helper">
+                One Subtask per line. Enter Country Code followed by Email Link.
+                Example: DK https://example.com/email
+              </div>
+
+              <textarea
+                id="comboSubtasks"
+                rows="8"
+                required
+                placeholder="DK https://example.com/email-1&#10;SE https://example.com/email-2&#10;NO https://example.com/email-3"
+              ></textarea>
+            </div>
+
+            <div class="field field-full">
+              <div id="comboFixedPreview" class="field-helper">
+                Select a client and asset type to see Fixed Time.
+              </div>
+
+              <div id="comboSubtaskPreview" class="field-helper"></div>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn btn-secondary"
+              data-close-modal="comboModal"
+            >
+              Cancel
+            </button>
+
+            <button
+              type="submit"
+              id="createComboSubmitBtn"
+              class="btn btn-primary"
+            >
+              Create Combo
             </button>
           </div>
         </form>

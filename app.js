@@ -1,5 +1,17 @@
 import { db } from "./firebase.js";
-import { collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot, serverTimestamp, getDocs, getDoc, setDoc, writeBatch } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js";
+import {
+  collection,
+  addDoc,
+  doc,
+  updateDoc,
+  deleteDoc,
+  onSnapshot,
+  serverTimestamp,
+  getDocs,
+  getDoc,
+  setDoc,
+  writeBatch,
+} from "https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js";
 
 // ==================== BASIC UI PROTECTION ====================
 
@@ -53,7 +65,9 @@ function readUiPreferences() {
   try {
     const value = JSON.parse(localStorage.getItem(UI_PREFERENCES_KEY) || "{}");
 
-    return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+    return value && typeof value === "object" && !Array.isArray(value)
+      ? value
+      : {};
   } catch (err) {
     console.warn("Could not read saved UI preferences:", err);
     return {};
@@ -103,7 +117,9 @@ function restoreTaskFilterPreferences() {
 
     const targetValue = value || fallback;
 
-    if (Array.from(select.options).some((option) => option.value === targetValue)) {
+    if (
+      Array.from(select.options).some((option) => option.value === targetValue)
+    ) {
       select.value = targetValue;
     } else {
       select.value = fallback;
@@ -124,7 +140,8 @@ function restoreTaskFilterPreferences() {
   if ($("taskCustomDate")) {
     $("taskCustomDate").value = saved.customDate || "";
 
-    $("taskCustomDate").style.display = $("taskDateFilter")?.value === "custom" ? "" : "none";
+    $("taskCustomDate").style.display =
+      $("taskDateFilter")?.value === "custom" ? "" : "none";
   }
 }
 
@@ -276,6 +293,8 @@ const state = {
   clients: [],
   tasks: [],
   workSessions: [],
+  combos: [],
+
   corrections: [],
   activities: [],
   workDays: [],
@@ -290,7 +309,11 @@ const state = {
 let taskViewMode = localStorage.getItem("worklog_task_view_mode") || "status";
 
 let selectedAssetType = "all";
+// ========================================
+// COMBO TASK VIEW
+// ========================================
 
+const expandedComboIds = new Set();
 const selectedTaskIds = new Set();
 
 let currentVisibleTaskIds = [];
@@ -318,7 +341,9 @@ function renderDataLockCountdown() {
 
   if (!el) return;
 
-  const expiresAt = Number(sessionStorage.getItem(DATA_UNLOCK_EXPIRES_KEY) || 0);
+  const expiresAt = Number(
+    sessionStorage.getItem(DATA_UNLOCK_EXPIRES_KEY) || 0,
+  );
 
   if (!dataUnlocked || !expiresAt) {
     el.textContent = "Locked";
@@ -354,7 +379,8 @@ const DATA_SESSION_MS = DATA_SESSION_MINUTES * 60 * 1000;
 
 const DATA_UNLOCK_EXPIRES_KEY = "worklog-data-unlock-expires-at";
 
-let dataUnlocked = Number(sessionStorage.getItem(DATA_UNLOCK_EXPIRES_KEY) || 0) > Date.now();
+let dataUnlocked =
+  Number(sessionStorage.getItem(DATA_UNLOCK_EXPIRES_KEY) || 0) > Date.now();
 
 let dataLockTimer = null;
 
@@ -429,7 +455,9 @@ function renderTaskDefaultsSettings() {
 
   if (!select) return;
 
-  const clients = [...state.clients].sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+  const clients = [...state.clients].sort((a, b) =>
+    String(a.name || "").localeCompare(String(b.name || "")),
+  );
 
   select.innerHTML =
     `<option value="">No default client</option>` +
@@ -513,7 +541,10 @@ async function saveWorkHoursSettings(e) {
 
   const dailyTarget = Math.max(0, Number($("dailyTargetMinutes")?.value) || 0);
 
-  const openingFlexi = Math.max(0, Number($("openingFlexiMinutes")?.value) || 0);
+  const openingFlexi = Math.max(
+    0,
+    Number($("openingFlexiMinutes")?.value) || 0,
+  );
 
   try {
     await setDoc(
@@ -599,7 +630,8 @@ const timeAgo = (ts) => {
 
   // Firebase Timestamp-like object
   else if (typeof ts === "object" && Number.isFinite(Number(ts.seconds))) {
-    millis = Number(ts.seconds) * 1000 + Math.floor(Number(ts.nanoseconds || 0) / 1e6);
+    millis =
+      Number(ts.seconds) * 1000 + Math.floor(Number(ts.nanoseconds || 0) / 1e6);
   }
 
   // JavaScript Date
@@ -647,7 +679,11 @@ function getClientTypes(clientId) {
 function getClientFixedTimes(clientId) {
   const client = getClient(clientId);
 
-  if (!client || !client.fixedTimeTypes || typeof client.fixedTimeTypes !== "object") {
+  if (
+    !client ||
+    !client.fixedTimeTypes ||
+    typeof client.fixedTimeTypes !== "object"
+  ) {
     return {};
   }
 
@@ -704,7 +740,13 @@ function getClientByName(name) {
 }
 
 function getAllClientTypes() {
-  return [...new Set(state.clients.flatMap((client) => (Array.isArray(client.types) ? client.types : [])))].sort();
+  return [
+    ...new Set(
+      state.clients.flatMap((client) =>
+        Array.isArray(client.types) ? client.types : [],
+      ),
+    ),
+  ].sort();
 }
 // const taskMinutes = (id) => state.workSessions.filter((x) => x.taskId === id).reduce((s, x) => s + (Number(x.duration) || 0), 0) + state.corrections.filter((x) => x.taskId === id).reduce((s, x) => s + (Number(x.duration) || 0), 0);
 // const normalMinutes = (id) => state.workSessions.filter((x) => x.taskId === id).reduce((s, x) => s + (Number(x.duration) || 0), 0);
@@ -800,7 +842,9 @@ function getWorkDay(date) {
 
 function getWeekWorkDays(date = today()) {
   const dates = new Set(getWeekDates(date));
-  return state.workDays.filter((x) => dates.has(x.date)).sort((a, b) => a.date.localeCompare(b.date));
+  return state.workDays
+    .filter((x) => dates.has(x.date))
+    .sort((a, b) => a.date.localeCompare(b.date));
 }
 
 // function weekFlexiMinutes(date = today()) {
@@ -827,15 +871,23 @@ function getWorkDayFlexiMinutes(day) {
 }
 
 function weekFlexiMinutes(date = today()) {
-  return getWeekWorkDays(date).reduce((sum, day) => sum + getWorkDayFlexiMinutes(day), 0);
+  return getWeekWorkDays(date).reduce(
+    (sum, day) => sum + getWorkDayFlexiMinutes(day),
+    0,
+  );
 }
 
 function weekActualMinutes(date = today()) {
-  return getWeekWorkDays(date).reduce((sum, day) => sum + (Number(day.actualMinutes) || 0), 0);
+  return getWeekWorkDays(date).reduce(
+    (sum, day) => sum + (Number(day.actualMinutes) || 0),
+    0,
+  );
 }
 
 function availableFlexiMinutes(date = today()) {
-  const accumulatedFlexi = state.workDays.filter((day) => day.date && day.date <= date).reduce((sum, day) => sum + getWorkDayFlexiMinutes(day), 0);
+  const accumulatedFlexi = state.workDays
+    .filter((day) => day.date && day.date <= date)
+    .reduce((sum, day) => sum + getWorkDayFlexiMinutes(day), 0);
 
   return openingFlexiMinutes + accumulatedFlexi;
 }
@@ -1091,7 +1143,9 @@ function renderNextNotification() {
 }
 
 function notify(message, type = "success", duration = 3200) {
-  const normalizedType = ["success", "error", "warning", "info"].includes(type) ? type : "info";
+  const normalizedType = ["success", "error", "warning", "info"].includes(type)
+    ? type
+    : "info";
 
   const item = {
     message: String(message ?? ""),
@@ -1130,12 +1184,16 @@ function statusBadge(status) {
 }
 
 function taskDates(id) {
-  const dates = [...state.workSessions, ...state.corrections].filter((x) => x.taskId === id && x.date).map((x) => x.date);
+  const dates = [...state.workSessions, ...state.corrections]
+    .filter((x) => x.taskId === id && x.date)
+    .map((x) => x.date);
 
   return [...new Set(dates)].sort().reverse();
 }
 function lastActivity(id) {
-  const a = state.activities.filter((x) => x.taskId === id).sort((x, y) => dateValue(y.createdAt) - dateValue(x.createdAt))[0];
+  const a = state.activities
+    .filter((x) => x.taskId === id)
+    .sort((x, y) => dateValue(y.createdAt) - dateValue(x.createdAt))[0];
   return a ? timeAgo(a.createdAt) : "No activity yet";
 }
 function dateValue(ts) {
@@ -1150,7 +1208,9 @@ function dateValue(ts) {
   }
 
   if (typeof ts === "object" && Number.isFinite(Number(ts.seconds))) {
-    return Number(ts.seconds) * 1000 + Math.floor(Number(ts.nanoseconds || 0) / 1e6);
+    return (
+      Number(ts.seconds) * 1000 + Math.floor(Number(ts.nanoseconds || 0) / 1e6)
+    );
   }
 
   if (ts instanceof Date) {
@@ -1186,16 +1246,23 @@ function getTaskTimeSummary(taskOrId) {
 
   // Normal WorkLog entries only.
   // "fixed" shadow WorkLog must not be counted.
-  const workLogSessions = state.workSessions.filter((x) => x.taskId === task.id && x.source !== "fixed");
+  const workLogSessions = state.workSessions.filter(
+    (x) => x.taskId === task.id && x.source !== "fixed",
+  );
 
   // Actual WorkLog duration
-  const workLogDurationMinutes = workLogSessions.reduce((sum, x) => sum + (Number(x.duration) || 0), 0);
+  const workLogDurationMinutes = workLogSessions.reduce(
+    (sum, x) => sum + (Number(x.duration) || 0),
+    0,
+  );
 
   // Required Time is ONE current value stored on the task.
   // It is NOT summed from individual WorkLog entries.
   const workLogRequiredMinutes = Math.max(0, Number(task.requiredMinutes) || 0);
 
-  const correctionMinutesValue = state.corrections.filter((x) => x.taskId === task.id).reduce((sum, x) => sum + (Number(x.duration) || 0), 0);
+  const correctionMinutesValue = state.corrections
+    .filter((x) => x.taskId === task.id)
+    .reduce((sum, x) => sum + (Number(x.duration) || 0), 0);
 
   const loggedMinutes = Math.max(0, Number(task.loggedMinutes) || 0);
 
@@ -1276,7 +1343,9 @@ const normalMinutes = (id) => {
 };
 
 const correctionMinutes = (id) => {
-  return state.corrections.filter((x) => x.taskId === id).reduce((sum, x) => sum + (Number(x.duration) || 0), 0);
+  return state.corrections
+    .filter((x) => x.taskId === id)
+    .reduce((sum, x) => sum + (Number(x.duration) || 0), 0);
 };
 // function renderTask(task, compact = false) {
 //   const total = taskMinutes(task.id),
@@ -1517,7 +1586,7 @@ function renderTaskTypeNavigation(orderedTypes, groups) {
     </div>
   `;
 }
-function renderTask(task, compact = false) {
+function renderTask(task, compact = false, comboSubtask = false) {
   const summary = getTaskTimeSummary(task);
 
   const dates = taskDates(task.id);
@@ -1526,7 +1595,16 @@ function renderTask(task, compact = false) {
   const firstWorkDate = dates.length ? dates[0] : "";
   const worked = firstWorkDate ? shortDate(firstWorkDate) : "No work date yet";
 
-  const { fixedMinutes, isFixedTask, workLogDurationMinutes, workLogRequiredMinutes, correctionMinutes: taskCorrectionMinutes, requiredMinutes, loggedMinutes, remainingMinutes } = summary;
+  const {
+    fixedMinutes,
+    isFixedTask,
+    workLogDurationMinutes,
+    workLogRequiredMinutes,
+    correctionMinutes: taskCorrectionMinutes,
+    requiredMinutes,
+    loggedMinutes,
+    remainingMinutes,
+  } = summary;
 
   /*
    * Fixed Time:
@@ -1572,10 +1650,16 @@ function renderTask(task, compact = false) {
   if (statusRequiredMinutes > 0 && loggedMinutes <= 0) {
     logStatus = "NOT LOGGED";
     logStatusClass = "not-logged";
-  } else if (statusRequiredMinutes > 0 && loggedMinutes < statusRequiredMinutes) {
+  } else if (
+    statusRequiredMinutes > 0 &&
+    loggedMinutes < statusRequiredMinutes
+  ) {
     logStatus = "INCOMPLETE";
     logStatusClass = "incomplete";
-  } else if (statusRequiredMinutes > 0 && loggedMinutes >= statusRequiredMinutes) {
+  } else if (
+    statusRequiredMinutes > 0 &&
+    loggedMinutes >= statusRequiredMinutes
+  ) {
     logStatus = "LOGGED";
     logStatusClass = "complete";
   }
@@ -1585,7 +1669,7 @@ function renderTask(task, compact = false) {
 
       <div class="task-main">
 
-    <div class="task-title-line">
+   <div class="task-title-line">
 
   ${
     !compact
@@ -1602,9 +1686,58 @@ function renderTask(task, compact = false) {
       : ""
   }
 
-  <div class="task-title">
-    ${escapeHtml(task.title)}
-  </div>
+  ${
+    comboSubtask
+      ? `
+        <div class="combo-subtask-heading">
+
+          <strong>
+            ${escapeHtml(task.countryCode || task.title)}
+          </strong>
+
+          ${
+            task.url
+              ? `
+                <div class="combo-subtask-links">
+                  <a
+                    href="${escapeHtml(task.url)}"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Open Email ↗
+                  </a>
+
+                  <button
+                    type="button"
+                    data-copy-combo-link="${escapeHtml(task.url)}"
+                  >
+                    Copy Link
+                  </button>
+                </div>
+              `
+              : ""
+          }
+
+        </div>
+      `
+      : `
+        <div class="task-title">
+          ${escapeHtml(task.title)}
+        </div>
+
+        ${
+          task.ticketId
+            ? `
+              <div class="task-context">
+                Ticket ID: <strong>${escapeHtml(task.ticketId)}</strong>
+              </div>
+            `
+            : ""
+        }
+
+       
+      `
+  }
 
 </div>
 
@@ -1735,8 +1868,20 @@ function renderTask(task, compact = false) {
   }
 
   ${
-    compact
+    comboSubtask
       ? `
+      <div class="task-action-toolbar">
+        <button
+          class="task-action"
+          data-action="history"
+          data-task-id="${task.id}"
+        >
+          History
+        </button>
+      </div>
+    `
+      : compact
+        ? `
         <div class="task-action-toolbar">
           <button
             class="task-action"
@@ -1747,93 +1892,8 @@ function renderTask(task, compact = false) {
           </button>
         </div>
       `
-      : `
-        <div class="task-action-toolbar">
-
-          <button
-            class="task-action"
-            data-action="history"
-            data-task-id="${task.id}"
-          >
-            History
-          </button>
-
-          <button
-            class="task-action task-more-toggle"
-            data-action="toggle-task-more"
-            data-task-id="${task.id}"
-            aria-expanded="false"
-          >
-            ⋯ More
-          </button>
-
-          <div class="task-secondary-actions">
-
-            <button
-              class="task-action"
-              data-action="edit"
-              data-task-id="${task.id}"
-            >
-              Edit
-            </button>
-
-            <button
-              class="task-action"
-              data-action="edit-logged"
-              data-task-id="${task.id}"
-            >
-              Logged: ${formatDuration(loggedMinutes)}
-            </button>
-
-            <button
-              class="task-action"
-              data-action="correction"
-              data-task-id="${task.id}"
-            >
-              + Correction
-            </button>
-
-            ${
-              task.status === STATUS.ARCHIVED
-                ? `
-                  <button
-                    class="task-action"
-                    data-action="unarchive"
-                    data-task-id="${task.id}"
-                  >
-                    Unarchive
-                  </button>
-                `
-                : `
-                  <button
-                    class="task-action"
-                    data-action="status-next"
-                    data-task-id="${task.id}"
-                  >
-                    ${task.status === STATUS.COMPLETED ? "Reopen" : "Change Status"}
-                  </button>
-
-                  <button
-                    class="task-action"
-                    data-action="archive"
-                    data-task-id="${task.id}"
-                  >
-                    Archive
-                  </button>
-                `
-            }
-
-            <button
-              class="task-action danger"
-              data-action="delete"
-              data-task-id="${task.id}"
-            >
-              Delete
-            </button>
-
-          </div>
-
-        </div>
+        : `
+        <!-- GIỮ NGUYÊN TOÀN BỘ PHẦN TASK ACTIONS CŨ Ở ĐÂY -->
       `
   }
 
@@ -1873,7 +1933,9 @@ function renderTaskBoardControls(types) {
 
   const selectedCount = selectedTaskIds.size;
 
-  const allSelected = currentVisibleTaskIds.length > 0 && currentVisibleTaskIds.every((id) => selectedTaskIds.has(id));
+  const allSelected =
+    currentVisibleTaskIds.length > 0 &&
+    currentVisibleTaskIds.every((id) => selectedTaskIds.has(id));
 
   controls.innerHTML = `
 
@@ -1898,6 +1960,14 @@ function renderTaskBoardControls(types) {
           <span>▤</span>
           By Asset Type
         </button>
+     <button
+  type="button"
+  class="task-view-btn ${taskViewMode === "combo" ? "active" : ""}"
+  data-task-view="combo"
+>
+  <span>▣</span>
+  By Combo
+</button>
 
       </div>
 
@@ -1940,7 +2010,7 @@ function renderTaskBoardControls(types) {
     <div class="task-bulk-toolbar">
 
      ${
-       taskViewMode === "asset"
+       taskViewMode === "asset" || taskViewMode === "combo"
          ? `
       <label class="task-select-all">
 
@@ -1950,7 +2020,7 @@ function renderTaskBoardControls(types) {
           ${allSelected ? "checked" : ""}
         >
 
-        Select visible
+        ${taskViewMode === "combo" ? "Select all tickets" : "Select visible"}
 
       </label>
     `
@@ -2008,7 +2078,9 @@ async function bulkChangeTaskStatus() {
   const statusSelect = $("taskBulkStatus");
   const newStatus = statusSelect?.value || "";
 
-  const ids = [...selectedTaskIds].filter((id) => currentVisibleTaskIds.includes(id));
+  const ids = [...selectedTaskIds].filter((id) =>
+    currentVisibleTaskIds.includes(id),
+  );
 
   if (!ids.length) {
     return notify("Please select at least one task.", "warning");
@@ -2091,6 +2163,177 @@ async function applyBulkTaskStatus(tasksToUpdate, newStatus, targetMeta) {
   }
 }
 
+// ========================================
+// RENDER COMBO VIEW
+// ========================================
+function renderComboBoard(tasks, container) {
+  const grouped = new Map();
+
+  tasks.forEach((task) => {
+    if (!task.comboId) return;
+
+    if (!grouped.has(task.comboId)) {
+      grouped.set(task.comboId, []);
+    }
+
+    grouped.get(task.comboId).push(task);
+  });
+
+  const comboIds = [...grouped.keys()];
+
+  if (!comboIds.length) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-title">No Combo groups found</div>
+        <div class="empty-text">
+          Create a Combo to see its Subtasks here.
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  const comboCards = comboIds
+    .map((comboId) => {
+      const subtasks = grouped.get(comboId) || [];
+      const combo = state.combos.find((item) => item.id === comboId);
+      const firstTask = subtasks[0];
+
+      const name = combo?.name || firstTask?.comboName || "Untitled Combo";
+
+      const mainUrl = combo?.mainUrl || "";
+
+      const clientName = combo?.clientName || firstTask?.project || "No client";
+
+      const type = combo?.type || firstTask?.type || "Other";
+      const date = combo?.date || firstTask?.fixedDate || "";
+
+      const totalFixedMinutes = subtasks.reduce(
+        (sum, task) => sum + (Number(task.fixedMinutes) || 0),
+        0,
+      );
+
+      const isExpanded = expandedComboIds.has(comboId);
+
+      const allComboSelected =
+        subtasks.length > 0 &&
+        subtasks.every((task) => selectedTaskIds.has(task.id));
+
+      return `
+      <section class="combo-card">
+
+        <div class="combo-card-header">
+
+          <div class="combo-main-info">
+
+            <div class="combo-eyebrow">MAIN TICKET</div>
+
+            <h3>${escapeHtml(name)}</h3>
+
+            <div class="combo-meta">
+              <span>${escapeHtml(clientName)}</span>
+              <span>·</span>
+              <span>${escapeHtml(type)}</span>
+              <span>·</span>
+              <span>${escapeHtml(date)}</span>
+            </div>
+
+            <div class="combo-summary">
+              <span>${subtasks.length} Subtasks</span>
+              <span>·</span>
+              <span>Fixed Time: ${formatDuration(totalFixedMinutes)}</span>
+            </div>
+
+          </div>
+
+          <div class="combo-card-actions">
+
+            ${
+              mainUrl
+                ? `
+                  <a
+                    class="combo-link-btn"
+                    href="${escapeHtml(mainUrl)}"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Open Main Link ↗
+                  </a>
+
+                  <button
+                    type="button"
+                    class="combo-copy-btn"
+                    data-copy-combo-link="${escapeHtml(mainUrl)}"
+                  >
+                    Copy Link
+                  </button>
+                `
+                : ""
+            }
+
+            <button
+              type="button"
+              class="combo-action-btn"
+              data-edit-combo="${escapeHtml(comboId)}"
+            >
+              Edit Combo
+            </button>
+
+            <button
+              type="button"
+              class="combo-action-btn combo-delete-btn"
+              data-delete-combo="${escapeHtml(comboId)}"
+            >
+              Delete Combo
+            </button>
+
+            <button
+              type="button"
+              class="combo-toggle-btn"
+              data-combo-toggle="${escapeHtml(comboId)}"
+            >
+              ${isExpanded ? "Hide Subtasks" : "Show Subtasks"}
+              <span>${isExpanded ? "▲" : "▼"}</span>
+            </button>
+
+          </div>
+
+          
+
+        </div>
+
+        ${
+          isExpanded
+            ? `
+              <div class="combo-subtasks">
+
+                ${subtasks
+                  .map(
+                    (task) => `
+                  <div class="combo-subtask">
+                    ${renderTask(task, false, true)}
+                  </div>
+                `,
+                  )
+                  .join("")}
+
+              </div>
+            `
+            : ""
+        }
+
+      </section>
+    `;
+    })
+    .join("");
+
+  container.innerHTML = `
+    <div class="combo-board">
+      ${comboCards}
+    </div>
+  `;
+}
+
 function renderTasks() {
   const q = ($("taskSearch")?.value || "").toLowerCase().trim();
 
@@ -2101,7 +2344,9 @@ function renderTasks() {
   const df = $("taskDateFilter")?.value || "all";
   const customDate = $("taskCustomDate")?.value || "";
 
-  let tasks = state.tasks.filter((t) => state.showArchived || t.status !== STATUS.ARCHIVED);
+  let tasks = state.tasks.filter(
+    (t) => state.showArchived || t.status !== STATUS.ARCHIVED,
+  );
 
   // STATUS FILTER
   if (sf !== "all") {
@@ -2128,7 +2373,15 @@ function renderTasks() {
   // SEARCH
   if (q) {
     tasks = tasks.filter((t) =>
-      [t.title, t.project, t.note, t.type, t.url].some((value) =>
+      [
+        t.title,
+        t.project,
+        t.note,
+        t.type,
+        t.url,
+        t.comboName,
+        t.countryCode,
+      ].some((value) =>
         String(value || "")
           .toLowerCase()
           .includes(q),
@@ -2171,7 +2424,10 @@ function renderTasks() {
       return dateB.localeCompare(dateA);
     }
 
-    return dateValue(b.updatedAt || b.createdAt) - dateValue(a.updatedAt || a.createdAt);
+    return (
+      dateValue(b.updatedAt || b.createdAt) -
+      dateValue(a.updatedAt || a.createdAt)
+    );
   });
 
   const container = $("tasksList");
@@ -2232,10 +2488,29 @@ function renderTasks() {
   });
 
   // KEEP ONLY VISIBLE SELECTIONS
-  currentVisibleTaskIds = tasks.map((t) => t.id);
+  if (taskViewMode === "combo") {
+    currentVisibleTaskIds = tasks
+      .filter((task) => Boolean(task.comboId))
+      .map((task) => task.id);
+  } else {
+    currentVisibleTaskIds = tasks.map((task) => task.id);
+  }
 
   if (taskViewMode === "asset" && selectedAssetType !== "all") {
-    currentVisibleTaskIds = tasks.filter((task) => (String(task.type || "").trim() || "Other") === selectedAssetType).map((task) => task.id);
+    currentVisibleTaskIds = tasks
+      .filter(
+        (task) =>
+          (String(task.type || "").trim() || "Other") === selectedAssetType,
+      )
+      .map((task) => task.id);
+  }
+  if (taskViewMode === "asset" && selectedAssetType !== "all") {
+    currentVisibleTaskIds = tasks
+      .filter(
+        (task) =>
+          (String(task.type || "").trim() || "Other") === selectedAssetType,
+      )
+      .map((task) => task.id);
   }
 
   [...selectedTaskIds].forEach((id) => {
@@ -2259,7 +2534,13 @@ function renderTasks() {
   // ========================================
 
   if (taskViewMode === "status") {
-    const statusOrder = [STATUS.OPEN, STATUS.IN_PRODUCTION, STATUS.IN_APPROVAL, STATUS.EXECUTION_PROOF, STATUS.COMPLETED];
+    const statusOrder = [
+      STATUS.OPEN,
+      STATUS.IN_PRODUCTION,
+      STATUS.IN_APPROVAL,
+      STATUS.EXECUTION_PROOF,
+      STATUS.COMPLETED,
+    ];
 
     container.innerHTML = `
 
@@ -2326,6 +2607,12 @@ function renderTasks() {
 
     `;
   }
+  // ========================================
+  // BY COMBO VIEW
+  // ========================================
+  else if (taskViewMode === "combo") {
+    renderComboBoard(tasks, container);
+  }
 
   // ========================================
   // BY ASSET TYPE VIEW
@@ -2334,7 +2621,10 @@ function renderTasks() {
     let visibleTasks = tasks;
 
     if (selectedAssetType !== "all") {
-      visibleTasks = tasks.filter((task) => (String(task.type || "").trim() || "Other") === selectedAssetType);
+      visibleTasks = tasks.filter(
+        (task) =>
+          (String(task.type || "").trim() || "Other") === selectedAssetType,
+      );
     }
 
     container.innerHTML = `
@@ -2365,7 +2655,318 @@ function renderTasks() {
   // APPLY STYLES
   ensureTasksBoardStyles();
   ensureTaskRedesignStyles();
+  ensureComboStyles();
 }
+// ========================================
+// COMBO VIEW STYLES
+// ========================================
+
+function ensureComboStyles() {
+  if ($("comboStyles")) return;
+
+  const style = document.createElement("style");
+
+  style.id = "comboStyles";
+
+  style.textContent = `
+    .combo-board {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      padding: 4px 0 16px;
+    }
+
+    .combo-card {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: var(--card);
+      overflow: hidden;
+    }
+
+    .combo-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 18px;
+    }
+
+    .combo-main-info {
+      min-width: 0;
+    }
+
+    .combo-eyebrow {
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      margin-bottom: 7px;
+    }
+
+    .combo-main-info h3 {
+      margin: 0 0 7px;
+      font-size: 17px;
+      font-weight: 750;
+      color: var(--text);
+      overflow-wrap: anywhere;
+    }
+
+    .combo-meta,
+    .combo-summary {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .combo-summary {
+      margin-top: 8px;
+      color: var(--text);
+      font-weight: 650;
+    }
+
+    .combo-card-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+      gap: 7px;
+      flex-shrink: 0;
+    }
+
+    .combo-link-btn,
+    .combo-copy-btn,
+    .combo-toggle-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      min-height: 36px;
+      padding: 8px 11px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--card);
+      color: var(--text);
+      font: inherit;
+      font-size: 12px;
+      font-weight: 650;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    .combo-toggle-btn {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+    }
+
+    .combo-subtasks {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 14px 18px 18px;
+      border-top: 1px solid var(--border);
+      background: var(--bg);
+    }
+
+    .combo-subtask {
+      min-width: 0;
+    }
+
+    .combo-subtask-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 7px;
+    }
+
+    .combo-subtask-heading > strong {
+      font-size: 13px;
+      color: var(--text);
+    }
+
+    .combo-subtask-links {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 12px;
+    }
+
+    .combo-subtask-links a {
+      color: var(--primary);
+      text-decoration: none;
+      font-weight: 650;
+    }
+
+    .combo-subtask-links button {
+      border: 0;
+      padding: 3px 0;
+      background: transparent;
+      color: var(--muted);
+      font: inherit;
+      cursor: pointer;
+    }
+
+    @media (max-width: 700px) {
+      .combo-card-header {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .combo-card-actions {
+        justify-content: flex-start;
+      }
+
+      .combo-subtask-heading {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+    }
+      .combo-select-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.combo-select-all input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+
+.combo-card-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.combo-card-header {
+  flex-wrap: wrap;
+}
+
+.combo-card-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.combo-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 8px 11px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.combo-delete-btn {
+  color: #ef7777;
+  border-color: rgba(239, 119, 119, 0.35);
+}
+
+.combo-select-all-row {
+  flex-basis: 100%;
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 8px;
+}
+
+.combo-select-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.combo-select-all input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+
+.combo-subtask .task-title-line {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.combo-subtask .combo-subtask-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex: 1;
+  min-width: 0;
+  gap: 12px;
+  margin: 0;
+}
+
+.combo-subtask .combo-subtask-heading > strong {
+  font-size: 14px;
+  color: var(--text);
+}
+
+.combo-subtask .combo-subtask-links {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.combo-subtask .task-row {
+  border: 0;
+  background: transparent;
+  padding: 0;
+}
+
+.combo-subtask .task-main {
+  min-width: 0;
+}
+
+.combo-edit-modal {
+  max-width: 680px;
+}
+
+@media (max-width: 700px) {
+  .combo-subtask .combo-subtask-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .combo-card-actions {
+    justify-content: flex-start;
+  }
+}
+  `;
+
+  document.head.appendChild(style);
+}
+
 // ========================================
 // TASK REDESIGN STYLES
 // ========================================
@@ -3646,18 +4247,32 @@ function taskMatchesDateFilter(task, filter, customDate = "") {
 function renderDashboardTasks() {
   const tasks = state.tasks
     .filter((t) => t.status !== STATUS.ARCHIVED)
-    .sort((a, b) => dateValue(b.updatedAt || b.createdAt) - dateValue(a.updatedAt || a.createdAt))
+    .sort(
+      (a, b) =>
+        dateValue(b.updatedAt || b.createdAt) -
+        dateValue(a.updatedAt || a.createdAt),
+    )
     .slice(0, 5);
-  $("dashboardTasks").innerHTML = tasks.length ? tasks.map((t) => renderTask(t, true)).join("") : `<div class="empty-state"><div class="empty-title">No tasks yet</div><div class="empty-text">Create your first task to get started.</div></div>`;
+  $("dashboardTasks").innerHTML = tasks.length
+    ? tasks.map((t) => renderTask(t, true)).join("")
+    : `<div class="empty-state"><div class="empty-title">No tasks yet</div><div class="empty-text">Create your first task to get started.</div></div>`;
 }
 
 function renderToday() {
   const date = today();
-  const entries = [...state.workSessions.filter((x) => x.date === date).map((x) => ({ ...x, kind: "normal" })), ...state.corrections.filter((x) => x.date === date).map((x) => ({ ...x, kind: "correction" }))].sort((a, b) => dateValue(b.createdAt) - dateValue(a.createdAt));
+  const entries = [
+    ...state.workSessions
+      .filter((x) => x.date === date)
+      .map((x) => ({ ...x, kind: "normal" })),
+    ...state.corrections
+      .filter((x) => x.date === date)
+      .map((x) => ({ ...x, kind: "correction" })),
+  ].sort((a, b) => dateValue(b.createdAt) - dateValue(a.createdAt));
   const total = entries.reduce((s, x) => s + (Number(x.duration) || 0), 0);
   $("todayTimelineTotal").textContent = formatDuration(total);
   if (!entries.length) {
-    $("todayWorkList").innerHTML = `<div class="empty-state"><div class="empty-title">No work logged today</div><div class="empty-text">Add time to a task and your daily timeline will appear here.</div></div>`;
+    $("todayWorkList").innerHTML =
+      `<div class="empty-state"><div class="empty-title">No work logged today</div><div class="empty-text">Add time to a task and your daily timeline will appear here.</div></div>`;
     return;
   }
   const groups = [];
@@ -3796,7 +4411,9 @@ function updateDashboard() {
 
   const total = nm + cm;
 
-  const ids = new Set([...normal, ...corr].map((x) => x.taskId).filter((id) => getTask(id)));
+  const ids = new Set(
+    [...normal, ...corr].map((x) => x.taskId).filter((id) => getTask(id)),
+  );
 
   $("statTodayTime").textContent = formatDuration(total);
 
@@ -3804,9 +4421,16 @@ function updateDashboard() {
 
   $("statCorrections").textContent = corr.length;
 
-  const activeStatuses = [STATUS.OPEN, STATUS.IN_PRODUCTION, STATUS.IN_APPROVAL, STATUS.EXECUTION_PROOF];
+  const activeStatuses = [
+    STATUS.OPEN,
+    STATUS.IN_PRODUCTION,
+    STATUS.IN_APPROVAL,
+    STATUS.EXECUTION_PROOF,
+  ];
 
-  $("statOpenTasks").textContent = state.tasks.filter((t) => activeStatuses.includes(t.status)).length;
+  $("statOpenTasks").textContent = state.tasks.filter((t) =>
+    activeStatuses.includes(t.status),
+  ).length;
 
   $("summaryWorked").textContent = formatDuration(total);
 
@@ -3885,10 +4509,12 @@ function ensureWorkWeekNavigation() {
     changeSelectedWorkWeek(1);
   };
 
-  nav.querySelector('[data-week-nav="current"]')?.addEventListener("click", () => {
-    selectedWorkWeekDate = today();
-    renderWorkHours();
-  });
+  nav
+    .querySelector('[data-week-nav="current"]')
+    ?.addEventListener("click", () => {
+      selectedWorkWeekDate = today();
+      renderWorkHours();
+    });
 }
 
 function changeSelectedWorkWeek(offset) {
@@ -3987,11 +4613,14 @@ function renderWorkHours() {
   // SELECTED WEEK DATA
   // =========================
 
-  $("workWeekActual").textContent = formatDuration(weekActualMinutes(selectedDate));
+  $("workWeekActual").textContent = formatDuration(
+    weekActualMinutes(selectedDate),
+  );
 
   $("flexiWeekAdded").textContent = formatFlexi(weekFlexiMinutes(selectedDate));
 
-  $("workWeekFlexi").textContent = `${formatFlexi(weekFlexiMinutes(selectedDate))} flexi`;
+  $("workWeekFlexi").textContent =
+    `${formatFlexi(weekFlexiMinutes(selectedDate))} flexi`;
 
   // =========================
   // CURRENT FLEXI BALANCE
@@ -4000,21 +4629,25 @@ function renderWorkHours() {
 
   $("flexiOpening").textContent = formatFlexi(openingFlexiMinutes);
 
-// Dashboard Flexi Balance follows the selected week
-const selectedWeekEnd = getSunday(selectedDate);
+  // Dashboard Flexi Balance follows the selected week
+  const selectedWeekEnd = getSunday(selectedDate);
 
-$("flexiAvailable").textContent = formatFlexi(
-  availableFlexiMinutes(selectedWeekEnd),
-);
+  $("flexiAvailable").textContent = formatFlexi(
+    availableFlexiMinutes(selectedWeekEnd),
+  );
 
-  $("workAvailableFlexi").textContent = formatFlexi(availableFlexiMinutes(todayDate));
+  $("workAvailableFlexi").textContent = formatFlexi(
+    availableFlexiMinutes(todayDate),
+  );
 
   // $("workFlexiHelper").textContent =
   //   `${formatFlexi(openingFlexiMinutes)} opening + ${formatFlexi(weekFlexiMinutes(todayDate))} this week`;
 
-  const accumulatedFlexi = availableFlexiMinutes(todayDate) - openingFlexiMinutes;
+  const accumulatedFlexi =
+    availableFlexiMinutes(todayDate) - openingFlexiMinutes;
 
-  $("workFlexiHelper").textContent = `${formatFlexi(openingFlexiMinutes)} opening + ${formatFlexi(accumulatedFlexi)} accumulated`;
+  $("workFlexiHelper").textContent =
+    `${formatFlexi(openingFlexiMinutes)} opening + ${formatFlexi(accumulatedFlexi)} accumulated`;
 
   // =========================
   // WEEK LABEL
@@ -4023,7 +4656,8 @@ $("flexiAvailable").textContent = formatFlexi(
   const monday = getMonday(selectedDate);
   const sunday = getSunday(selectedDate);
 
-  $("workWeekLabel").textContent = `${dateLabel(monday)} → ${dateLabel(sunday)}`;
+  $("workWeekLabel").textContent =
+    `${dateLabel(monday)} → ${dateLabel(sunday)}`;
 
   // =========================
   // RENDER
@@ -4164,9 +4798,18 @@ function renderWorkWeekTable(date = today()) {
         `;
       }
 
-      const calc = calculateWorkDay(item.checkIn, item.checkOut, item.lunchMinutes);
+      const calc = calculateWorkDay(
+        item.checkIn,
+        item.checkOut,
+        item.lunchMinutes,
+      );
 
-      const flexiClass = calc.flexiMinutes > 0 ? "flexi-positive" : calc.flexiMinutes < 0 ? "below-target" : "";
+      const flexiClass =
+        calc.flexiMinutes > 0
+          ? "flexi-positive"
+          : calc.flexiMinutes < 0
+            ? "below-target"
+            : "";
 
       return `
         <tr>
@@ -4341,7 +4984,8 @@ function openWorkDayModal(date = today()) {
 
   $("workDayIsLeave").checked = Boolean(item?.isLeave);
 
-  $("workDayModalTitle").textContent = date === today() ? "Today's Work Hours" : `Work Hours · ${dateLabel(date)}`;
+  $("workDayModalTitle").textContent =
+    date === today() ? "Today's Work Hours" : `Work Hours · ${dateLabel(date)}`;
 
   updateWorkDayPreview();
 
@@ -4383,7 +5027,8 @@ function updateWorkDayPreview() {
   const calc = calculateWorkDay(checkIn.value, checkOut.value, lunch.value);
 
   if (!calc.valid) {
-    $("workDayPreview").innerHTML = "Enter check-in and check-out to see the calculation.";
+    $("workDayPreview").innerHTML =
+      "Enter check-in and check-out to see the calculation.";
 
     return;
   }
@@ -4486,7 +5131,11 @@ async function saveWorkDay(e) {
 
     closeModal("workDayModal");
 
-    notify(isLeave ? "Leave day saved. 8h deducted from Flexi." : "Work hours saved.");
+    notify(
+      isLeave
+        ? "Leave day saved. 8h deducted from Flexi."
+        : "Work hours saved.",
+    );
 
     renderWorkHours();
   } catch (err) {
@@ -4503,7 +5152,9 @@ function populateTaskClients(selectedClientId = "") {
 
   if (!select) return;
 
-  const clients = [...state.clients].sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+  const clients = [...state.clients].sort((a, b) =>
+    String(a.name || "").localeCompare(String(b.name || "")),
+  );
 
   select.innerHTML =
     `<option value="">Select client</option>` +
@@ -4516,7 +5167,10 @@ function populateTaskClients(selectedClientId = "") {
       )
       .join("");
 
-  if (selectedClientId && clients.some((client) => client.id === selectedClientId)) {
+  if (
+    selectedClientId &&
+    clients.some((client) => client.id === selectedClientId)
+  ) {
     select.value = selectedClientId;
   }
 }
@@ -4572,7 +5226,12 @@ function populateTaskTypeFilter() {
    * Include configured client types
    * + legacy types still used by old tasks.
    */
-  const types = [...new Set([...getAllClientTypes(), ...state.tasks.map((task) => task.type).filter(Boolean)])].sort();
+  const types = [
+    ...new Set([
+      ...getAllClientTypes(),
+      ...state.tasks.map((task) => task.type).filter(Boolean),
+    ]),
+  ].sort();
 
   select.innerHTML =
     `<option value="all">All types</option>` +
@@ -4616,7 +5275,10 @@ function populateTaskStatusFilter() {
       )
       .join("");
 
-  if (selectedStatus === "all" || statuses.some((status) => status.value === selectedStatus)) {
+  if (
+    selectedStatus === "all" ||
+    statuses.some((status) => status.value === selectedStatus)
+  ) {
     select.value = selectedStatus;
   } else {
     select.value = "all";
@@ -4651,7 +5313,10 @@ function populateTaskLogFilter() {
       )
       .join("");
 
-  if (selectedLog === "all" || options.some((option) => option.value === selectedLog)) {
+  if (
+    selectedLog === "all" ||
+    options.some((option) => option.value === selectedLog)
+  ) {
     select.value = selectedLog;
   } else {
     select.value = "all";
@@ -4701,7 +5366,9 @@ function renderClients() {
     return;
   }
 
-  const clients = [...state.clients].sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+  const clients = [...state.clients].sort((a, b) =>
+    String(a.name || "").localeCompare(String(b.name || "")),
+  );
 
   container.innerHTML = clients
     .map((client) => {
@@ -4746,7 +5413,10 @@ function renderClients() {
               types.length
                 ? types
                     .map((type) => {
-                      const fixedMinutes = getFixedMinutesPerAsset(client.id, type);
+                      const fixedMinutes = getFixedMinutesPerAsset(
+                        client.id,
+                        type,
+                      );
 
                       return `
       <span class="client-type-chip">
@@ -4777,21 +5447,25 @@ function renderClients() {
     })
     .join("");
 
-  container.querySelectorAll('[data-client-action="edit"]').forEach((button) => {
-    button.onclick = () => {
-      const client = getClient(button.dataset.clientId);
+  container
+    .querySelectorAll('[data-client-action="edit"]')
+    .forEach((button) => {
+      button.onclick = () => {
+        const client = getClient(button.dataset.clientId);
 
-      if (client) {
-        openClientModal(client);
-      }
-    };
-  });
+        if (client) {
+          openClientModal(client);
+        }
+      };
+    });
 
-  container.querySelectorAll('[data-client-action="delete"]').forEach((button) => {
-    button.onclick = () => {
-      deleteClient(button.dataset.clientId);
-    };
-  });
+  container
+    .querySelectorAll('[data-client-action="delete"]')
+    .forEach((button) => {
+      button.onclick = () => {
+        deleteClient(button.dataset.clientId);
+      };
+    });
 }
 
 function renderClientTypeDraft() {
@@ -4811,7 +5485,10 @@ function renderClientTypeDraft() {
 
   container.innerHTML = clientTypesDraft
     .map((type, index) => {
-      const fixedEnabled = Object.prototype.hasOwnProperty.call(clientFixedTimesDraft, type);
+      const fixedEnabled = Object.prototype.hasOwnProperty.call(
+        clientFixedTimesDraft,
+        type,
+      );
 
       const minutes = Number(clientFixedTimesDraft[type]) || 0;
 
@@ -4905,7 +5582,9 @@ function renderClientTypeDraft() {
          * For legacy types, use the old global
          * Fixed Time value as the initial value.
          */
-        if (!Object.prototype.hasOwnProperty.call(clientFixedTimesDraft, type)) {
+        if (
+          !Object.prototype.hasOwnProperty.call(clientFixedTimesDraft, type)
+        ) {
           clientFixedTimesDraft[type] = Number(FIXED_ASSET_TIMES[type]) || 0;
         }
       } else {
@@ -4948,7 +5627,11 @@ function openClientModal(client = null) {
    */
   clientFixedTimesDraft = {};
 
-  if (client && client.fixedTimeTypes && typeof client.fixedTimeTypes === "object") {
+  if (
+    client &&
+    client.fixedTimeTypes &&
+    typeof client.fixedTimeTypes === "object"
+  ) {
     Object.entries(client.fixedTimeTypes).forEach(([type, value]) => {
       if (clientTypesDraft.includes(type)) {
         const minutes = Math.max(0, Number(value) || 0);
@@ -4989,7 +5672,9 @@ function addClientType() {
     return notify("Enter a task type first.", "warning");
   }
 
-  const exists = clientTypesDraft.some((type) => type.toLowerCase() === value.toLowerCase());
+  const exists = clientTypesDraft.some(
+    (type) => type.toLowerCase() === value.toLowerCase(),
+  );
 
   if (exists) {
     return notify("This task type already exists.", "warning");
@@ -5137,7 +5822,10 @@ async function deleteClient(clientId) {
   );
 
   if (affectedTasks.length) {
-    return notify(`Cannot delete "${client.name}" because ${affectedTasks.length} task(s) are using this client.`, "warning");
+    return notify(
+      `Cannot delete "${client.name}" because ${affectedTasks.length} task(s) are using this client.`,
+      "warning",
+    );
   }
 
   state.pendingConfirm = async () => {
@@ -5183,7 +5871,13 @@ function fillSelects() {
 }
 const ACTIVE_PAGE_STORAGE_KEY = "worklog_active_page";
 
-const VALID_APP_PAGES = ["dashboard", "work-hours", "tasks", "reports", "settings"];
+const VALID_APP_PAGES = [
+  "dashboard",
+  "work-hours",
+  "tasks",
+  "reports",
+  "settings",
+];
 
 // ========================================
 // HOVER / PIN SIDEBAR
@@ -5206,7 +5900,10 @@ function applySidebarState(collapsed, { reveal = false } = {}) {
 
     button.setAttribute("aria-expanded", String(pinned || Boolean(reveal)));
 
-    button.setAttribute("aria-label", pinned ? "Unpin sidebar" : "Pin sidebar open");
+    button.setAttribute(
+      "aria-label",
+      pinned ? "Unpin sidebar" : "Pin sidebar open",
+    );
 
     button.title = pinned ? "Unpin sidebar" : "Pin sidebar open";
 
@@ -5239,7 +5936,11 @@ function initSidebarToggle() {
     }
 
     // Rời Sidebar và nút ghim thì tự ẩn
-    if (app.classList.contains("sidebar-peek") && !sidebar.contains(event.target) && !button.contains(event.target)) {
+    if (
+      app.classList.contains("sidebar-peek") &&
+      !sidebar.contains(event.target) &&
+      !button.contains(event.target)
+    ) {
       applySidebarState(true);
     }
   });
@@ -5284,9 +5985,13 @@ function setPage(page) {
     console.warn("Could not save the active page:", err);
   }
 
-  document.querySelectorAll(".page").forEach((x) => x.classList.toggle("active", x.id === `page-${page}`));
+  document
+    .querySelectorAll(".page")
+    .forEach((x) => x.classList.toggle("active", x.id === `page-${page}`));
 
-  document.querySelectorAll(".nav-item").forEach((x) => x.classList.toggle("active", x.dataset.page === page));
+  document
+    .querySelectorAll(".nav-item")
+    .forEach((x) => x.classList.toggle("active", x.dataset.page === page));
 
   const meta = {
     dashboard: ["Dashboard", "Track your work, rework, and daily progress."],
@@ -5325,14 +6030,16 @@ function updateAssetTimePreview() {
   $("assetAmountField").style.display = "";
 
   if (!amount) {
-    $("assetTimePreview").textContent = `Fixed time: ${minutesPerAsset}m per asset`;
+    $("assetTimePreview").textContent =
+      `Fixed time: ${minutesPerAsset}m per asset`;
 
     return;
   }
 
   const totalMinutes = amount * minutesPerAsset;
 
-  $("assetTimePreview").textContent = `Fixed time: ${amount} × ${minutesPerAsset}m = ${formatDuration(totalMinutes)}`;
+  $("assetTimePreview").textContent =
+    `Fixed time: ${amount} × ${minutesPerAsset}m = ${formatDuration(totalMinutes)}`;
 }
 
 function updateTaskRequiredTimeVisibility() {
@@ -5350,9 +6057,13 @@ function updateTaskRequiredTimeVisibility() {
 }
 
 function updateLoggedTimePreview() {
-  const loggedMinutes = Math.max(0, Math.round(Number($("taskLoggedHours").value) || 0));
+  const loggedMinutes = Math.max(
+    0,
+    Math.round(Number($("taskLoggedHours").value) || 0),
+  );
 
-  $("loggedTimePreview").textContent = `Logged: ${formatDuration(loggedMinutes)}`;
+  $("loggedTimePreview").textContent =
+    `Logged: ${formatDuration(loggedMinutes)}`;
 }
 // function openLoggedTimeModal(task) {
 //   if (!task) return;
@@ -5421,9 +6132,13 @@ function openLoggedTimeModal(task) {
 }
 
 function updateQuickLoggedTimePreview() {
-  const loggedMinutes = Math.max(0, Math.round(Number($("loggedTimeHours").value) || 0));
+  const loggedMinutes = Math.max(
+    0,
+    Math.round(Number($("loggedTimeHours").value) || 0),
+  );
 
-  $("quickLoggedTimePreview").textContent = `Logged: ${formatDuration(loggedMinutes)}`;
+  $("quickLoggedTimePreview").textContent =
+    `Logged: ${formatDuration(loggedMinutes)}`;
 }
 
 async function saveLoggedTime(e) {
@@ -5441,7 +6156,10 @@ async function saveLoggedTime(e) {
     return notify("Task not found.", "error");
   }
 
-  const loggedMinutes = Math.max(0, Math.round(Number($("loggedTimeHours").value) || 0));
+  const loggedMinutes = Math.max(
+    0,
+    Math.round(Number($("loggedTimeHours").value) || 0),
+  );
 
   try {
     await updateDoc(doc(db, "tasks", taskId), {
@@ -5550,7 +6268,10 @@ async function quickLogTask(task) {
   //   return;
   // }
 
-  const quickLogRemainingMinutes = Math.max(0, summary.requiredMinutes - summary.loggedMinutes);
+  const quickLogRemainingMinutes = Math.max(
+    0,
+    summary.requiredMinutes - summary.loggedMinutes,
+  );
 
   if (quickLogRemainingMinutes <= 0) {
     return;
@@ -5630,7 +6351,9 @@ function openTaskModal(task = null) {
 
   $("taskTitle").value = task?.title || "";
 
-  const inferredClient = task?.clientId ? getClient(task.clientId) : getClientByName(task?.project);
+  const inferredClient = task?.clientId
+    ? getClient(task.clientId)
+    : getClientByName(task?.project);
 
   const clientId = inferredClient?.id || (!task ? defaultTaskClientId : "");
 
@@ -5703,7 +6426,13 @@ function openTimeModal(taskId, entry = null) {
 
   // Fixed Time uses its existing shadow WorkLog.
   if (isFixedTask && !entry) {
-    entry = state.workSessions.find((x) => x.taskId === taskId && x.source === "fixed" && x.fixedTaskId === taskId) || null;
+    entry =
+      state.workSessions.find(
+        (x) =>
+          x.taskId === taskId &&
+          x.source === "fixed" &&
+          x.fixedTaskId === taskId,
+      ) || null;
   }
 
   $("timeTaskId").value = taskId;
@@ -5713,11 +6442,14 @@ function openTimeModal(taskId, entry = null) {
   $("timeEntryId").value = entry?.id || "";
 
   // Fixed Time → use its Worked date / fixedDate
-  $("timeDate").value = entry?.date || (isFixedTask ? t.fixedDate : "") || today();
+  $("timeDate").value =
+    entry?.date || (isFixedTask ? t.fixedDate : "") || today();
 
   // Normal Time → Required Time
   // Fixed Time → show fixedMinutes only
-  const displayMinutes = isFixedTask ? Number(t.fixedMinutes) || 0 : Number(t.requiredMinutes) || 0;
+  const displayMinutes = isFixedTask
+    ? Number(t.fixedMinutes) || 0
+    : Number(t.requiredMinutes) || 0;
 
   $("timeRequiredHours").value = Math.floor(displayMinutes / 60);
 
@@ -5728,7 +6460,11 @@ function openTimeModal(taskId, entry = null) {
   const title = $("timeModalTitle");
 
   if (title) {
-    title.textContent = isFixedTask ? "Edit Fixed Time Date" : entry ? "Edit WorkLog" : "Add WorkLog";
+    title.textContent = isFixedTask
+      ? "Edit Fixed Time Date"
+      : entry
+        ? "Edit WorkLog"
+        : "Add WorkLog";
   }
 
   openModal("timeModal");
@@ -5756,7 +6492,9 @@ function openCorrectionModal(taskId, entry = null) {
 
   const reason = entry?.reason || "client_feedback";
 
-  const reasonInput = document.querySelector(`input[name="correctionReason"][value="${reason}"]`);
+  const reasonInput = document.querySelector(
+    `input[name="correctionReason"][value="${reason}"]`,
+  );
 
   if (reasonInput) {
     reasonInput.checked = true;
@@ -5782,15 +6520,30 @@ function openHistory(taskId) {
   const isFixedTask = (Number(t.fixedMinutes) || 0) > 0;
   if (!t) return;
 
-  const normal = state.workSessions.filter((x) => x.taskId === taskId && x.source !== "fixed").sort((a, b) => String(b.date).localeCompare(String(a.date)) || dateValue(b.createdAt) - dateValue(a.createdAt));
+  const normal = state.workSessions
+    .filter((x) => x.taskId === taskId && x.source !== "fixed")
+    .sort(
+      (a, b) =>
+        String(b.date).localeCompare(String(a.date)) ||
+        dateValue(b.createdAt) - dateValue(a.createdAt),
+    );
 
-  const corr = state.corrections.filter((x) => x.taskId === taskId).sort((a, b) => String(b.date).localeCompare(String(a.date)) || dateValue(b.createdAt) - dateValue(a.createdAt));
+  const corr = state.corrections
+    .filter((x) => x.taskId === taskId)
+    .sort(
+      (a, b) =>
+        String(b.date).localeCompare(String(a.date)) ||
+        dateValue(b.createdAt) - dateValue(a.createdAt),
+    );
 
-  const acts = state.activities.filter((x) => x.taskId === taskId).sort(sortNewest);
+  const acts = state.activities
+    .filter((x) => x.taskId === taskId)
+    .sort(sortNewest);
 
   $("historyTitle").textContent = t.title;
 
-  $("historySubtitle").textContent = `${t.project || "No project"} · ${t.type || "Other"}`;
+  $("historySubtitle").textContent =
+    `${t.project || "No project"} · ${t.type || "Other"}`;
 
   $("historySummary").innerHTML = `
     <div>
@@ -5862,7 +6615,11 @@ function openHistory(taskId) {
       kind: "Correction",
       source: "correction",
     })),
-  ].sort((a, b) => String(b.date).localeCompare(String(a.date)) || dateValue(b.createdAt) - dateValue(a.createdAt));
+  ].sort(
+    (a, b) =>
+      String(b.date).localeCompare(String(a.date)) ||
+      dateValue(b.createdAt) - dateValue(a.createdAt),
+  );
 
   const timeLogHtml = entries.length
     ? entries
@@ -6057,7 +6814,9 @@ let fixedMigrationDone = false;
 async function syncFixedWorkLog(taskId, fixedMinutes, fixedDate) {
   if (!taskId) return;
 
-  const existingEntries = state.workSessions.filter((x) => x.source === "fixed" && x.fixedTaskId === taskId);
+  const existingEntries = state.workSessions.filter(
+    (x) => x.source === "fixed" && x.fixedTaskId === taskId,
+  );
 
   if (Number(fixedMinutes) > 0 && fixedDate) {
     const data = {
@@ -6114,10 +6873,14 @@ async function migrateFixedTasksToWorkLogs() {
       ...d.data(),
     }));
 
-    const fixedTasks = state.tasks.filter((task) => Number(task.fixedMinutes) > 0 && task.fixedDate);
+    const fixedTasks = state.tasks.filter(
+      (task) => Number(task.fixedMinutes) > 0 && task.fixedDate,
+    );
 
     for (const task of fixedTasks) {
-      const entries = workLogs.filter((x) => x.source === "fixed" && x.fixedTaskId === task.id);
+      const entries = workLogs.filter(
+        (x) => x.source === "fixed" && x.fixedTaskId === task.id,
+      );
 
       const data = {
         taskId: task.id,
@@ -6275,6 +7038,568 @@ async function migrateFixedTasksToWorkLogs() {
 //     notify(err.message || "Could not save task.", "error");
 //   }
 // }
+// ========================================
+// COMBO TASKS
+// ========================================
+
+function parseComboSubtasks(raw = $("comboSubtasks")?.value || "") {
+  return raw
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const parts = line.split(/\s+/);
+      const countryCode = (parts.shift() || "").toUpperCase();
+
+      return {
+        countryCode,
+        title: countryCode,
+        url: parts.join(" ").trim(),
+      };
+    });
+}
+
+function populateComboClients(selectedClientId = "") {
+  const select = $("comboClient");
+  if (!select) return;
+
+  select.innerHTML =
+    `<option value="">Select client</option>` +
+    state.clients
+      .map(
+        (client) => `
+      <option value="${escapeHtml(client.id)}">
+        ${escapeHtml(client.name)}
+      </option>
+    `,
+      )
+      .join("");
+
+  select.value = selectedClientId;
+}
+
+function populateComboTypes(selectedType = "") {
+  const clientId = $("comboClient")?.value || "";
+  const select = $("comboType");
+  if (!select) return;
+
+  const types = getClientTypes(clientId);
+
+  select.innerHTML =
+    `<option value="">Select type</option>` +
+    types
+      .map(
+        (type) => `
+      <option value="${escapeHtml(type)}">
+        ${escapeHtml(type)}
+      </option>
+    `,
+      )
+      .join("");
+
+  if (selectedType && types.includes(selectedType)) {
+    select.value = selectedType;
+  }
+
+  updateComboPreview();
+}
+
+function updateComboPreview() {
+  const clientId = $("comboClient")?.value || "";
+  const type = $("comboType")?.value || "";
+  const minutesPerAsset = getFixedMinutesPerAsset(clientId, type);
+  const subtasks = parseComboSubtasks();
+
+  const fixedPreview = $("comboFixedPreview");
+  const subtaskPreview = $("comboSubtaskPreview");
+
+  if (fixedPreview) {
+    fixedPreview.textContent =
+      clientId && type
+        ? minutesPerAsset > 0
+          ? `Fixed Time: ${formatDuration(minutesPerAsset)} per subtask`
+          : "This Asset Type does not have Fixed Time configured."
+        : "Select a client and asset type to see Fixed Time.";
+  }
+
+  if (subtaskPreview) {
+    subtaskPreview.textContent = `${subtasks.length} subtasks · Total Fixed Time: ${formatDuration(subtasks.length * minutesPerAsset)}`;
+  }
+}
+
+function openComboModal(comboId = "") {
+  const form = $("comboForm");
+  form?.reset();
+
+  const combo = comboId
+    ? state.combos.find((item) => item.id === comboId)
+    : null;
+
+  $("comboEditId").value = combo?.id || "";
+
+  $("comboModalTitle").textContent = combo
+    ? "Edit Main Ticket"
+    : "Create Combo";
+
+  $("createComboSubmitBtn").textContent = combo
+    ? "Save Changes"
+    : "Create Combo";
+
+  $("comboName").value = combo?.name || "";
+  $("comboMainUrl").value = combo?.mainUrl || "";
+  $("comboDate").value = combo?.date || today();
+
+  populateComboClients(combo?.clientId || "");
+  populateComboTypes(combo?.type || "");
+
+  if (combo) {
+    const subtasks = state.tasks
+      .filter((task) => task.comboId === combo.id)
+      .sort((a, b) =>
+        String(a.countryCode || a.title).localeCompare(
+          String(b.countryCode || b.title),
+        ),
+      );
+
+    $("comboSubtasks").value = subtasks
+      .map((task) =>
+        `${task.countryCode || task.title} ${task.url || ""}`.trim(),
+      )
+      .join("\n");
+  } else {
+    $("comboSubtasks").value = "";
+  }
+
+  updateComboPreview();
+  openModal("comboModal");
+}
+
+function validateComboUrl(value, required = false) {
+  const url = String(value || "").trim();
+
+  if (!url) return !required;
+
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "https:" || parsed.protocol === "http:";
+  } catch {
+    return false;
+  }
+}
+
+function validateComboSubtasks(subtasks) {
+  if (!subtasks.length) {
+    return "Please enter at least one subtask.";
+  }
+
+  if (subtasks.length > 150) {
+    return "A Combo can contain up to 150 subtasks.";
+  }
+
+  const seen = new Set();
+
+  for (let i = 0; i < subtasks.length; i++) {
+    const item = subtasks[i];
+    const lineNumber = i + 1;
+
+    if (!/^[A-Z]{2,3}$/.test(item.countryCode)) {
+      return `Line ${lineNumber}: Country code must contain 2–3 letters.`;
+    }
+
+    if (!item.url) {
+      return `Line ${lineNumber}: Missing email link.`;
+    }
+
+    if (!validateComboUrl(item.url, true)) {
+      return `Line ${lineNumber}: Please enter a valid HTTP/HTTPS link.`;
+    }
+
+    if (seen.has(item.countryCode)) {
+      return `Duplicate country code: ${item.countryCode}.`;
+    }
+
+    seen.add(item.countryCode);
+  }
+
+  return "";
+}
+
+// Create one new Subtask and its related records.
+async function createComboSubtask({
+  comboId,
+  comboName,
+  clientId,
+  clientName,
+  type,
+  date,
+  minutesPerAsset,
+  item,
+}) {
+  const taskRef = await addDoc(collection(db, "tasks"), {
+    title: item.countryCode,
+    countryCode: item.countryCode,
+
+    clientId,
+    project: clientName,
+    type,
+
+    status: STATUS.OPEN,
+
+    url: item.url,
+    note: "",
+
+    assetAmount: 1,
+    fixedMinutes: minutesPerAsset,
+    fixedDate: date,
+    requiredMinutes: 0,
+
+    comboId,
+    comboName,
+
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+
+  await syncFixedWorkLog(taskRef.id, minutesPerAsset, date);
+
+  await addDoc(collection(db, "activityLogs"), {
+    taskId: taskRef.id,
+    action: "task_created",
+    metadata: {
+      comboId,
+      comboName,
+      countryCode: item.countryCode,
+    },
+    createdAt: serverTimestamp(),
+  });
+
+  return taskRef.id;
+}
+
+// Update fixed WorkLog without creating duplicate entries.
+async function updateComboFixedWorkLog(taskId, minutes, date) {
+  const entries = state.workSessions.filter(
+    (item) => item.source === "fixed" && item.fixedTaskId === taskId,
+  );
+
+  if (!entries.length) {
+    await syncFixedWorkLog(taskId, minutes, date);
+    return;
+  }
+
+  const [primary, ...duplicates] = entries;
+
+  await updateDoc(doc(db, "workSessions", primary.id), {
+    taskId,
+    date,
+    duration: Number(minutes),
+    updatedAt: serverTimestamp(),
+  });
+
+  for (const duplicate of duplicates) {
+    await deleteDoc(doc(db, "workSessions", duplicate.id));
+  }
+}
+
+// Permanently remove a Subtask and all of its related data.
+async function deleteComboSubtask(taskId) {
+  const workLogs = state.workSessions.filter((item) => item.taskId === taskId);
+
+  const corrections = state.corrections.filter(
+    (item) => item.taskId === taskId,
+  );
+
+  const activities = state.activities.filter((item) => item.taskId === taskId);
+
+  for (const item of workLogs) {
+    await deleteDoc(doc(db, "workSessions", item.id));
+  }
+
+  for (const item of corrections) {
+    await deleteDoc(doc(db, "corrections", item.id));
+  }
+
+  for (const item of activities) {
+    await deleteDoc(doc(db, "activityLogs", item.id));
+  }
+
+  await deleteDoc(doc(db, "tasks", taskId));
+}
+
+// Save a new Combo or update an existing Combo.
+async function saveCombo(e) {
+  e.preventDefault();
+
+  const comboId = $("comboEditId").value.trim();
+
+  const name = $("comboName").value.trim();
+  const mainUrl = $("comboMainUrl").value.trim();
+  const clientId = $("comboClient").value;
+  const type = $("comboType").value;
+  const date = $("comboDate").value;
+
+  const client = getClient(clientId);
+  const minutesPerAsset = getFixedMinutesPerAsset(clientId, type);
+  const subtasks = parseComboSubtasks();
+
+  if (!name) {
+    return notify("Please enter a Main Ticket name.", "warning");
+  }
+
+  if (!clientId || !client) {
+    return notify("Please select a client.", "warning");
+  }
+
+  if (!type) {
+    return notify("Please select an Asset Type.", "warning");
+  }
+
+  if (!date) {
+    return notify("Please select a date.", "warning");
+  }
+
+  if (!validateComboUrl(mainUrl)) {
+    return notify(
+      "Main Ticket Link must be a valid HTTP/HTTPS link.",
+      "warning",
+    );
+  }
+
+  if (minutesPerAsset <= 0) {
+    return notify(
+      "This Asset Type does not have Fixed Time configured.",
+      "warning",
+    );
+  }
+
+  const validationError = validateComboSubtasks(subtasks);
+
+  if (validationError) {
+    return notify(validationError, "warning");
+  }
+
+  const isEditing = Boolean(comboId);
+  const totalFixedMinutes = minutesPerAsset * subtasks.length;
+
+  confirmAction(
+    isEditing ? "Save Combo Changes?" : "Create Combo?",
+    isEditing
+      ? `Update "${name}" and synchronize its ${subtasks.length} subtasks?`
+      : `Create "${name}" with ${subtasks.length} subtasks? Total Fixed Time: ${formatDuration(totalFixedMinutes)}.`,
+    async () => {
+      const button = $("createComboSubmitBtn");
+
+      if (button) {
+        button.disabled = true;
+        button.textContent = isEditing ? "Saving..." : "Creating...";
+      }
+
+      try {
+        if (!isEditing) {
+          const comboRef = await addDoc(collection(db, "combos"), {
+            name,
+            mainUrl,
+            clientId,
+            clientName: client.name,
+            type,
+            date,
+            minutesPerAsset,
+            ticketCount: subtasks.length,
+            totalFixedMinutes,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          });
+
+          for (const item of subtasks) {
+            await createComboSubtask({
+              comboId: comboRef.id,
+              comboName: name,
+              clientId,
+              clientName: client.name,
+              type,
+              date,
+              minutesPerAsset,
+              item,
+            });
+          }
+
+          expandedComboIds.delete(comboRef.id);
+
+          notify(
+            `Combo created successfully. ${subtasks.length} subtasks added.`,
+            "success",
+          );
+        } else {
+          const existingCombo = state.combos.find(
+            (item) => item.id === comboId,
+          );
+
+          if (!existingCombo) {
+            throw new Error("Combo not found. Please refresh and try again.");
+          }
+
+          const existingTasks = state.tasks.filter(
+            (task) => task.comboId === comboId,
+          );
+
+          const existingByCode = new Map(
+            existingTasks.map((task) => [
+              String(task.countryCode || task.title).toUpperCase(),
+              task,
+            ]),
+          );
+
+          const incomingCodes = new Set(
+            subtasks.map((item) => item.countryCode),
+          );
+
+          // Update Main Ticket information.
+          await updateDoc(doc(db, "combos", comboId), {
+            name,
+            mainUrl,
+            clientId,
+            clientName: client.name,
+            type,
+            date,
+            minutesPerAsset,
+            ticketCount: subtasks.length,
+            totalFixedMinutes,
+            updatedAt: serverTimestamp(),
+          });
+
+          // Update existing Subtasks or create new ones.
+          for (const item of subtasks) {
+            const existingTask = existingByCode.get(item.countryCode);
+
+            if (existingTask) {
+              await updateDoc(doc(db, "tasks", existingTask.id), {
+                title: item.countryCode,
+                countryCode: item.countryCode,
+                url: item.url,
+
+                clientId,
+                project: client.name,
+                type,
+
+                fixedMinutes: minutesPerAsset,
+                fixedDate: date,
+
+                comboName: name,
+                comboId,
+
+                updatedAt: serverTimestamp(),
+              });
+
+              await updateComboFixedWorkLog(
+                existingTask.id,
+                minutesPerAsset,
+                date,
+              );
+              await addDoc(collection(db, "activityLogs"), {
+                taskId: existingTask.id,
+                action: "task_edited",
+                metadata: {
+                  comboId,
+                  comboName: name,
+                  countryCode: item.countryCode,
+                },
+                createdAt: serverTimestamp(),
+              });
+            } else {
+              await createComboSubtask({
+                comboId,
+                comboName: name,
+                clientId,
+                clientName: client.name,
+                type,
+                date,
+                minutesPerAsset,
+                item,
+              });
+            }
+          }
+
+          // Delete Subtasks removed from the edited list.
+          for (const oldTask of existingTasks) {
+            const oldCode = String(
+              oldTask.countryCode || oldTask.title,
+            ).toUpperCase();
+
+            if (!incomingCodes.has(oldCode)) {
+              await deleteComboSubtask(oldTask.id);
+            }
+          }
+
+          notify("Combo and Subtasks updated successfully.", "success");
+        }
+
+        closeModal("comboModal");
+        $("comboForm").reset();
+
+        selectedTaskIds.clear();
+        renderTasks();
+        updateDashboard?.();
+      } catch (err) {
+        console.error("Save Combo failed:", err);
+        notify(err.message || "Could not save Combo.", "error");
+      } finally {
+        if (button) {
+          button.disabled = false;
+          button.textContent = isEditing ? "Save Changes" : "Create Combo";
+        }
+      }
+    },
+    isEditing ? "Save Changes" : "Create Combo",
+  );
+}
+
+// Delete the Main Ticket and every Subtask with its related records.
+function deleteCombo(comboId) {
+  const combo = state.combos.find((item) => item.id === comboId);
+  if (!combo) return;
+
+  const subtasks = state.tasks.filter((task) => task.comboId === comboId);
+
+  confirmAction(
+    "Delete entire Combo?",
+    `Delete "${combo.name}" and all ${subtasks.length} Subtasks, WorkLogs, Corrections and Activity Logs? This cannot be undone.`,
+    async () => {
+      try {
+        for (const task of subtasks) {
+          await deleteComboSubtask(task.id);
+        }
+
+        await deleteDoc(doc(db, "combos", comboId));
+
+        expandedComboIds.delete(comboId);
+        selectedTaskIds.clear();
+
+        notify("Combo and all Subtasks deleted.", "success");
+
+        renderTasks();
+        updateDashboard?.();
+      } catch (err) {
+        console.error("Delete Combo failed:", err);
+        notify(err.message || "Could not delete Combo.", "error");
+      }
+    },
+    "Delete Combo",
+  );
+}
+
+async function copyComboLink(url) {
+  if (!url) {
+    return notify("No link available.", "warning");
+  }
+
+  try {
+    await navigator.clipboard.writeText(url);
+    notify("Link copied.");
+  } catch (err) {
+    console.error("Copy link failed:", err);
+    notify("Could not copy link.", "error");
+  }
+}
 
 async function saveTask(e) {
   e.preventDefault();
@@ -6296,14 +7621,24 @@ async function saveTask(e) {
 
   const minutesPerAsset = getFixedMinutesPerAsset(clientId, type);
 
-  const assetAmount = minutesPerAsset > 0 ? Math.max(0, Number($("taskAssetAmount").value) || 0) : 0;
+  const assetAmount =
+    minutesPerAsset > 0
+      ? Math.max(0, Number($("taskAssetAmount").value) || 0)
+      : 0;
 
-  const fixedMinutes = minutesPerAsset > 0 && assetAmount > 0 ? assetAmount * minutesPerAsset : 0;
+  const fixedMinutes =
+    minutesPerAsset > 0 && assetAmount > 0 ? assetAmount * minutesPerAsset : 0;
   // Required Time is only available for normal tasks.
-  const requiredMinutes = minutesPerAsset > 0 ? 0 : minutes($("taskRequiredHours").value, $("taskRequiredMinutes").value);
+  const requiredMinutes =
+    minutesPerAsset > 0
+      ? 0
+      : minutes($("taskRequiredHours").value, $("taskRequiredMinutes").value);
   const existingTask = id ? getTask(id) : null;
 
-  const fixedDate = minutesPerAsset > 0 && fixedMinutes > 0 ? existingTask?.fixedDate || today() : "";
+  const fixedDate =
+    minutesPerAsset > 0 && fixedMinutes > 0
+      ? existingTask?.fixedDate || today()
+      : "";
 
   const data = {
     title: $("taskTitle").value.trim(),
@@ -6630,7 +7965,14 @@ async function saveTime(e) {
 
   if (isFixedTask) {
     try {
-      const fixedEntry = entryId ? state.workSessions.find((x) => x.id === entryId) : state.workSessions.find((x) => x.taskId === taskId && x.source === "fixed" && x.fixedTaskId === taskId);
+      const fixedEntry = entryId
+        ? state.workSessions.find((x) => x.id === entryId)
+        : state.workSessions.find(
+            (x) =>
+              x.taskId === taskId &&
+              x.source === "fixed" &&
+              x.fixedTaskId === taskId,
+          );
 
       // Task is the source of truth for Fixed Worked date
       await updateDoc(doc(db, "tasks", taskId), {
@@ -6673,7 +8015,10 @@ async function saveTime(e) {
    * ========================================
    */
 
-  const requiredMinutes = minutes($("timeRequiredHours").value, $("timeRequiredMinutes").value);
+  const requiredMinutes = minutes(
+    $("timeRequiredHours").value,
+    $("timeRequiredMinutes").value,
+  );
 
   if (requiredMinutes <= 0) {
     return notify("Please enter Required time.", "warning");
@@ -6738,7 +8083,12 @@ async function deleteWorkLog(entryId) {
 
   const task = getTask(entry.taskId);
 
-  confirmAction("Delete WorkLog?", `Delete ${formatDuration(entry.duration)} from "${task?.title || "this task"}"? This cannot be undone.`, "", "Delete");
+  confirmAction(
+    "Delete WorkLog?",
+    `Delete ${formatDuration(entry.duration)} from "${task?.title || "this task"}"? This cannot be undone.`,
+    "",
+    "Delete",
+  );
 
   state.pendingConfirm = async () => {
     try {
@@ -6769,7 +8119,12 @@ async function deleteCorrection(entryId) {
 
   const task = getTask(entry.taskId);
 
-  confirmAction("Delete Correction?", `Delete ${formatDuration(entry.duration)} from "${task?.title || "this task"}"? This cannot be undone.`, "", "Delete");
+  confirmAction(
+    "Delete Correction?",
+    `Delete ${formatDuration(entry.duration)} from "${task?.title || "this task"}"? This cannot be undone.`,
+    "",
+    "Delete",
+  );
 
   state.pendingConfirm = async () => {
     try {
@@ -6795,13 +8150,18 @@ async function saveCorrection(e) {
 
   const entryId = $("correctionEntryId").value.trim();
 
-  const duration = minutes($("correctionHours").value, $("correctionMinutes").value);
+  const duration = minutes(
+    $("correctionHours").value,
+    $("correctionMinutes").value,
+  );
 
   const date = $("correctionDate").value;
 
   const note = $("correctionNote").value.trim();
 
-  const reason = document.querySelector('input[name="correctionReason"]:checked')?.value || "other";
+  const reason =
+    document.querySelector('input[name="correctionReason"]:checked')?.value ||
+    "other";
 
   if (!taskId || !date || duration <= 0) {
     return notify("Enter a duration.", "warning");
@@ -6876,7 +8236,13 @@ async function saveCorrection(e) {
 // }
 
 function nextStatus(current) {
-  const order = [STATUS.OPEN, STATUS.IN_PRODUCTION, STATUS.IN_APPROVAL, STATUS.EXECUTION_PROOF, STATUS.COMPLETED];
+  const order = [
+    STATUS.OPEN,
+    STATUS.IN_PRODUCTION,
+    STATUS.IN_APPROVAL,
+    STATUS.EXECUTION_PROOF,
+    STATUS.COMPLETED,
+  ];
 
   const i = order.indexOf(current);
 
@@ -6915,7 +8281,11 @@ function confirmAction(title, message, fn, button = "Confirm") {
 async function archiveTask(id) {
   const t = getTask(id);
   if (!t) return;
-  confirmAction("Archive task?", `"${t.title}" will leave the active task list, but all time logs, corrections, reports, and history will remain.`, "");
+  confirmAction(
+    "Archive task?",
+    `"${t.title}" will leave the active task list, but all time logs, corrections, reports, and history will remain.`,
+    "",
+  );
   state.pendingConfirm = async () => {
     await updateDoc(doc(db, "tasks", id), {
       status: STATUS.ARCHIVED,
@@ -6930,12 +8300,19 @@ async function deleteTask(id) {
   const t = getTask(id);
   if (!t) return;
 
-  confirmAction("Delete task?", `"${t.title}" and all related WorkLogs, corrections, and history will be permanently deleted.`, "", "Delete");
+  confirmAction(
+    "Delete task?",
+    `"${t.title}" and all related WorkLogs, corrections, and history will be permanently deleted.`,
+    "",
+    "Delete",
+  );
 
   state.pendingConfirm = async () => {
     try {
       // Delete all WorkLog entries for this task
-      const taskWorkSessions = state.workSessions.filter((x) => x.taskId === id);
+      const taskWorkSessions = state.workSessions.filter(
+        (x) => x.taskId === id,
+      );
 
       for (const entry of taskWorkSessions) {
         await deleteDoc(doc(db, "workSessions", entry.id));
@@ -6977,9 +8354,21 @@ async function unarchiveTask(id) {
   notify("Task unarchived.");
 }
 async function clearAll() {
-  confirmAction("Clear all WorkLog data?", "This permanently deletes tasks, time logs, corrections, and activity history.", "", "Clear All");
+  confirmAction(
+    "Clear all WorkLog data?",
+    "This permanently deletes tasks, time logs, corrections, and activity history.",
+    "",
+    "Clear All",
+  );
   state.pendingConfirm = async () => {
-    for (const name of ["tasks", "workSessions", "corrections", "activityLogs", "workDays"]) {
+    for (const name of [
+      "tasks",
+      "combos",
+      "workSessions",
+      "corrections",
+      "activityLogs",
+      "workDays",
+    ]) {
       const snap = await getDocs(collection(db, name));
       const batch = writeBatch(db);
       snap.forEach((d) => batch.delete(d.ref));
@@ -7011,16 +8400,29 @@ function reportEntries() {
 
     if (!t) return false;
 
-    return (!from || e.date >= from) && (!to || e.date <= to) && (project === "all" || t.project === project);
+    return (
+      (!from || e.date >= from) &&
+      (!to || e.date <= to) &&
+      (project === "all" || t.project === project)
+    );
   });
 }
 function renderBars(target, map) {
   const rows = [...map.entries()].sort((a, b) => b[1] - a[1]);
-  $(target).innerHTML = rows.length ? rows.map(([name, val]) => `<div class="breakdown-row"><div><span>${escapeHtml(name)}</span><strong>${formatDuration(val)}</strong></div><div class="bar"><i style="width:${Math.max(3, Math.round((val / (rows[0]?.[1] || 1)) * 100))}%"></i></div></div>`).join("") : `<div class="empty-small">No data for this period.</div>`;
+  $(target).innerHTML = rows.length
+    ? rows
+        .map(
+          ([name, val]) =>
+            `<div class="breakdown-row"><div><span>${escapeHtml(name)}</span><strong>${formatDuration(val)}</strong></div><div class="bar"><i style="width:${Math.max(3, Math.round((val / (rows[0]?.[1] || 1)) * 100))}%"></i></div></div>`,
+        )
+        .join("")
+    : `<div class="empty-small">No data for this period.</div>`;
 }
 
 function firstWorkLogDate(taskId) {
-  const logs = state.workSessions.filter((x) => x.taskId === taskId && x.date).sort((a, b) => String(a.date).localeCompare(String(b.date)));
+  const logs = state.workSessions
+    .filter((x) => x.taskId === taskId && x.date)
+    .sort((a, b) => String(a.date).localeCompare(String(b.date)));
 
   const first = logs[0];
 
@@ -7095,7 +8497,9 @@ function renderReport() {
   /*
    * Correction is still stored per correction entry.
    */
-  const correctionTime = entries.filter((x) => x.kind === "correction").reduce((sum, x) => sum + (Number(x.duration) || 0), 0);
+  const correctionTime = entries
+    .filter((x) => x.kind === "correction")
+    .reduce((sum, x) => sum + (Number(x.duration) || 0), 0);
 
   const totalTime = normalTime + correctionTime;
 
@@ -7201,7 +8605,8 @@ function renderReport() {
 
         const requiredMinutes = Number(task.requiredMinutes) || 0;
 
-        existingType.newTime += fixedMinutes > 0 ? fixedMinutes : requiredMinutes;
+        existingType.newTime +=
+          fixedMinutes > 0 ? fixedMinutes : requiredMinutes;
 
         existingType.newAssets += assetAmount;
 
@@ -7226,7 +8631,8 @@ function renderReport() {
 
       const requiredMinutes = Number(task.requiredMinutes) || 0;
 
-      existingType.totalTime += fixedMinutes > 0 ? fixedMinutes : requiredMinutes;
+      existingType.totalTime +=
+        fixedMinutes > 0 ? fixedMinutes : requiredMinutes;
 
       existingType.loggedTime += Number(task.loggedMinutes) || 0;
 
@@ -7746,14 +9152,19 @@ function renderReport() {
 // }
 
 function renderTypeBreakdown(typeMap) {
-  const rows = [...typeMap.entries()].sort((a, b) => b[1].newTime + b[1].correctionTime - (a[1].newTime + a[1].correctionTime));
+  const rows = [...typeMap.entries()].sort(
+    (a, b) =>
+      b[1].newTime + b[1].correctionTime - (a[1].newTime + a[1].correctionTime),
+  );
 
   $("reportByType").innerHTML = rows.length
     ? rows
         .map(([name, data]) => {
           const totalTime = data.newTime + data.correctionTime;
 
-          const maxTime = (rows[0]?.[1]?.newTime || 0) + (rows[0]?.[1]?.correctionTime || 0) || 1;
+          const maxTime =
+            (rows[0]?.[1]?.newTime || 0) +
+              (rows[0]?.[1]?.correctionTime || 0) || 1;
 
           const width = Math.max(3, Math.round((totalTime / maxTime) * 100));
 
@@ -7891,9 +9302,15 @@ function saveReportDates() {
 }
 
 function populateProjects() {
-  const projects = [...new Set(state.tasks.map((t) => t.project).filter(Boolean))].sort();
+  const projects = [
+    ...new Set(state.tasks.map((t) => t.project).filter(Boolean)),
+  ].sort();
   const current = $("reportProject").value || "all";
-  $("reportProject").innerHTML = `<option value="all">All projects</option>` + projects.map((p) => `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join("");
+  $("reportProject").innerHTML =
+    `<option value="all">All projects</option>` +
+    projects
+      .map((p) => `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`)
+      .join("");
   $("reportProject").value = projects.includes(current) ? current : "all";
 }
 
@@ -7922,17 +9339,48 @@ function generateSummary() {
     .map((id) => ({
       task: getTask(id),
 
-      mins: entries.filter((x) => x.taskId === id).reduce((s, x) => s + (Number(x.duration) || 0), 0),
+      mins: entries
+        .filter((x) => x.taskId === id)
+        .reduce((s, x) => s + (Number(x.duration) || 0), 0),
     }))
     .sort((a, b) => b.mins - a.mins);
 
-  const completed = state.tasks.filter((t) => t.status === STATUS.COMPLETED && ids.includes(t.id)).sort((a, b) => String(a.title || "").localeCompare(String(b.title || "")));
+  const completed = state.tasks
+    .filter((t) => t.status === STATUS.COMPLETED && ids.includes(t.id))
+    .sort((a, b) => String(a.title || "").localeCompare(String(b.title || "")));
 
-  const active = state.tasks.filter((t) => ids.includes(t.id) && t.status !== STATUS.COMPLETED && t.status !== STATUS.ARCHIVED).sort((a, b) => String(a.title || "").localeCompare(String(b.title || "")));
+  const active = state.tasks
+    .filter(
+      (t) =>
+        ids.includes(t.id) &&
+        t.status !== STATUS.COMPLETED &&
+        t.status !== STATUS.ARCHIVED,
+    )
+    .sort((a, b) => String(a.title || "").localeCompare(String(b.title || "")));
 
-  const lines = [dateLabel(d), "", `Worked: ${formatDuration(total)}`, `Tasks: ${ids.length}`, `Corrections: ${corrections}`, "", "Main work:", ...grouped.slice(0, 6).map((x) => `• ${x.task.title} — ${formatDuration(x.mins)}`), "", "Completed:", ...(completed.length ? completed.map((t) => `✓ ${t.title}`) : ["• None recorded today"]), "", "Open:", ...(active.length ? active.map((t) => `• ${t.title}`) : ["• None"])];
+  const lines = [
+    dateLabel(d),
+    "",
+    `Worked: ${formatDuration(total)}`,
+    `Tasks: ${ids.length}`,
+    `Corrections: ${corrections}`,
+    "",
+    "Main work:",
+    ...grouped
+      .slice(0, 6)
+      .map((x) => `• ${x.task.title} — ${formatDuration(x.mins)}`),
+    "",
+    "Completed:",
+    ...(completed.length
+      ? completed.map((t) => `✓ ${t.title}`)
+      : ["• None recorded today"]),
+    "",
+    "Open:",
+    ...(active.length ? active.map((t) => `• ${t.title}`) : ["• None"]),
+  ];
 
-  $("summaryModalSubtitle").textContent = `${dateLabel(d)} · ${formatDuration(total)}`;
+  $("summaryModalSubtitle").textContent =
+    `${dateLabel(d)} · ${formatDuration(total)}`;
 
   $("summaryText").value = lines.join("\n");
 
@@ -8065,9 +9513,23 @@ function openDataUnlockModal() {
   }, 50);
 }
 function bindActions() {
-  document.querySelectorAll(".nav-item").forEach((b) => (b.onclick = () => setPage(b.dataset.page)));
-  document.querySelectorAll("[data-page-link]").forEach((b) => (b.onclick = () => setPage(b.dataset.pageLink)));
+  document
+    .querySelectorAll(".nav-item")
+    .forEach((b) => (b.onclick = () => setPage(b.dataset.page)));
+  document
+    .querySelectorAll("[data-page-link]")
+    .forEach((b) => (b.onclick = () => setPage(b.dataset.pageLink)));
   $("newTaskBtn").onclick = () => openTaskModal();
+  $("createComboBtn").onclick = () => openComboModal();
+
+  $("comboForm").onsubmit = saveCombo;
+
+  $("comboClient").onchange = () => {
+    populateComboTypes();
+  };
+
+  $("comboType").onchange = updateComboPreview;
+  $("comboSubtasks").oninput = updateComboPreview;
   $("addClientBtn").onclick = () => openClientModal();
 
   $("clientForm").onsubmit = saveClient;
@@ -8139,7 +9601,46 @@ function bindActions() {
 
   document.addEventListener("click", async (e) => {
     const target = e.target;
+    // EDIT COMBO
+    const editComboButton = target.closest("[data-edit-combo]");
 
+    if (editComboButton) {
+      openComboModal(editComboButton.dataset.editCombo);
+      return;
+    }
+
+    // DELETE COMBO
+    const deleteComboButton = target.closest("[data-delete-combo]");
+
+    if (deleteComboButton) {
+      deleteCombo(deleteComboButton.dataset.deleteCombo);
+      return;
+    }
+    // COMBO SUBTASK TOGGLE
+    const comboToggle = target.closest("[data-combo-toggle]");
+
+    if (comboToggle) {
+      const comboId = comboToggle.dataset.comboToggle;
+
+      if (expandedComboIds.has(comboId)) {
+        expandedComboIds.delete(comboId);
+      } else {
+        expandedComboIds.add(comboId);
+      }
+
+      renderTasks();
+
+      return;
+    }
+
+    // COPY COMBO / SUBTASK LINK
+    const comboCopy = target.closest("[data-copy-combo-link]");
+
+    if (comboCopy) {
+      await copyComboLink(comboCopy.dataset.copyComboLink);
+
+      return;
+    }
     // VIEW SWITCH
     const viewButton = target.closest("[data-task-view]");
 
@@ -8183,7 +9684,26 @@ function bindActions() {
 
       return;
     }
+    // SELECT ALL SUBTASKS IN ONE COMBO
+    const comboCheckbox = target.closest("[data-select-combo]");
 
+    if (comboCheckbox) {
+      const comboId = comboCheckbox.dataset.selectCombo;
+
+      const comboTaskIds = currentVisibleTaskIds.filter((id) => {
+        const task = getTask(id);
+        return task && task.comboId === comboId;
+      });
+
+      if (comboCheckbox.checked) {
+        comboTaskIds.forEach((id) => selectedTaskIds.add(id));
+      } else {
+        comboTaskIds.forEach((id) => selectedTaskIds.delete(id));
+      }
+
+      renderTasks();
+      return;
+    }
     // SELECT ALL BY STATUS
     const statusCheckbox = target.closest("[data-select-status]");
 
@@ -8244,7 +9764,9 @@ function bindActions() {
   });
   $("showArchivedBtn").onclick = () => {
     state.showArchived = !state.showArchived;
-    $("showArchivedBtn").textContent = state.showArchived ? "Hide Archived" : "Show Archived";
+    $("showArchivedBtn").textContent = state.showArchived
+      ? "Hide Archived"
+      : "Show Archived";
     renderTasks();
   };
   $("refreshReportBtn").onclick = renderReport;
@@ -8341,7 +9863,9 @@ function bindActions() {
     await unlockData();
   });
 
-  document.querySelectorAll("[data-close-modal]").forEach((b) => (b.onclick = () => closeModal(b.dataset.closeModal)));
+  document
+    .querySelectorAll("[data-close-modal]")
+    .forEach((b) => (b.onclick = () => closeModal(b.dataset.closeModal)));
   document.querySelectorAll("[data-time-preset]").forEach(
     (b) =>
       (b.onclick = () => {
@@ -8372,6 +9896,13 @@ function bindActions() {
 
   ["tasksList", "dashboardTasks"].forEach((id) =>
     $(id).addEventListener("click", async (e) => {
+      const copyButton = e.target.closest("[data-copy-link]");
+
+      if (copyButton) {
+        await copyComboLink(copyButton.dataset.copyLink);
+        return;
+      }
+
       const b = e.target.closest("[data-action]");
       if (!b) return;
       const id = b.dataset.taskId;
@@ -8383,13 +9914,17 @@ function bindActions() {
         if (!row) return;
 
         // Đóng tất cả menu khác trước
-        document.querySelectorAll(".task-row.task-more-open").forEach((otherRow) => {
-          if (otherRow === row) return;
+        document
+          .querySelectorAll(".task-row.task-more-open")
+          .forEach((otherRow) => {
+            if (otherRow === row) return;
 
-          otherRow.classList.remove("task-more-open");
+            otherRow.classList.remove("task-more-open");
 
-          otherRow.querySelector('[data-action="toggle-task-more"]')?.setAttribute("aria-expanded", "false");
-        });
+            otherRow
+              .querySelector('[data-action="toggle-task-more"]')
+              ?.setAttribute("aria-expanded", "false");
+          });
 
         const isOpen = row.classList.toggle("task-more-open");
 
@@ -8409,7 +9944,10 @@ function bindActions() {
             let left = rect.right - menuWidth;
 
             // Không để menu tràn khỏi cạnh trái/phải màn hình
-            left = Math.max(8, Math.min(left, window.innerWidth - menuWidth - 8));
+            left = Math.max(
+              8,
+              Math.min(left, window.innerWidth - menuWidth - 8),
+            );
 
             // Mặc định mở xuống dưới
             let top = rect.bottom + 6;
@@ -8420,7 +9958,10 @@ function bindActions() {
             }
 
             // Giữ menu nằm trong viewport
-            top = Math.max(8, Math.min(top, window.innerHeight - menuHeight - 8));
+            top = Math.max(
+              8,
+              Math.min(top, window.innerHeight - menuHeight - 8),
+            );
 
             menu.style.left = `${left}px`;
             menu.style.top = `${top}px`;
@@ -8444,11 +9985,16 @@ function bindActions() {
   );
   document.addEventListener("click", (e) => {
     // Đóng More menu khi click bên ngoài
-    if (!e.target.closest(".task-action-toolbar") && !e.target.closest(".task-secondary-actions")) {
+    if (
+      !e.target.closest(".task-action-toolbar") &&
+      !e.target.closest(".task-secondary-actions")
+    ) {
       document.querySelectorAll(".task-row.task-more-open").forEach((row) => {
         row.classList.remove("task-more-open");
 
-        row.querySelector('[data-action="toggle-task-more"]')?.setAttribute("aria-expanded", "false");
+        row
+          .querySelector('[data-action="toggle-task-more"]')
+          ?.setAttribute("aria-expanded", "false");
       });
     }
 
@@ -8471,7 +10017,9 @@ function bindActions() {
       behavior: "smooth",
     });
 
-    document.querySelectorAll("#taskTypeQuickNav .task-type-nav-item").forEach((item) => item.classList.remove("active"));
+    document
+      .querySelectorAll("#taskTypeQuickNav .task-type-nav-item")
+      .forEach((item) => item.classList.remove("active"));
 
     button.classList.add("active");
   });
@@ -8483,7 +10031,9 @@ function bindActions() {
       document.querySelectorAll(".task-row.task-more-open").forEach((row) => {
         row.classList.remove("task-more-open");
 
-        row.querySelector('[data-action="toggle-task-more"]')?.setAttribute("aria-expanded", "false");
+        row
+          .querySelector('[data-action="toggle-task-more"]')
+          ?.setAttribute("aria-expanded", "false");
       });
     },
     true,
@@ -8491,7 +10041,9 @@ function bindActions() {
 }
 function exportCsv() {
   const entries = reportEntries(),
-    lines = [["Date", "Task", "Project", "Type", "Normal", "Correction", "Total"]];
+    lines = [
+      ["Date", "Task", "Project", "Type", "Normal", "Correction", "Total"],
+    ];
   const map = new Map();
   for (const e of entries) {
     const t = getTask(e.taskId),
@@ -8500,8 +10052,21 @@ function exportCsv() {
     if (!r) map.set(key, (r = { date: e.date, t, normal: 0, correction: 0 }));
     r[e.kind] += e.duration;
   }
-  for (const r of map.values()) lines.push([r.date, r.t.title, r.t.project || "", r.t.type || "", formatDuration(r.normal), formatDuration(r.correction), formatDuration(r.normal + r.correction)]);
-  const csv = lines.map((row) => row.map((v) => `"${String(v).replaceAll('"', '""')}"`).join(",")).join("\n"),
+  for (const r of map.values())
+    lines.push([
+      r.date,
+      r.t.title,
+      r.t.project || "",
+      r.t.type || "",
+      formatDuration(r.normal),
+      formatDuration(r.correction),
+      formatDuration(r.normal + r.correction),
+    ]);
+  const csv = lines
+      .map((row) =>
+        row.map((v) => `"${String(v).replaceAll('"', '""')}"`).join(","),
+      )
+      .join("\n"),
     blob = new Blob([csv], { type: "text/csv" }),
     a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
@@ -8515,6 +10080,8 @@ function exportJson() {
     exportedAt: new Date().toISOString(),
 
     tasks: state.tasks,
+    combos: state.combos,
+
     workSessions: state.workSessions,
     corrections: state.corrections,
     activityLogs: state.activities,
@@ -8553,6 +10120,14 @@ async function restoreJson(e) {
       await importDoc("tasks", id, copy);
     }
 
+    for (const combo of data.combos || []) {
+      const id = combo.id;
+      const copy = { ...combo };
+
+      delete copy.id;
+
+      await importDoc("combos", id, copy);
+    }
     for (const x of data.workSessions || []) {
       const id = x.id;
       const copy = { ...x };
@@ -8651,6 +10226,15 @@ function subscribe() {
       }
     }),
 
+    onSnapshot(collection(db, "combos"), (snap) => {
+      state.combos = snap.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+      }));
+
+      renderTasks();
+    }),
+
     onSnapshot(collection(db, "workSessions"), (snap) => {
       state.workSessions = snap.docs.map((d) => ({
         id: d.id,
@@ -8707,6 +10291,8 @@ function stopSubscriptions() {
 function clearDataState() {
   state.clients = [];
   state.tasks = [];
+  state.combos = [];
+  expandedComboIds.clear();
   state.workSessions = [];
   state.corrections = [];
   state.activities = [];
@@ -8737,7 +10323,18 @@ function clearDataUI() {
     workHours.innerHTML = "";
   }
 
-  const workHourValues = ["workTodayActual", "workTodayFlexi", "workWeekActual", "flexiOpening", "flexiWeekAdded", "flexiAvailable", "workAvailableFlexi", "workFlexiHelper", "workWeekFlexi", "workWeekLabel"];
+  const workHourValues = [
+    "workTodayActual",
+    "workTodayFlexi",
+    "workWeekActual",
+    "flexiOpening",
+    "flexiWeekAdded",
+    "flexiAvailable",
+    "workAvailableFlexi",
+    "workFlexiHelper",
+    "workWeekFlexi",
+    "workWeekLabel",
+  ];
 
   workHourValues.forEach((id) => {
     const el = $(id);
@@ -8791,7 +10388,9 @@ function startDataLockTimer() {
   clearDataLockTimer();
   clearDataLockCountdown();
 
-  const expiresAt = Number(sessionStorage.getItem(DATA_UNLOCK_EXPIRES_KEY) || 0);
+  const expiresAt = Number(
+    sessionStorage.getItem(DATA_UNLOCK_EXPIRES_KEY) || 0,
+  );
 
   const remainingMs = expiresAt - Date.now();
 
@@ -8852,7 +10451,10 @@ async function unlockData() {
 
     dataUnlocked = true;
 
-    sessionStorage.setItem(DATA_UNLOCK_EXPIRES_KEY, String(Date.now() + DATA_SESSION_MS));
+    sessionStorage.setItem(
+      DATA_UNLOCK_EXPIRES_KEY,
+      String(Date.now() + DATA_SESSION_MS),
+    );
 
     $("unlockPassword").value = "";
     error?.classList.add("hidden");
@@ -8958,7 +10560,9 @@ await loadAppLockConfig();
 
 renderAppLockSettings();
 
-const unlockExpiresAt = Number(sessionStorage.getItem(DATA_UNLOCK_EXPIRES_KEY) || 0);
+const unlockExpiresAt = Number(
+  sessionStorage.getItem(DATA_UNLOCK_EXPIRES_KEY) || 0,
+);
 
 if (unlockExpiresAt > Date.now()) {
   dataUnlocked = true;
