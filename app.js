@@ -4000,7 +4000,12 @@ function renderWorkHours() {
 
   $("flexiOpening").textContent = formatFlexi(openingFlexiMinutes);
 
-  $("flexiAvailable").textContent = formatFlexi(availableFlexiMinutes(todayDate));
+// Dashboard Flexi Balance follows the selected week
+const selectedWeekEnd = getSunday(selectedDate);
+
+$("flexiAvailable").textContent = formatFlexi(
+  availableFlexiMinutes(selectedWeekEnd),
+);
 
   $("workAvailableFlexi").textContent = formatFlexi(availableFlexiMinutes(todayDate));
 
