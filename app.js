@@ -1,17 +1,5 @@
 import { db } from "./firebase.js";
-import {
-  collection,
-  addDoc,
-  doc,
-  updateDoc,
-  deleteDoc,
-  onSnapshot,
-  serverTimestamp,
-  getDocs,
-  getDoc,
-  setDoc,
-  writeBatch,
-} from "https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js";
+import { collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot, serverTimestamp, getDocs, getDoc, setDoc, writeBatch } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js";
 
 // ==================== BASIC UI PROTECTION ====================
 
@@ -65,9 +53,7 @@ function readUiPreferences() {
   try {
     const value = JSON.parse(localStorage.getItem(UI_PREFERENCES_KEY) || "{}");
 
-    return value && typeof value === "object" && !Array.isArray(value)
-      ? value
-      : {};
+    return value && typeof value === "object" && !Array.isArray(value) ? value : {};
   } catch (err) {
     console.warn("Could not read saved UI preferences:", err);
     return {};
@@ -91,6 +77,73 @@ function saveUiPreferences(patch) {
   }
 }
 
+// ========================================
+// TASK FILTERS - PERSISTENT PREFERENCES
+// ========================================
+
+function saveTaskFilterPreferences() {
+  saveUiPreferences({
+    taskFilters: {
+      search: $("taskSearch")?.value || "",
+      status: $("taskStatusFilter")?.value || "all",
+      type: $("taskTypeFilter")?.value || "all",
+      log: $("taskLogFilter")?.value || "all",
+      date: $("taskDateFilter")?.value || "this-week",
+      customDate: $("taskCustomDate")?.value || "",
+    },
+  });
+}
+
+function restoreTaskFilterPreferences() {
+  const saved = readUiPreferences().taskFilters || {};
+
+  const setSelectValue = (id, value, fallback) => {
+    const select = $(id);
+    if (!select) return;
+
+    const targetValue = value || fallback;
+
+    if (Array.from(select.options).some((option) => option.value === targetValue)) {
+      select.value = targetValue;
+    } else {
+      select.value = fallback;
+    }
+  };
+
+  if ($("taskSearch")) {
+    $("taskSearch").value = saved.search || "";
+  }
+
+  setSelectValue("taskStatusFilter", saved.status, "all");
+  setSelectValue("taskTypeFilter", saved.type, "all");
+  setSelectValue("taskLogFilter", saved.log, "all");
+
+  // Mặc định This week nếu chưa có lựa chọn được lưu
+  setSelectValue("taskDateFilter", saved.date, "this-week");
+
+  if ($("taskCustomDate")) {
+    $("taskCustomDate").value = saved.customDate || "";
+
+    $("taskCustomDate").style.display = $("taskDateFilter")?.value === "custom" ? "" : "none";
+  }
+}
+
+// Theo dõi trạng thái tải dữ liệu ban đầu
+let clientsSnapshotReady = false;
+let tasksSnapshotReady = false;
+let taskFiltersRestored = false;
+
+// Chỉ restore khi cả Clients và Tasks đã tải xong
+function tryRestoreTaskFilterPreferences() {
+  if (taskFiltersRestored || !clientsSnapshotReady || !tasksSnapshotReady) {
+    return;
+  }
+
+  restoreTaskFilterPreferences();
+  taskFiltersRestored = true;
+
+  console.log("[Task Filters] Preferences restored");
+}
 function applyTheme(theme) {
   const isDark = theme === "dark";
 
@@ -265,9 +318,7 @@ function renderDataLockCountdown() {
 
   if (!el) return;
 
-  const expiresAt = Number(
-    sessionStorage.getItem(DATA_UNLOCK_EXPIRES_KEY) || 0,
-  );
+  const expiresAt = Number(sessionStorage.getItem(DATA_UNLOCK_EXPIRES_KEY) || 0);
 
   if (!dataUnlocked || !expiresAt) {
     el.textContent = "Locked";
@@ -303,8 +354,7 @@ const DATA_SESSION_MS = DATA_SESSION_MINUTES * 60 * 1000;
 
 const DATA_UNLOCK_EXPIRES_KEY = "worklog-data-unlock-expires-at";
 
-let dataUnlocked =
-  Number(sessionStorage.getItem(DATA_UNLOCK_EXPIRES_KEY) || 0) > Date.now();
+let dataUnlocked = Number(sessionStorage.getItem(DATA_UNLOCK_EXPIRES_KEY) || 0) > Date.now();
 
 let dataLockTimer = null;
 
@@ -379,9 +429,7 @@ function renderTaskDefaultsSettings() {
 
   if (!select) return;
 
-  const clients = [...state.clients].sort((a, b) =>
-    String(a.name || "").localeCompare(String(b.name || "")),
-  );
+  const clients = [...state.clients].sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
 
   select.innerHTML =
     `<option value="">No default client</option>` +
@@ -465,10 +513,7 @@ async function saveWorkHoursSettings(e) {
 
   const dailyTarget = Math.max(0, Number($("dailyTargetMinutes")?.value) || 0);
 
-  const openingFlexi = Math.max(
-    0,
-    Number($("openingFlexiMinutes")?.value) || 0,
-  );
+  const openingFlexi = Math.max(0, Number($("openingFlexiMinutes")?.value) || 0);
 
   try {
     await setDoc(
@@ -554,8 +599,7 @@ const timeAgo = (ts) => {
 
   // Firebase Timestamp-like object
   else if (typeof ts === "object" && Number.isFinite(Number(ts.seconds))) {
-    millis =
-      Number(ts.seconds) * 1000 + Math.floor(Number(ts.nanoseconds || 0) / 1e6);
+    millis = Number(ts.seconds) * 1000 + Math.floor(Number(ts.nanoseconds || 0) / 1e6);
   }
 
   // JavaScript Date
@@ -603,11 +647,7 @@ function getClientTypes(clientId) {
 function getClientFixedTimes(clientId) {
   const client = getClient(clientId);
 
-  if (
-    !client ||
-    !client.fixedTimeTypes ||
-    typeof client.fixedTimeTypes !== "object"
-  ) {
+  if (!client || !client.fixedTimeTypes || typeof client.fixedTimeTypes !== "object") {
     return {};
   }
 
@@ -664,13 +704,7 @@ function getClientByName(name) {
 }
 
 function getAllClientTypes() {
-  return [
-    ...new Set(
-      state.clients.flatMap((client) =>
-        Array.isArray(client.types) ? client.types : [],
-      ),
-    ),
-  ].sort();
+  return [...new Set(state.clients.flatMap((client) => (Array.isArray(client.types) ? client.types : [])))].sort();
 }
 // const taskMinutes = (id) => state.workSessions.filter((x) => x.taskId === id).reduce((s, x) => s + (Number(x.duration) || 0), 0) + state.corrections.filter((x) => x.taskId === id).reduce((s, x) => s + (Number(x.duration) || 0), 0);
 // const normalMinutes = (id) => state.workSessions.filter((x) => x.taskId === id).reduce((s, x) => s + (Number(x.duration) || 0), 0);
@@ -766,9 +800,7 @@ function getWorkDay(date) {
 
 function getWeekWorkDays(date = today()) {
   const dates = new Set(getWeekDates(date));
-  return state.workDays
-    .filter((x) => dates.has(x.date))
-    .sort((a, b) => a.date.localeCompare(b.date));
+  return state.workDays.filter((x) => dates.has(x.date)).sort((a, b) => a.date.localeCompare(b.date));
 }
 
 // function weekFlexiMinutes(date = today()) {
@@ -795,23 +827,15 @@ function getWorkDayFlexiMinutes(day) {
 }
 
 function weekFlexiMinutes(date = today()) {
-  return getWeekWorkDays(date).reduce(
-    (sum, day) => sum + getWorkDayFlexiMinutes(day),
-    0,
-  );
+  return getWeekWorkDays(date).reduce((sum, day) => sum + getWorkDayFlexiMinutes(day), 0);
 }
 
 function weekActualMinutes(date = today()) {
-  return getWeekWorkDays(date).reduce(
-    (sum, day) => sum + (Number(day.actualMinutes) || 0),
-    0,
-  );
+  return getWeekWorkDays(date).reduce((sum, day) => sum + (Number(day.actualMinutes) || 0), 0);
 }
 
 function availableFlexiMinutes(date = today()) {
-  const accumulatedFlexi = state.workDays
-    .filter((day) => day.date && day.date <= date)
-    .reduce((sum, day) => sum + getWorkDayFlexiMinutes(day), 0);
+  const accumulatedFlexi = state.workDays.filter((day) => day.date && day.date <= date).reduce((sum, day) => sum + getWorkDayFlexiMinutes(day), 0);
 
   return openingFlexiMinutes + accumulatedFlexi;
 }
@@ -1067,9 +1091,7 @@ function renderNextNotification() {
 }
 
 function notify(message, type = "success", duration = 3200) {
-  const normalizedType = ["success", "error", "warning", "info"].includes(type)
-    ? type
-    : "info";
+  const normalizedType = ["success", "error", "warning", "info"].includes(type) ? type : "info";
 
   const item = {
     message: String(message ?? ""),
@@ -1108,16 +1130,12 @@ function statusBadge(status) {
 }
 
 function taskDates(id) {
-  const dates = [...state.workSessions, ...state.corrections]
-    .filter((x) => x.taskId === id && x.date)
-    .map((x) => x.date);
+  const dates = [...state.workSessions, ...state.corrections].filter((x) => x.taskId === id && x.date).map((x) => x.date);
 
   return [...new Set(dates)].sort().reverse();
 }
 function lastActivity(id) {
-  const a = state.activities
-    .filter((x) => x.taskId === id)
-    .sort((x, y) => dateValue(y.createdAt) - dateValue(x.createdAt))[0];
+  const a = state.activities.filter((x) => x.taskId === id).sort((x, y) => dateValue(y.createdAt) - dateValue(x.createdAt))[0];
   return a ? timeAgo(a.createdAt) : "No activity yet";
 }
 function dateValue(ts) {
@@ -1132,9 +1150,7 @@ function dateValue(ts) {
   }
 
   if (typeof ts === "object" && Number.isFinite(Number(ts.seconds))) {
-    return (
-      Number(ts.seconds) * 1000 + Math.floor(Number(ts.nanoseconds || 0) / 1e6)
-    );
+    return Number(ts.seconds) * 1000 + Math.floor(Number(ts.nanoseconds || 0) / 1e6);
   }
 
   if (ts instanceof Date) {
@@ -1170,23 +1186,16 @@ function getTaskTimeSummary(taskOrId) {
 
   // Normal WorkLog entries only.
   // "fixed" shadow WorkLog must not be counted.
-  const workLogSessions = state.workSessions.filter(
-    (x) => x.taskId === task.id && x.source !== "fixed",
-  );
+  const workLogSessions = state.workSessions.filter((x) => x.taskId === task.id && x.source !== "fixed");
 
   // Actual WorkLog duration
-  const workLogDurationMinutes = workLogSessions.reduce(
-    (sum, x) => sum + (Number(x.duration) || 0),
-    0,
-  );
+  const workLogDurationMinutes = workLogSessions.reduce((sum, x) => sum + (Number(x.duration) || 0), 0);
 
   // Required Time is ONE current value stored on the task.
   // It is NOT summed from individual WorkLog entries.
   const workLogRequiredMinutes = Math.max(0, Number(task.requiredMinutes) || 0);
 
-  const correctionMinutesValue = state.corrections
-    .filter((x) => x.taskId === task.id)
-    .reduce((sum, x) => sum + (Number(x.duration) || 0), 0);
+  const correctionMinutesValue = state.corrections.filter((x) => x.taskId === task.id).reduce((sum, x) => sum + (Number(x.duration) || 0), 0);
 
   const loggedMinutes = Math.max(0, Number(task.loggedMinutes) || 0);
 
@@ -1267,9 +1276,7 @@ const normalMinutes = (id) => {
 };
 
 const correctionMinutes = (id) => {
-  return state.corrections
-    .filter((x) => x.taskId === id)
-    .reduce((sum, x) => sum + (Number(x.duration) || 0), 0);
+  return state.corrections.filter((x) => x.taskId === id).reduce((sum, x) => sum + (Number(x.duration) || 0), 0);
 };
 // function renderTask(task, compact = false) {
 //   const total = taskMinutes(task.id),
@@ -1519,16 +1526,7 @@ function renderTask(task, compact = false) {
   const firstWorkDate = dates.length ? dates[0] : "";
   const worked = firstWorkDate ? shortDate(firstWorkDate) : "No work date yet";
 
-  const {
-    fixedMinutes,
-    isFixedTask,
-    workLogDurationMinutes,
-    workLogRequiredMinutes,
-    correctionMinutes: taskCorrectionMinutes,
-    requiredMinutes,
-    loggedMinutes,
-    remainingMinutes,
-  } = summary;
+  const { fixedMinutes, isFixedTask, workLogDurationMinutes, workLogRequiredMinutes, correctionMinutes: taskCorrectionMinutes, requiredMinutes, loggedMinutes, remainingMinutes } = summary;
 
   /*
    * Fixed Time:
@@ -1574,16 +1572,10 @@ function renderTask(task, compact = false) {
   if (statusRequiredMinutes > 0 && loggedMinutes <= 0) {
     logStatus = "NOT LOGGED";
     logStatusClass = "not-logged";
-  } else if (
-    statusRequiredMinutes > 0 &&
-    loggedMinutes < statusRequiredMinutes
-  ) {
+  } else if (statusRequiredMinutes > 0 && loggedMinutes < statusRequiredMinutes) {
     logStatus = "INCOMPLETE";
     logStatusClass = "incomplete";
-  } else if (
-    statusRequiredMinutes > 0 &&
-    loggedMinutes >= statusRequiredMinutes
-  ) {
+  } else if (statusRequiredMinutes > 0 && loggedMinutes >= statusRequiredMinutes) {
     logStatus = "LOGGED";
     logStatusClass = "complete";
   }
@@ -1881,9 +1873,7 @@ function renderTaskBoardControls(types) {
 
   const selectedCount = selectedTaskIds.size;
 
-  const allSelected =
-    currentVisibleTaskIds.length > 0 &&
-    currentVisibleTaskIds.every((id) => selectedTaskIds.has(id));
+  const allSelected = currentVisibleTaskIds.length > 0 && currentVisibleTaskIds.every((id) => selectedTaskIds.has(id));
 
   controls.innerHTML = `
 
@@ -2018,9 +2008,7 @@ async function bulkChangeTaskStatus() {
   const statusSelect = $("taskBulkStatus");
   const newStatus = statusSelect?.value || "";
 
-  const ids = [...selectedTaskIds].filter((id) =>
-    currentVisibleTaskIds.includes(id),
-  );
+  const ids = [...selectedTaskIds].filter((id) => currentVisibleTaskIds.includes(id));
 
   if (!ids.length) {
     return notify("Please select at least one task.", "warning");
@@ -2113,9 +2101,7 @@ function renderTasks() {
   const df = $("taskDateFilter")?.value || "all";
   const customDate = $("taskCustomDate")?.value || "";
 
-  let tasks = state.tasks.filter(
-    (t) => state.showArchived || t.status !== STATUS.ARCHIVED,
-  );
+  let tasks = state.tasks.filter((t) => state.showArchived || t.status !== STATUS.ARCHIVED);
 
   // STATUS FILTER
   if (sf !== "all") {
@@ -2185,10 +2171,7 @@ function renderTasks() {
       return dateB.localeCompare(dateA);
     }
 
-    return (
-      dateValue(b.updatedAt || b.createdAt) -
-      dateValue(a.updatedAt || a.createdAt)
-    );
+    return dateValue(b.updatedAt || b.createdAt) - dateValue(a.updatedAt || a.createdAt);
   });
 
   const container = $("tasksList");
@@ -2252,12 +2235,7 @@ function renderTasks() {
   currentVisibleTaskIds = tasks.map((t) => t.id);
 
   if (taskViewMode === "asset" && selectedAssetType !== "all") {
-    currentVisibleTaskIds = tasks
-      .filter(
-        (task) =>
-          (String(task.type || "").trim() || "Other") === selectedAssetType,
-      )
-      .map((task) => task.id);
+    currentVisibleTaskIds = tasks.filter((task) => (String(task.type || "").trim() || "Other") === selectedAssetType).map((task) => task.id);
   }
 
   [...selectedTaskIds].forEach((id) => {
@@ -2281,13 +2259,7 @@ function renderTasks() {
   // ========================================
 
   if (taskViewMode === "status") {
-    const statusOrder = [
-      STATUS.OPEN,
-      STATUS.IN_PRODUCTION,
-      STATUS.IN_APPROVAL,
-      STATUS.EXECUTION_PROOF,
-      STATUS.COMPLETED,
-    ];
+    const statusOrder = [STATUS.OPEN, STATUS.IN_PRODUCTION, STATUS.IN_APPROVAL, STATUS.EXECUTION_PROOF, STATUS.COMPLETED];
 
     container.innerHTML = `
 
@@ -2316,12 +2288,7 @@ function renderTasks() {
       <input
         type="checkbox"
         data-select-status="${status}"
-        ${
-          statusTasks.length > 0 &&
-          statusTasks.every((task) => selectedTaskIds.has(task.id))
-            ? "checked"
-            : ""
-        }
+        ${statusTasks.length > 0 && statusTasks.every((task) => selectedTaskIds.has(task.id)) ? "checked" : ""}
       >
 
       <span>Select all</span>
@@ -2367,10 +2334,7 @@ function renderTasks() {
     let visibleTasks = tasks;
 
     if (selectedAssetType !== "all") {
-      visibleTasks = tasks.filter(
-        (task) =>
-          (String(task.type || "").trim() || "Other") === selectedAssetType,
-      );
+      visibleTasks = tasks.filter((task) => (String(task.type || "").trim() || "Other") === selectedAssetType);
     }
 
     container.innerHTML = `
@@ -2407,11 +2371,12 @@ function renderTasks() {
 // ========================================
 
 function ensureTaskRedesignStyles() {
-  if ($("taskRedesignStyles")) return;
+  let style = $("taskRedesignStyles");
 
-  const style = document.createElement("style");
-
-  style.id = "taskRedesignStyles";
+  if (!style) {
+    style = document.createElement("style");
+    style.id = "taskRedesignStyles";
+  }
 
   style.textContent = `
 
@@ -2760,6 +2725,10 @@ function ensureTaskRedesignStyles() {
   `;
 
   document.head.appendChild(style);
+
+  if (!style.isConnected) {
+    document.head.appendChild(style);
+  }
 }
 function ensureTasksBoardStyles() {
   if (document.getElementById("tasksBoardStyles")) return;
@@ -3677,32 +3646,18 @@ function taskMatchesDateFilter(task, filter, customDate = "") {
 function renderDashboardTasks() {
   const tasks = state.tasks
     .filter((t) => t.status !== STATUS.ARCHIVED)
-    .sort(
-      (a, b) =>
-        dateValue(b.updatedAt || b.createdAt) -
-        dateValue(a.updatedAt || a.createdAt),
-    )
+    .sort((a, b) => dateValue(b.updatedAt || b.createdAt) - dateValue(a.updatedAt || a.createdAt))
     .slice(0, 5);
-  $("dashboardTasks").innerHTML = tasks.length
-    ? tasks.map((t) => renderTask(t, true)).join("")
-    : `<div class="empty-state"><div class="empty-title">No tasks yet</div><div class="empty-text">Create your first task to get started.</div></div>`;
+  $("dashboardTasks").innerHTML = tasks.length ? tasks.map((t) => renderTask(t, true)).join("") : `<div class="empty-state"><div class="empty-title">No tasks yet</div><div class="empty-text">Create your first task to get started.</div></div>`;
 }
 
 function renderToday() {
   const date = today();
-  const entries = [
-    ...state.workSessions
-      .filter((x) => x.date === date)
-      .map((x) => ({ ...x, kind: "normal" })),
-    ...state.corrections
-      .filter((x) => x.date === date)
-      .map((x) => ({ ...x, kind: "correction" })),
-  ].sort((a, b) => dateValue(b.createdAt) - dateValue(a.createdAt));
+  const entries = [...state.workSessions.filter((x) => x.date === date).map((x) => ({ ...x, kind: "normal" })), ...state.corrections.filter((x) => x.date === date).map((x) => ({ ...x, kind: "correction" }))].sort((a, b) => dateValue(b.createdAt) - dateValue(a.createdAt));
   const total = entries.reduce((s, x) => s + (Number(x.duration) || 0), 0);
   $("todayTimelineTotal").textContent = formatDuration(total);
   if (!entries.length) {
-    $("todayWorkList").innerHTML =
-      `<div class="empty-state"><div class="empty-title">No work logged today</div><div class="empty-text">Add time to a task and your daily timeline will appear here.</div></div>`;
+    $("todayWorkList").innerHTML = `<div class="empty-state"><div class="empty-title">No work logged today</div><div class="empty-text">Add time to a task and your daily timeline will appear here.</div></div>`;
     return;
   }
   const groups = [];
@@ -3841,9 +3796,7 @@ function updateDashboard() {
 
   const total = nm + cm;
 
-  const ids = new Set(
-    [...normal, ...corr].map((x) => x.taskId).filter((id) => getTask(id)),
-  );
+  const ids = new Set([...normal, ...corr].map((x) => x.taskId).filter((id) => getTask(id)));
 
   $("statTodayTime").textContent = formatDuration(total);
 
@@ -3851,16 +3804,9 @@ function updateDashboard() {
 
   $("statCorrections").textContent = corr.length;
 
-  const activeStatuses = [
-    STATUS.OPEN,
-    STATUS.IN_PRODUCTION,
-    STATUS.IN_APPROVAL,
-    STATUS.EXECUTION_PROOF,
-  ];
+  const activeStatuses = [STATUS.OPEN, STATUS.IN_PRODUCTION, STATUS.IN_APPROVAL, STATUS.EXECUTION_PROOF];
 
-  $("statOpenTasks").textContent = state.tasks.filter((t) =>
-    activeStatuses.includes(t.status),
-  ).length;
+  $("statOpenTasks").textContent = state.tasks.filter((t) => activeStatuses.includes(t.status)).length;
 
   $("summaryWorked").textContent = formatDuration(total);
 
@@ -3939,12 +3885,10 @@ function ensureWorkWeekNavigation() {
     changeSelectedWorkWeek(1);
   };
 
-  nav
-    .querySelector('[data-week-nav="current"]')
-    ?.addEventListener("click", () => {
-      selectedWorkWeekDate = today();
-      renderWorkHours();
-    });
+  nav.querySelector('[data-week-nav="current"]')?.addEventListener("click", () => {
+    selectedWorkWeekDate = today();
+    renderWorkHours();
+  });
 }
 
 function changeSelectedWorkWeek(offset) {
@@ -4043,14 +3987,11 @@ function renderWorkHours() {
   // SELECTED WEEK DATA
   // =========================
 
-  $("workWeekActual").textContent = formatDuration(
-    weekActualMinutes(selectedDate),
-  );
+  $("workWeekActual").textContent = formatDuration(weekActualMinutes(selectedDate));
 
   $("flexiWeekAdded").textContent = formatFlexi(weekFlexiMinutes(selectedDate));
 
-  $("workWeekFlexi").textContent =
-    `${formatFlexi(weekFlexiMinutes(selectedDate))} flexi`;
+  $("workWeekFlexi").textContent = `${formatFlexi(weekFlexiMinutes(selectedDate))} flexi`;
 
   // =========================
   // CURRENT FLEXI BALANCE
@@ -4059,22 +4000,16 @@ function renderWorkHours() {
 
   $("flexiOpening").textContent = formatFlexi(openingFlexiMinutes);
 
-  $("flexiAvailable").textContent = formatFlexi(
-    availableFlexiMinutes(todayDate),
-  );
+  $("flexiAvailable").textContent = formatFlexi(availableFlexiMinutes(todayDate));
 
-  $("workAvailableFlexi").textContent = formatFlexi(
-    availableFlexiMinutes(todayDate),
-  );
+  $("workAvailableFlexi").textContent = formatFlexi(availableFlexiMinutes(todayDate));
 
   // $("workFlexiHelper").textContent =
   //   `${formatFlexi(openingFlexiMinutes)} opening + ${formatFlexi(weekFlexiMinutes(todayDate))} this week`;
 
-  const accumulatedFlexi =
-    availableFlexiMinutes(todayDate) - openingFlexiMinutes;
+  const accumulatedFlexi = availableFlexiMinutes(todayDate) - openingFlexiMinutes;
 
-  $("workFlexiHelper").textContent =
-    `${formatFlexi(openingFlexiMinutes)} opening + ${formatFlexi(accumulatedFlexi)} accumulated`;
+  $("workFlexiHelper").textContent = `${formatFlexi(openingFlexiMinutes)} opening + ${formatFlexi(accumulatedFlexi)} accumulated`;
 
   // =========================
   // WEEK LABEL
@@ -4083,8 +4018,7 @@ function renderWorkHours() {
   const monday = getMonday(selectedDate);
   const sunday = getSunday(selectedDate);
 
-  $("workWeekLabel").textContent =
-    `${dateLabel(monday)} → ${dateLabel(sunday)}`;
+  $("workWeekLabel").textContent = `${dateLabel(monday)} → ${dateLabel(sunday)}`;
 
   // =========================
   // RENDER
@@ -4225,18 +4159,9 @@ function renderWorkWeekTable(date = today()) {
         `;
       }
 
-      const calc = calculateWorkDay(
-        item.checkIn,
-        item.checkOut,
-        item.lunchMinutes,
-      );
+      const calc = calculateWorkDay(item.checkIn, item.checkOut, item.lunchMinutes);
 
-      const flexiClass =
-        calc.flexiMinutes > 0
-          ? "flexi-positive"
-          : calc.flexiMinutes < 0
-            ? "below-target"
-            : "";
+      const flexiClass = calc.flexiMinutes > 0 ? "flexi-positive" : calc.flexiMinutes < 0 ? "below-target" : "";
 
       return `
         <tr>
@@ -4251,11 +4176,7 @@ function renderWorkWeekTable(date = today()) {
           <td>${formatDuration(calc.normalMinutes)}</td>
 
          <td class="${flexiClass}">
-  ${
-    calc.flexiMinutes > 0
-      ? "+" + formatFlexi(calc.flexiMinutes)
-      : formatFlexi(calc.flexiMinutes)
-  }
+  ${calc.flexiMinutes > 0 ? "+" + formatFlexi(calc.flexiMinutes) : formatFlexi(calc.flexiMinutes)}
 </td>
 
           <td>${editButton}</td>
@@ -4415,8 +4336,7 @@ function openWorkDayModal(date = today()) {
 
   $("workDayIsLeave").checked = Boolean(item?.isLeave);
 
-  $("workDayModalTitle").textContent =
-    date === today() ? "Today's Work Hours" : `Work Hours · ${dateLabel(date)}`;
+  $("workDayModalTitle").textContent = date === today() ? "Today's Work Hours" : `Work Hours · ${dateLabel(date)}`;
 
   updateWorkDayPreview();
 
@@ -4458,8 +4378,7 @@ function updateWorkDayPreview() {
   const calc = calculateWorkDay(checkIn.value, checkOut.value, lunch.value);
 
   if (!calc.valid) {
-    $("workDayPreview").innerHTML =
-      "Enter check-in and check-out to see the calculation.";
+    $("workDayPreview").innerHTML = "Enter check-in and check-out to see the calculation.";
 
     return;
   }
@@ -4562,11 +4481,7 @@ async function saveWorkDay(e) {
 
     closeModal("workDayModal");
 
-    notify(
-      isLeave
-        ? "Leave day saved. 8h deducted from Flexi."
-        : "Work hours saved.",
-    );
+    notify(isLeave ? "Leave day saved. 8h deducted from Flexi." : "Work hours saved.");
 
     renderWorkHours();
   } catch (err) {
@@ -4583,9 +4498,7 @@ function populateTaskClients(selectedClientId = "") {
 
   if (!select) return;
 
-  const clients = [...state.clients].sort((a, b) =>
-    String(a.name || "").localeCompare(String(b.name || "")),
-  );
+  const clients = [...state.clients].sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
 
   select.innerHTML =
     `<option value="">Select client</option>` +
@@ -4598,10 +4511,7 @@ function populateTaskClients(selectedClientId = "") {
       )
       .join("");
 
-  if (
-    selectedClientId &&
-    clients.some((client) => client.id === selectedClientId)
-  ) {
+  if (selectedClientId && clients.some((client) => client.id === selectedClientId)) {
     select.value = selectedClientId;
   }
 }
@@ -4657,12 +4567,7 @@ function populateTaskTypeFilter() {
    * Include configured client types
    * + legacy types still used by old tasks.
    */
-  const types = [
-    ...new Set([
-      ...getAllClientTypes(),
-      ...state.tasks.map((task) => task.type).filter(Boolean),
-    ]),
-  ].sort();
+  const types = [...new Set([...getAllClientTypes(), ...state.tasks.map((task) => task.type).filter(Boolean)])].sort();
 
   select.innerHTML =
     `<option value="all">All types</option>` +
@@ -4706,10 +4611,7 @@ function populateTaskStatusFilter() {
       )
       .join("");
 
-  if (
-    selectedStatus === "all" ||
-    statuses.some((status) => status.value === selectedStatus)
-  ) {
+  if (selectedStatus === "all" || statuses.some((status) => status.value === selectedStatus)) {
     select.value = selectedStatus;
   } else {
     select.value = "all";
@@ -4744,10 +4646,7 @@ function populateTaskLogFilter() {
       )
       .join("");
 
-  if (
-    selectedLog === "all" ||
-    options.some((option) => option.value === selectedLog)
-  ) {
+  if (selectedLog === "all" || options.some((option) => option.value === selectedLog)) {
     select.value = selectedLog;
   } else {
     select.value = "all";
@@ -4797,9 +4696,7 @@ function renderClients() {
     return;
   }
 
-  const clients = [...state.clients].sort((a, b) =>
-    String(a.name || "").localeCompare(String(b.name || "")),
-  );
+  const clients = [...state.clients].sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
 
   container.innerHTML = clients
     .map((client) => {
@@ -4844,10 +4741,7 @@ function renderClients() {
               types.length
                 ? types
                     .map((type) => {
-                      const fixedMinutes = getFixedMinutesPerAsset(
-                        client.id,
-                        type,
-                      );
+                      const fixedMinutes = getFixedMinutesPerAsset(client.id, type);
 
                       return `
       <span class="client-type-chip">
@@ -4878,25 +4772,21 @@ function renderClients() {
     })
     .join("");
 
-  container
-    .querySelectorAll('[data-client-action="edit"]')
-    .forEach((button) => {
-      button.onclick = () => {
-        const client = getClient(button.dataset.clientId);
+  container.querySelectorAll('[data-client-action="edit"]').forEach((button) => {
+    button.onclick = () => {
+      const client = getClient(button.dataset.clientId);
 
-        if (client) {
-          openClientModal(client);
-        }
-      };
-    });
+      if (client) {
+        openClientModal(client);
+      }
+    };
+  });
 
-  container
-    .querySelectorAll('[data-client-action="delete"]')
-    .forEach((button) => {
-      button.onclick = () => {
-        deleteClient(button.dataset.clientId);
-      };
-    });
+  container.querySelectorAll('[data-client-action="delete"]').forEach((button) => {
+    button.onclick = () => {
+      deleteClient(button.dataset.clientId);
+    };
+  });
 }
 
 function renderClientTypeDraft() {
@@ -4916,10 +4806,7 @@ function renderClientTypeDraft() {
 
   container.innerHTML = clientTypesDraft
     .map((type, index) => {
-      const fixedEnabled = Object.prototype.hasOwnProperty.call(
-        clientFixedTimesDraft,
-        type,
-      );
+      const fixedEnabled = Object.prototype.hasOwnProperty.call(clientFixedTimesDraft, type);
 
       const minutes = Number(clientFixedTimesDraft[type]) || 0;
 
@@ -5013,9 +4900,7 @@ function renderClientTypeDraft() {
          * For legacy types, use the old global
          * Fixed Time value as the initial value.
          */
-        if (
-          !Object.prototype.hasOwnProperty.call(clientFixedTimesDraft, type)
-        ) {
+        if (!Object.prototype.hasOwnProperty.call(clientFixedTimesDraft, type)) {
           clientFixedTimesDraft[type] = Number(FIXED_ASSET_TIMES[type]) || 0;
         }
       } else {
@@ -5058,11 +4943,7 @@ function openClientModal(client = null) {
    */
   clientFixedTimesDraft = {};
 
-  if (
-    client &&
-    client.fixedTimeTypes &&
-    typeof client.fixedTimeTypes === "object"
-  ) {
+  if (client && client.fixedTimeTypes && typeof client.fixedTimeTypes === "object") {
     Object.entries(client.fixedTimeTypes).forEach(([type, value]) => {
       if (clientTypesDraft.includes(type)) {
         const minutes = Math.max(0, Number(value) || 0);
@@ -5103,9 +4984,7 @@ function addClientType() {
     return notify("Enter a task type first.", "warning");
   }
 
-  const exists = clientTypesDraft.some(
-    (type) => type.toLowerCase() === value.toLowerCase(),
-  );
+  const exists = clientTypesDraft.some((type) => type.toLowerCase() === value.toLowerCase());
 
   if (exists) {
     return notify("This task type already exists.", "warning");
@@ -5253,10 +5132,7 @@ async function deleteClient(clientId) {
   );
 
   if (affectedTasks.length) {
-    return notify(
-      `Cannot delete "${client.name}" because ${affectedTasks.length} task(s) are using this client.`,
-      "warning",
-    );
+    return notify(`Cannot delete "${client.name}" because ${affectedTasks.length} task(s) are using this client.`, "warning");
   }
 
   state.pendingConfirm = async () => {
@@ -5302,13 +5178,7 @@ function fillSelects() {
 }
 const ACTIVE_PAGE_STORAGE_KEY = "worklog_active_page";
 
-const VALID_APP_PAGES = [
-  "dashboard",
-  "work-hours",
-  "tasks",
-  "reports",
-  "settings",
-];
+const VALID_APP_PAGES = ["dashboard", "work-hours", "tasks", "reports", "settings"];
 
 // ========================================
 // HOVER / PIN SIDEBAR
@@ -5331,10 +5201,7 @@ function applySidebarState(collapsed, { reveal = false } = {}) {
 
     button.setAttribute("aria-expanded", String(pinned || Boolean(reveal)));
 
-    button.setAttribute(
-      "aria-label",
-      pinned ? "Unpin sidebar" : "Pin sidebar open",
-    );
+    button.setAttribute("aria-label", pinned ? "Unpin sidebar" : "Pin sidebar open");
 
     button.title = pinned ? "Unpin sidebar" : "Pin sidebar open";
 
@@ -5367,11 +5234,7 @@ function initSidebarToggle() {
     }
 
     // Rời Sidebar và nút ghim thì tự ẩn
-    if (
-      app.classList.contains("sidebar-peek") &&
-      !sidebar.contains(event.target) &&
-      !button.contains(event.target)
-    ) {
+    if (app.classList.contains("sidebar-peek") && !sidebar.contains(event.target) && !button.contains(event.target)) {
       applySidebarState(true);
     }
   });
@@ -5416,13 +5279,9 @@ function setPage(page) {
     console.warn("Could not save the active page:", err);
   }
 
-  document
-    .querySelectorAll(".page")
-    .forEach((x) => x.classList.toggle("active", x.id === `page-${page}`));
+  document.querySelectorAll(".page").forEach((x) => x.classList.toggle("active", x.id === `page-${page}`));
 
-  document
-    .querySelectorAll(".nav-item")
-    .forEach((x) => x.classList.toggle("active", x.dataset.page === page));
+  document.querySelectorAll(".nav-item").forEach((x) => x.classList.toggle("active", x.dataset.page === page));
 
   const meta = {
     dashboard: ["Dashboard", "Track your work, rework, and daily progress."],
@@ -5461,16 +5320,14 @@ function updateAssetTimePreview() {
   $("assetAmountField").style.display = "";
 
   if (!amount) {
-    $("assetTimePreview").textContent =
-      `Fixed time: ${minutesPerAsset}m per asset`;
+    $("assetTimePreview").textContent = `Fixed time: ${minutesPerAsset}m per asset`;
 
     return;
   }
 
   const totalMinutes = amount * minutesPerAsset;
 
-  $("assetTimePreview").textContent =
-    `Fixed time: ${amount} × ${minutesPerAsset}m = ${formatDuration(totalMinutes)}`;
+  $("assetTimePreview").textContent = `Fixed time: ${amount} × ${minutesPerAsset}m = ${formatDuration(totalMinutes)}`;
 }
 
 function updateTaskRequiredTimeVisibility() {
@@ -5488,13 +5345,9 @@ function updateTaskRequiredTimeVisibility() {
 }
 
 function updateLoggedTimePreview() {
-  const loggedMinutes = Math.max(
-    0,
-    Math.round(Number($("taskLoggedHours").value) || 0),
-  );
+  const loggedMinutes = Math.max(0, Math.round(Number($("taskLoggedHours").value) || 0));
 
-  $("loggedTimePreview").textContent =
-    `Logged: ${formatDuration(loggedMinutes)}`;
+  $("loggedTimePreview").textContent = `Logged: ${formatDuration(loggedMinutes)}`;
 }
 // function openLoggedTimeModal(task) {
 //   if (!task) return;
@@ -5563,13 +5416,9 @@ function openLoggedTimeModal(task) {
 }
 
 function updateQuickLoggedTimePreview() {
-  const loggedMinutes = Math.max(
-    0,
-    Math.round(Number($("loggedTimeHours").value) || 0),
-  );
+  const loggedMinutes = Math.max(0, Math.round(Number($("loggedTimeHours").value) || 0));
 
-  $("quickLoggedTimePreview").textContent =
-    `Logged: ${formatDuration(loggedMinutes)}`;
+  $("quickLoggedTimePreview").textContent = `Logged: ${formatDuration(loggedMinutes)}`;
 }
 
 async function saveLoggedTime(e) {
@@ -5587,10 +5436,7 @@ async function saveLoggedTime(e) {
     return notify("Task not found.", "error");
   }
 
-  const loggedMinutes = Math.max(
-    0,
-    Math.round(Number($("loggedTimeHours").value) || 0),
-  );
+  const loggedMinutes = Math.max(0, Math.round(Number($("loggedTimeHours").value) || 0));
 
   try {
     await updateDoc(doc(db, "tasks", taskId), {
@@ -5699,10 +5545,7 @@ async function quickLogTask(task) {
   //   return;
   // }
 
-  const quickLogRemainingMinutes = Math.max(
-    0,
-    summary.requiredMinutes - summary.loggedMinutes,
-  );
+  const quickLogRemainingMinutes = Math.max(0, summary.requiredMinutes - summary.loggedMinutes);
 
   if (quickLogRemainingMinutes <= 0) {
     return;
@@ -5782,9 +5625,7 @@ function openTaskModal(task = null) {
 
   $("taskTitle").value = task?.title || "";
 
-  const inferredClient = task?.clientId
-    ? getClient(task.clientId)
-    : getClientByName(task?.project);
+  const inferredClient = task?.clientId ? getClient(task.clientId) : getClientByName(task?.project);
 
   const clientId = inferredClient?.id || (!task ? defaultTaskClientId : "");
 
@@ -5857,13 +5698,7 @@ function openTimeModal(taskId, entry = null) {
 
   // Fixed Time uses its existing shadow WorkLog.
   if (isFixedTask && !entry) {
-    entry =
-      state.workSessions.find(
-        (x) =>
-          x.taskId === taskId &&
-          x.source === "fixed" &&
-          x.fixedTaskId === taskId,
-      ) || null;
+    entry = state.workSessions.find((x) => x.taskId === taskId && x.source === "fixed" && x.fixedTaskId === taskId) || null;
   }
 
   $("timeTaskId").value = taskId;
@@ -5873,14 +5708,11 @@ function openTimeModal(taskId, entry = null) {
   $("timeEntryId").value = entry?.id || "";
 
   // Fixed Time → use its Worked date / fixedDate
-  $("timeDate").value =
-    entry?.date || (isFixedTask ? t.fixedDate : "") || today();
+  $("timeDate").value = entry?.date || (isFixedTask ? t.fixedDate : "") || today();
 
   // Normal Time → Required Time
   // Fixed Time → show fixedMinutes only
-  const displayMinutes = isFixedTask
-    ? Number(t.fixedMinutes) || 0
-    : Number(t.requiredMinutes) || 0;
+  const displayMinutes = isFixedTask ? Number(t.fixedMinutes) || 0 : Number(t.requiredMinutes) || 0;
 
   $("timeRequiredHours").value = Math.floor(displayMinutes / 60);
 
@@ -5891,11 +5723,7 @@ function openTimeModal(taskId, entry = null) {
   const title = $("timeModalTitle");
 
   if (title) {
-    title.textContent = isFixedTask
-      ? "Edit Fixed Time Date"
-      : entry
-        ? "Edit WorkLog"
-        : "Add WorkLog";
+    title.textContent = isFixedTask ? "Edit Fixed Time Date" : entry ? "Edit WorkLog" : "Add WorkLog";
   }
 
   openModal("timeModal");
@@ -5923,9 +5751,7 @@ function openCorrectionModal(taskId, entry = null) {
 
   const reason = entry?.reason || "client_feedback";
 
-  const reasonInput = document.querySelector(
-    `input[name="correctionReason"][value="${reason}"]`,
-  );
+  const reasonInput = document.querySelector(`input[name="correctionReason"][value="${reason}"]`);
 
   if (reasonInput) {
     reasonInput.checked = true;
@@ -5951,30 +5777,15 @@ function openHistory(taskId) {
   const isFixedTask = (Number(t.fixedMinutes) || 0) > 0;
   if (!t) return;
 
-  const normal = state.workSessions
-    .filter((x) => x.taskId === taskId && x.source !== "fixed")
-    .sort(
-      (a, b) =>
-        String(b.date).localeCompare(String(a.date)) ||
-        dateValue(b.createdAt) - dateValue(a.createdAt),
-    );
+  const normal = state.workSessions.filter((x) => x.taskId === taskId && x.source !== "fixed").sort((a, b) => String(b.date).localeCompare(String(a.date)) || dateValue(b.createdAt) - dateValue(a.createdAt));
 
-  const corr = state.corrections
-    .filter((x) => x.taskId === taskId)
-    .sort(
-      (a, b) =>
-        String(b.date).localeCompare(String(a.date)) ||
-        dateValue(b.createdAt) - dateValue(a.createdAt),
-    );
+  const corr = state.corrections.filter((x) => x.taskId === taskId).sort((a, b) => String(b.date).localeCompare(String(a.date)) || dateValue(b.createdAt) - dateValue(a.createdAt));
 
-  const acts = state.activities
-    .filter((x) => x.taskId === taskId)
-    .sort(sortNewest);
+  const acts = state.activities.filter((x) => x.taskId === taskId).sort(sortNewest);
 
   $("historyTitle").textContent = t.title;
 
-  $("historySubtitle").textContent =
-    `${t.project || "No project"} · ${t.type || "Other"}`;
+  $("historySubtitle").textContent = `${t.project || "No project"} · ${t.type || "Other"}`;
 
   $("historySummary").innerHTML = `
     <div>
@@ -6046,11 +5857,7 @@ function openHistory(taskId) {
       kind: "Correction",
       source: "correction",
     })),
-  ].sort(
-    (a, b) =>
-      String(b.date).localeCompare(String(a.date)) ||
-      dateValue(b.createdAt) - dateValue(a.createdAt),
-  );
+  ].sort((a, b) => String(b.date).localeCompare(String(a.date)) || dateValue(b.createdAt) - dateValue(a.createdAt));
 
   const timeLogHtml = entries.length
     ? entries
@@ -6245,9 +6052,7 @@ let fixedMigrationDone = false;
 async function syncFixedWorkLog(taskId, fixedMinutes, fixedDate) {
   if (!taskId) return;
 
-  const existingEntries = state.workSessions.filter(
-    (x) => x.source === "fixed" && x.fixedTaskId === taskId,
-  );
+  const existingEntries = state.workSessions.filter((x) => x.source === "fixed" && x.fixedTaskId === taskId);
 
   if (Number(fixedMinutes) > 0 && fixedDate) {
     const data = {
@@ -6304,14 +6109,10 @@ async function migrateFixedTasksToWorkLogs() {
       ...d.data(),
     }));
 
-    const fixedTasks = state.tasks.filter(
-      (task) => Number(task.fixedMinutes) > 0 && task.fixedDate,
-    );
+    const fixedTasks = state.tasks.filter((task) => Number(task.fixedMinutes) > 0 && task.fixedDate);
 
     for (const task of fixedTasks) {
-      const entries = workLogs.filter(
-        (x) => x.source === "fixed" && x.fixedTaskId === task.id,
-      );
+      const entries = workLogs.filter((x) => x.source === "fixed" && x.fixedTaskId === task.id);
 
       const data = {
         taskId: task.id,
@@ -6490,24 +6291,14 @@ async function saveTask(e) {
 
   const minutesPerAsset = getFixedMinutesPerAsset(clientId, type);
 
-  const assetAmount =
-    minutesPerAsset > 0
-      ? Math.max(0, Number($("taskAssetAmount").value) || 0)
-      : 0;
+  const assetAmount = minutesPerAsset > 0 ? Math.max(0, Number($("taskAssetAmount").value) || 0) : 0;
 
-  const fixedMinutes =
-    minutesPerAsset > 0 && assetAmount > 0 ? assetAmount * minutesPerAsset : 0;
+  const fixedMinutes = minutesPerAsset > 0 && assetAmount > 0 ? assetAmount * minutesPerAsset : 0;
   // Required Time is only available for normal tasks.
-  const requiredMinutes =
-    minutesPerAsset > 0
-      ? 0
-      : minutes($("taskRequiredHours").value, $("taskRequiredMinutes").value);
+  const requiredMinutes = minutesPerAsset > 0 ? 0 : minutes($("taskRequiredHours").value, $("taskRequiredMinutes").value);
   const existingTask = id ? getTask(id) : null;
 
-  const fixedDate =
-    minutesPerAsset > 0 && fixedMinutes > 0
-      ? existingTask?.fixedDate || today()
-      : "";
+  const fixedDate = minutesPerAsset > 0 && fixedMinutes > 0 ? existingTask?.fixedDate || today() : "";
 
   const data = {
     title: $("taskTitle").value.trim(),
@@ -6834,14 +6625,7 @@ async function saveTime(e) {
 
   if (isFixedTask) {
     try {
-      const fixedEntry = entryId
-        ? state.workSessions.find((x) => x.id === entryId)
-        : state.workSessions.find(
-            (x) =>
-              x.taskId === taskId &&
-              x.source === "fixed" &&
-              x.fixedTaskId === taskId,
-          );
+      const fixedEntry = entryId ? state.workSessions.find((x) => x.id === entryId) : state.workSessions.find((x) => x.taskId === taskId && x.source === "fixed" && x.fixedTaskId === taskId);
 
       // Task is the source of truth for Fixed Worked date
       await updateDoc(doc(db, "tasks", taskId), {
@@ -6884,10 +6668,7 @@ async function saveTime(e) {
    * ========================================
    */
 
-  const requiredMinutes = minutes(
-    $("timeRequiredHours").value,
-    $("timeRequiredMinutes").value,
-  );
+  const requiredMinutes = minutes($("timeRequiredHours").value, $("timeRequiredMinutes").value);
 
   if (requiredMinutes <= 0) {
     return notify("Please enter Required time.", "warning");
@@ -6952,12 +6733,7 @@ async function deleteWorkLog(entryId) {
 
   const task = getTask(entry.taskId);
 
-  confirmAction(
-    "Delete WorkLog?",
-    `Delete ${formatDuration(entry.duration)} from "${task?.title || "this task"}"? This cannot be undone.`,
-    "",
-    "Delete",
-  );
+  confirmAction("Delete WorkLog?", `Delete ${formatDuration(entry.duration)} from "${task?.title || "this task"}"? This cannot be undone.`, "", "Delete");
 
   state.pendingConfirm = async () => {
     try {
@@ -6988,12 +6764,7 @@ async function deleteCorrection(entryId) {
 
   const task = getTask(entry.taskId);
 
-  confirmAction(
-    "Delete Correction?",
-    `Delete ${formatDuration(entry.duration)} from "${task?.title || "this task"}"? This cannot be undone.`,
-    "",
-    "Delete",
-  );
+  confirmAction("Delete Correction?", `Delete ${formatDuration(entry.duration)} from "${task?.title || "this task"}"? This cannot be undone.`, "", "Delete");
 
   state.pendingConfirm = async () => {
     try {
@@ -7019,18 +6790,13 @@ async function saveCorrection(e) {
 
   const entryId = $("correctionEntryId").value.trim();
 
-  const duration = minutes(
-    $("correctionHours").value,
-    $("correctionMinutes").value,
-  );
+  const duration = minutes($("correctionHours").value, $("correctionMinutes").value);
 
   const date = $("correctionDate").value;
 
   const note = $("correctionNote").value.trim();
 
-  const reason =
-    document.querySelector('input[name="correctionReason"]:checked')?.value ||
-    "other";
+  const reason = document.querySelector('input[name="correctionReason"]:checked')?.value || "other";
 
   if (!taskId || !date || duration <= 0) {
     return notify("Enter a duration.", "warning");
@@ -7105,13 +6871,7 @@ async function saveCorrection(e) {
 // }
 
 function nextStatus(current) {
-  const order = [
-    STATUS.OPEN,
-    STATUS.IN_PRODUCTION,
-    STATUS.IN_APPROVAL,
-    STATUS.EXECUTION_PROOF,
-    STATUS.COMPLETED,
-  ];
+  const order = [STATUS.OPEN, STATUS.IN_PRODUCTION, STATUS.IN_APPROVAL, STATUS.EXECUTION_PROOF, STATUS.COMPLETED];
 
   const i = order.indexOf(current);
 
@@ -7150,11 +6910,7 @@ function confirmAction(title, message, fn, button = "Confirm") {
 async function archiveTask(id) {
   const t = getTask(id);
   if (!t) return;
-  confirmAction(
-    "Archive task?",
-    `"${t.title}" will leave the active task list, but all time logs, corrections, reports, and history will remain.`,
-    "",
-  );
+  confirmAction("Archive task?", `"${t.title}" will leave the active task list, but all time logs, corrections, reports, and history will remain.`, "");
   state.pendingConfirm = async () => {
     await updateDoc(doc(db, "tasks", id), {
       status: STATUS.ARCHIVED,
@@ -7169,19 +6925,12 @@ async function deleteTask(id) {
   const t = getTask(id);
   if (!t) return;
 
-  confirmAction(
-    "Delete task?",
-    `"${t.title}" and all related WorkLogs, corrections, and history will be permanently deleted.`,
-    "",
-    "Delete",
-  );
+  confirmAction("Delete task?", `"${t.title}" and all related WorkLogs, corrections, and history will be permanently deleted.`, "", "Delete");
 
   state.pendingConfirm = async () => {
     try {
       // Delete all WorkLog entries for this task
-      const taskWorkSessions = state.workSessions.filter(
-        (x) => x.taskId === id,
-      );
+      const taskWorkSessions = state.workSessions.filter((x) => x.taskId === id);
 
       for (const entry of taskWorkSessions) {
         await deleteDoc(doc(db, "workSessions", entry.id));
@@ -7223,20 +6972,9 @@ async function unarchiveTask(id) {
   notify("Task unarchived.");
 }
 async function clearAll() {
-  confirmAction(
-    "Clear all WorkLog data?",
-    "This permanently deletes tasks, time logs, corrections, and activity history.",
-    "",
-    "Clear All",
-  );
+  confirmAction("Clear all WorkLog data?", "This permanently deletes tasks, time logs, corrections, and activity history.", "", "Clear All");
   state.pendingConfirm = async () => {
-    for (const name of [
-      "tasks",
-      "workSessions",
-      "corrections",
-      "activityLogs",
-      "workDays",
-    ]) {
+    for (const name of ["tasks", "workSessions", "corrections", "activityLogs", "workDays"]) {
       const snap = await getDocs(collection(db, name));
       const batch = writeBatch(db);
       snap.forEach((d) => batch.delete(d.ref));
@@ -7268,29 +7006,16 @@ function reportEntries() {
 
     if (!t) return false;
 
-    return (
-      (!from || e.date >= from) &&
-      (!to || e.date <= to) &&
-      (project === "all" || t.project === project)
-    );
+    return (!from || e.date >= from) && (!to || e.date <= to) && (project === "all" || t.project === project);
   });
 }
 function renderBars(target, map) {
   const rows = [...map.entries()].sort((a, b) => b[1] - a[1]);
-  $(target).innerHTML = rows.length
-    ? rows
-        .map(
-          ([name, val]) =>
-            `<div class="breakdown-row"><div><span>${escapeHtml(name)}</span><strong>${formatDuration(val)}</strong></div><div class="bar"><i style="width:${Math.max(3, Math.round((val / (rows[0]?.[1] || 1)) * 100))}%"></i></div></div>`,
-        )
-        .join("")
-    : `<div class="empty-small">No data for this period.</div>`;
+  $(target).innerHTML = rows.length ? rows.map(([name, val]) => `<div class="breakdown-row"><div><span>${escapeHtml(name)}</span><strong>${formatDuration(val)}</strong></div><div class="bar"><i style="width:${Math.max(3, Math.round((val / (rows[0]?.[1] || 1)) * 100))}%"></i></div></div>`).join("") : `<div class="empty-small">No data for this period.</div>`;
 }
 
 function firstWorkLogDate(taskId) {
-  const logs = state.workSessions
-    .filter((x) => x.taskId === taskId && x.date)
-    .sort((a, b) => String(a.date).localeCompare(String(b.date)));
+  const logs = state.workSessions.filter((x) => x.taskId === taskId && x.date).sort((a, b) => String(a.date).localeCompare(String(b.date)));
 
   const first = logs[0];
 
@@ -7365,9 +7090,7 @@ function renderReport() {
   /*
    * Correction is still stored per correction entry.
    */
-  const correctionTime = entries
-    .filter((x) => x.kind === "correction")
-    .reduce((sum, x) => sum + (Number(x.duration) || 0), 0);
+  const correctionTime = entries.filter((x) => x.kind === "correction").reduce((sum, x) => sum + (Number(x.duration) || 0), 0);
 
   const totalTime = normalTime + correctionTime;
 
@@ -7473,8 +7196,7 @@ function renderReport() {
 
         const requiredMinutes = Number(task.requiredMinutes) || 0;
 
-        existingType.newTime +=
-          fixedMinutes > 0 ? fixedMinutes : requiredMinutes;
+        existingType.newTime += fixedMinutes > 0 ? fixedMinutes : requiredMinutes;
 
         existingType.newAssets += assetAmount;
 
@@ -7499,8 +7221,7 @@ function renderReport() {
 
       const requiredMinutes = Number(task.requiredMinutes) || 0;
 
-      existingType.totalTime +=
-        fixedMinutes > 0 ? fixedMinutes : requiredMinutes;
+      existingType.totalTime += fixedMinutes > 0 ? fixedMinutes : requiredMinutes;
 
       existingType.loggedTime += Number(task.loggedMinutes) || 0;
 
@@ -8020,19 +7741,14 @@ function renderReport() {
 // }
 
 function renderTypeBreakdown(typeMap) {
-  const rows = [...typeMap.entries()].sort(
-    (a, b) =>
-      b[1].newTime + b[1].correctionTime - (a[1].newTime + a[1].correctionTime),
-  );
+  const rows = [...typeMap.entries()].sort((a, b) => b[1].newTime + b[1].correctionTime - (a[1].newTime + a[1].correctionTime));
 
   $("reportByType").innerHTML = rows.length
     ? rows
         .map(([name, data]) => {
           const totalTime = data.newTime + data.correctionTime;
 
-          const maxTime =
-            (rows[0]?.[1]?.newTime || 0) +
-              (rows[0]?.[1]?.correctionTime || 0) || 1;
+          const maxTime = (rows[0]?.[1]?.newTime || 0) + (rows[0]?.[1]?.correctionTime || 0) || 1;
 
           const width = Math.max(3, Math.round((totalTime / maxTime) * 100));
 
@@ -8146,9 +7862,7 @@ function initReportDates() {
   let savedRange = null;
 
   try {
-    savedRange = JSON.parse(
-      localStorage.getItem(REPORT_DATE_STORAGE_KEY) || "null",
-    );
+    savedRange = JSON.parse(localStorage.getItem(REPORT_DATE_STORAGE_KEY) || "null");
   } catch (err) {
     console.warn("Could not read saved report dates:", err);
   }
@@ -8157,13 +7871,7 @@ function initReportDates() {
   const savedTo = savedRange?.to || "";
 
   // Restore previously selected dates
-  if (
-    savedFrom &&
-    savedTo &&
-    /^\d{4}-\d{2}-\d{2}$/.test(savedFrom) &&
-    /^\d{4}-\d{2}-\d{2}$/.test(savedTo) &&
-    savedFrom <= savedTo
-  ) {
+  if (savedFrom && savedTo && /^\d{4}-\d{2}-\d{2}$/.test(savedFrom) && /^\d{4}-\d{2}-\d{2}$/.test(savedTo) && savedFrom <= savedTo) {
     fromInput.value = savedFrom;
     toInput.value = savedTo;
   } else {
@@ -8190,15 +7898,9 @@ function saveReportDates() {
 }
 
 function populateProjects() {
-  const projects = [
-    ...new Set(state.tasks.map((t) => t.project).filter(Boolean)),
-  ].sort();
+  const projects = [...new Set(state.tasks.map((t) => t.project).filter(Boolean))].sort();
   const current = $("reportProject").value || "all";
-  $("reportProject").innerHTML =
-    `<option value="all">All projects</option>` +
-    projects
-      .map((p) => `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`)
-      .join("");
+  $("reportProject").innerHTML = `<option value="all">All projects</option>` + projects.map((p) => `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join("");
   $("reportProject").value = projects.includes(current) ? current : "all";
 }
 
@@ -8227,48 +7929,17 @@ function generateSummary() {
     .map((id) => ({
       task: getTask(id),
 
-      mins: entries
-        .filter((x) => x.taskId === id)
-        .reduce((s, x) => s + (Number(x.duration) || 0), 0),
+      mins: entries.filter((x) => x.taskId === id).reduce((s, x) => s + (Number(x.duration) || 0), 0),
     }))
     .sort((a, b) => b.mins - a.mins);
 
-  const completed = state.tasks
-    .filter((t) => t.status === STATUS.COMPLETED && ids.includes(t.id))
-    .sort((a, b) => String(a.title || "").localeCompare(String(b.title || "")));
+  const completed = state.tasks.filter((t) => t.status === STATUS.COMPLETED && ids.includes(t.id)).sort((a, b) => String(a.title || "").localeCompare(String(b.title || "")));
 
-  const active = state.tasks
-    .filter(
-      (t) =>
-        ids.includes(t.id) &&
-        t.status !== STATUS.COMPLETED &&
-        t.status !== STATUS.ARCHIVED,
-    )
-    .sort((a, b) => String(a.title || "").localeCompare(String(b.title || "")));
+  const active = state.tasks.filter((t) => ids.includes(t.id) && t.status !== STATUS.COMPLETED && t.status !== STATUS.ARCHIVED).sort((a, b) => String(a.title || "").localeCompare(String(b.title || "")));
 
-  const lines = [
-    dateLabel(d),
-    "",
-    `Worked: ${formatDuration(total)}`,
-    `Tasks: ${ids.length}`,
-    `Corrections: ${corrections}`,
-    "",
-    "Main work:",
-    ...grouped
-      .slice(0, 6)
-      .map((x) => `• ${x.task.title} — ${formatDuration(x.mins)}`),
-    "",
-    "Completed:",
-    ...(completed.length
-      ? completed.map((t) => `✓ ${t.title}`)
-      : ["• None recorded today"]),
-    "",
-    "Open:",
-    ...(active.length ? active.map((t) => `• ${t.title}`) : ["• None"]),
-  ];
+  const lines = [dateLabel(d), "", `Worked: ${formatDuration(total)}`, `Tasks: ${ids.length}`, `Corrections: ${corrections}`, "", "Main work:", ...grouped.slice(0, 6).map((x) => `• ${x.task.title} — ${formatDuration(x.mins)}`), "", "Completed:", ...(completed.length ? completed.map((t) => `✓ ${t.title}`) : ["• None recorded today"]), "", "Open:", ...(active.length ? active.map((t) => `• ${t.title}`) : ["• None"])];
 
-  $("summaryModalSubtitle").textContent =
-    `${dateLabel(d)} · ${formatDuration(total)}`;
+  $("summaryModalSubtitle").textContent = `${dateLabel(d)} · ${formatDuration(total)}`;
 
   $("summaryText").value = lines.join("\n");
 
@@ -8401,12 +8072,8 @@ function openDataUnlockModal() {
   }, 50);
 }
 function bindActions() {
-  document
-    .querySelectorAll(".nav-item")
-    .forEach((b) => (b.onclick = () => setPage(b.dataset.page)));
-  document
-    .querySelectorAll("[data-page-link]")
-    .forEach((b) => (b.onclick = () => setPage(b.dataset.pageLink)));
+  document.querySelectorAll(".nav-item").forEach((b) => (b.onclick = () => setPage(b.dataset.page)));
+  document.querySelectorAll("[data-page-link]").forEach((b) => (b.onclick = () => setPage(b.dataset.pageLink)));
   $("newTaskBtn").onclick = () => openTaskModal();
   $("addClientBtn").onclick = () => openClientModal();
 
@@ -8457,9 +8124,22 @@ function bindActions() {
   $("taskAssetAmount").oninput = updateAssetTimePreview;
   $("timeForm").onsubmit = saveTime;
   $("correctionForm").onsubmit = saveCorrection;
-  $("taskSearch").oninput = renderTasks;
-  $("taskStatusFilter").onchange = renderTasks;
-  $("taskTypeFilter").onchange = renderTasks;
+
+  $("taskSearch").oninput = () => {
+    saveTaskFilterPreferences();
+    renderTasks();
+  };
+
+  $("taskStatusFilter").onchange = () => {
+    saveTaskFilterPreferences();
+    renderTasks();
+  };
+
+  $("taskTypeFilter").onchange = () => {
+    saveTaskFilterPreferences();
+    renderTasks();
+  };
+
   // ========================================
   // TASK BOARD INTERACTIONS
   // ========================================
@@ -8571,9 +8251,7 @@ function bindActions() {
   });
   $("showArchivedBtn").onclick = () => {
     state.showArchived = !state.showArchived;
-    $("showArchivedBtn").textContent = state.showArchived
-      ? "Hide Archived"
-      : "Show Archived";
+    $("showArchivedBtn").textContent = state.showArchived ? "Hide Archived" : "Show Archived";
     renderTasks();
   };
   $("refreshReportBtn").onclick = renderReport;
@@ -8670,9 +8348,7 @@ function bindActions() {
     await unlockData();
   });
 
-  document
-    .querySelectorAll("[data-close-modal]")
-    .forEach((b) => (b.onclick = () => closeModal(b.dataset.closeModal)));
+  document.querySelectorAll("[data-close-modal]").forEach((b) => (b.onclick = () => closeModal(b.dataset.closeModal)));
   document.querySelectorAll("[data-time-preset]").forEach(
     (b) =>
       (b.onclick = () => {
@@ -8714,17 +8390,13 @@ function bindActions() {
         if (!row) return;
 
         // Đóng tất cả menu khác trước
-        document
-          .querySelectorAll(".task-row.task-more-open")
-          .forEach((otherRow) => {
-            if (otherRow === row) return;
+        document.querySelectorAll(".task-row.task-more-open").forEach((otherRow) => {
+          if (otherRow === row) return;
 
-            otherRow.classList.remove("task-more-open");
+          otherRow.classList.remove("task-more-open");
 
-            otherRow
-              .querySelector('[data-action="toggle-task-more"]')
-              ?.setAttribute("aria-expanded", "false");
-          });
+          otherRow.querySelector('[data-action="toggle-task-more"]')?.setAttribute("aria-expanded", "false");
+        });
 
         const isOpen = row.classList.toggle("task-more-open");
 
@@ -8744,10 +8416,7 @@ function bindActions() {
             let left = rect.right - menuWidth;
 
             // Không để menu tràn khỏi cạnh trái/phải màn hình
-            left = Math.max(
-              8,
-              Math.min(left, window.innerWidth - menuWidth - 8),
-            );
+            left = Math.max(8, Math.min(left, window.innerWidth - menuWidth - 8));
 
             // Mặc định mở xuống dưới
             let top = rect.bottom + 6;
@@ -8758,10 +8427,7 @@ function bindActions() {
             }
 
             // Giữ menu nằm trong viewport
-            top = Math.max(
-              8,
-              Math.min(top, window.innerHeight - menuHeight - 8),
-            );
+            top = Math.max(8, Math.min(top, window.innerHeight - menuHeight - 8));
 
             menu.style.left = `${left}px`;
             menu.style.top = `${top}px`;
@@ -8785,16 +8451,11 @@ function bindActions() {
   );
   document.addEventListener("click", (e) => {
     // Đóng More menu khi click bên ngoài
-    if (
-      !e.target.closest(".task-action-toolbar") &&
-      !e.target.closest(".task-secondary-actions")
-    ) {
+    if (!e.target.closest(".task-action-toolbar") && !e.target.closest(".task-secondary-actions")) {
       document.querySelectorAll(".task-row.task-more-open").forEach((row) => {
         row.classList.remove("task-more-open");
 
-        row
-          .querySelector('[data-action="toggle-task-more"]')
-          ?.setAttribute("aria-expanded", "false");
+        row.querySelector('[data-action="toggle-task-more"]')?.setAttribute("aria-expanded", "false");
       });
     }
 
@@ -8817,9 +8478,7 @@ function bindActions() {
       behavior: "smooth",
     });
 
-    document
-      .querySelectorAll("#taskTypeQuickNav .task-type-nav-item")
-      .forEach((item) => item.classList.remove("active"));
+    document.querySelectorAll("#taskTypeQuickNav .task-type-nav-item").forEach((item) => item.classList.remove("active"));
 
     button.classList.add("active");
   });
@@ -8831,9 +8490,7 @@ function bindActions() {
       document.querySelectorAll(".task-row.task-more-open").forEach((row) => {
         row.classList.remove("task-more-open");
 
-        row
-          .querySelector('[data-action="toggle-task-more"]')
-          ?.setAttribute("aria-expanded", "false");
+        row.querySelector('[data-action="toggle-task-more"]')?.setAttribute("aria-expanded", "false");
       });
     },
     true,
@@ -8841,9 +8498,7 @@ function bindActions() {
 }
 function exportCsv() {
   const entries = reportEntries(),
-    lines = [
-      ["Date", "Task", "Project", "Type", "Normal", "Correction", "Total"],
-    ];
+    lines = [["Date", "Task", "Project", "Type", "Normal", "Correction", "Total"]];
   const map = new Map();
   for (const e of entries) {
     const t = getTask(e.taskId),
@@ -8852,21 +8507,8 @@ function exportCsv() {
     if (!r) map.set(key, (r = { date: e.date, t, normal: 0, correction: 0 }));
     r[e.kind] += e.duration;
   }
-  for (const r of map.values())
-    lines.push([
-      r.date,
-      r.t.title,
-      r.t.project || "",
-      r.t.type || "",
-      formatDuration(r.normal),
-      formatDuration(r.correction),
-      formatDuration(r.normal + r.correction),
-    ]);
-  const csv = lines
-      .map((row) =>
-        row.map((v) => `"${String(v).replaceAll('"', '""')}"`).join(","),
-      )
-      .join("\n"),
+  for (const r of map.values()) lines.push([r.date, r.t.title, r.t.project || "", r.t.type || "", formatDuration(r.normal), formatDuration(r.correction), formatDuration(r.normal + r.correction)]);
+  const csv = lines.map((row) => row.map((v) => `"${String(v).replaceAll('"', '""')}"`).join(",")).join("\n"),
     blob = new Blob([csv], { type: "text/csv" }),
     a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
@@ -8967,7 +8609,10 @@ async function importDoc(col, id, data) {
 
 function subscribe() {
   stopSubscriptions();
-
+  // Reset trạng thái khi đăng ký Firebase listeners
+  clientsSnapshotReady = false;
+  tasksSnapshotReady = false;
+  taskFiltersRestored = false;
   unsubscribeListeners = [
     onSnapshot(collection(db, "clients"), (snap) => {
       state.clients = snap.docs.map((d) => ({
@@ -8980,6 +8625,9 @@ function subscribe() {
       populateTaskClients($("taskClient")?.value || "");
 
       populateTaskTypeFilter();
+
+      clientsSnapshotReady = true;
+      tryRestoreTaskFilterPreferences();
 
       const currentClientId = $("taskClient")?.value || "";
 
@@ -8996,6 +8644,10 @@ function subscribe() {
 
       populateProjects();
       populateTaskTypeFilter();
+
+      tasksSnapshotReady = true;
+      tryRestoreTaskFilterPreferences();
+
       renderTasks();
       updateDashboard();
 
@@ -9092,18 +8744,7 @@ function clearDataUI() {
     workHours.innerHTML = "";
   }
 
-  const workHourValues = [
-    "workTodayActual",
-    "workTodayFlexi",
-    "workWeekActual",
-    "flexiOpening",
-    "flexiWeekAdded",
-    "flexiAvailable",
-    "workAvailableFlexi",
-    "workFlexiHelper",
-    "workWeekFlexi",
-    "workWeekLabel",
-  ];
+  const workHourValues = ["workTodayActual", "workTodayFlexi", "workWeekActual", "flexiOpening", "flexiWeekAdded", "flexiAvailable", "workAvailableFlexi", "workFlexiHelper", "workWeekFlexi", "workWeekLabel"];
 
   workHourValues.forEach((id) => {
     const el = $(id);
@@ -9157,9 +8798,7 @@ function startDataLockTimer() {
   clearDataLockTimer();
   clearDataLockCountdown();
 
-  const expiresAt = Number(
-    sessionStorage.getItem(DATA_UNLOCK_EXPIRES_KEY) || 0,
-  );
+  const expiresAt = Number(sessionStorage.getItem(DATA_UNLOCK_EXPIRES_KEY) || 0);
 
   const remainingMs = expiresAt - Date.now();
 
@@ -9220,10 +8859,7 @@ async function unlockData() {
 
     dataUnlocked = true;
 
-    sessionStorage.setItem(
-      DATA_UNLOCK_EXPIRES_KEY,
-      String(Date.now() + DATA_SESSION_MS),
-    );
+    sessionStorage.setItem(DATA_UNLOCK_EXPIRES_KEY, String(Date.now() + DATA_SESSION_MS));
 
     $("unlockPassword").value = "";
     error?.classList.add("hidden");
@@ -9276,34 +8912,38 @@ $("taskClient")?.addEventListener("change", () => {
 });
 $("taskAssetAmount").addEventListener("input", updateAssetTimePreview);
 // $("taskLoggedHours").addEventListener("input", updateLoggedTimePreview);
+
 $("taskLogFilter")?.addEventListener("change", () => {
+  saveTaskFilterPreferences();
   renderTasks();
 });
+
 $("taskDateFilter")?.addEventListener("change", () => {
   const value = $("taskDateFilter").value;
   const input = $("taskCustomDate");
 
-  if (!input) return;
+  if (input) {
+    const isCustom = value === "custom";
 
-  const isCustom = value === "custom";
+    input.style.display = isCustom ? "" : "none";
 
-  input.style.display = isCustom ? "" : "none";
-
-  if (!isCustom) {
-    input.value = "";
+    if (!isCustom) {
+      input.value = "";
+    }
   }
 
+  saveTaskFilterPreferences();
   renderTasks();
 });
 
 $("taskCustomDate")?.addEventListener("change", () => {
+  saveTaskFilterPreferences();
   renderTasks();
 });
 
 fillSelects();
-
+ensureTaskRedesignStyles();
 initReportDates();
-
 bindActions();
 // Restore the last selected page
 let savedActivePage = "dashboard";
@@ -9325,9 +8965,7 @@ await loadAppLockConfig();
 
 renderAppLockSettings();
 
-const unlockExpiresAt = Number(
-  sessionStorage.getItem(DATA_UNLOCK_EXPIRES_KEY) || 0,
-);
+const unlockExpiresAt = Number(sessionStorage.getItem(DATA_UNLOCK_EXPIRES_KEY) || 0);
 
 if (unlockExpiresAt > Date.now()) {
   dataUnlocked = true;
