@@ -1893,7 +1893,92 @@ function renderTask(task, compact = false, comboSubtask = false) {
         </div>
       `
         : `
-        <!-- GIỮ NGUYÊN TOÀN BỘ PHẦN TASK ACTIONS CŨ Ở ĐÂY -->
+        <div class="task-action-toolbar">
+
+          <button
+            class="task-action"
+            data-action="history"
+            data-task-id="${task.id}"
+          >
+            History
+          </button>
+
+          <button
+            class="task-action task-more-toggle"
+            data-action="toggle-task-more"
+            data-task-id="${task.id}"
+            aria-expanded="false"
+          >
+            ⋯ More
+          </button>
+
+          <div class="task-secondary-actions">
+
+            <button
+              class="task-action"
+              data-action="edit"
+              data-task-id="${task.id}"
+            >
+              Edit
+            </button>
+
+            <button
+              class="task-action"
+              data-action="edit-logged"
+              data-task-id="${task.id}"
+            >
+              Logged: ${formatDuration(loggedMinutes)}
+            </button>
+
+            <button
+              class="task-action"
+              data-action="correction"
+              data-task-id="${task.id}"
+            >
+              + Correction
+            </button>
+
+            ${
+              task.status === STATUS.ARCHIVED
+                ? `
+                  <button
+                    class="task-action"
+                    data-action="unarchive"
+                    data-task-id="${task.id}"
+                  >
+                    Unarchive
+                  </button>
+                `
+                : `
+                  <button
+                    class="task-action"
+                    data-action="status-next"
+                    data-task-id="${task.id}"
+                  >
+                    ${task.status === STATUS.COMPLETED ? "Reopen" : "Change Status"}
+                  </button>
+
+                  <button
+                    class="task-action"
+                    data-action="archive"
+                    data-task-id="${task.id}"
+                  >
+                    Archive
+                  </button>
+                `
+            }
+
+            <button
+              class="task-action danger"
+              data-action="delete"
+              data-task-id="${task.id}"
+            >
+              Delete
+            </button>
+
+          </div>
+
+        </div>
       `
   }
 
