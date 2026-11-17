@@ -72,6 +72,7 @@ body {
 .page.active {
   display: block;
 }
+
 .sidebar {
   width: 235px;
   background: #111827;
@@ -142,6 +143,7 @@ body {
   margin-top: auto;
   padding: 18px
 }
+
 /* =========================================
    WORK WEEK NAVIGATION
 ========================================= */
@@ -198,6 +200,7 @@ body {
   font-weight: 600;
   color: var(--muted, #94a3b8);
 }
+
 .connection {
   font-size: 12px;
   color: #9ca3af;
@@ -295,12 +298,15 @@ body {
   width: 100%;
   margin-top: 14px
 } */
-#dataUnlockBtn, #dataLockBtn {
+#dataUnlockBtn,
+#dataLockBtn {
   margin: 20px 0 0;
 }
-#generateSummaryBtn{
+
+#generateSummaryBtn {
   margin: 0 20px 20px;
 }
+
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -616,6 +622,7 @@ body {
   font-weight: 750;
   white-space: nowrap
 }
+
 .status-approval {
   background: #dbeafe;
   color: #1d4ed8;
@@ -1034,11 +1041,11 @@ body {
   cursor: pointer
 }
 
-.field label.reason-option input{
+.field label.reason-option input {
   width: auto;
 }
 
-.field label.reason-option span{
+.field label.reason-option span {
   vertical-align: text-bottom;
 }
 
@@ -1103,6 +1110,7 @@ body {
   display: flex;
   flex-direction: column
 }
+
 .history-log>div.history-log-actions {
   display: unset;
 }
@@ -1511,7 +1519,7 @@ body {
 .time-input-with-suffix input {
   flex: 1;
 }
- 
+
 .time-input-with-suffix span {
   color: var(--text-muted);
   font-size: 11px;
@@ -1614,7 +1622,7 @@ body {
   padding: 20px;
 }
 
-.client-form-body > .field:first-child {
+.client-form-body>.field:first-child {
   margin-top: 0;
 }
 
@@ -1666,6 +1674,7 @@ body {
 
   background: #fafbfc;
 }
+
 .client-type-editor-main {
   min-width: 0;
   flex: 1;
@@ -1863,6 +1872,7 @@ body {
   }
 
 }
+
 @media (max-width: 560px) {
 
   .client-card-header {
@@ -1888,10 +1898,12 @@ body {
   }
 
 }
+
 .client-types-helper {
   margin-top: -1px;
   margin-bottom: 10px;
 }
+
 .client-type-fixed-badge {
   display: inline-flex;
   align-items: center;
@@ -1922,7 +1934,7 @@ body {
   gap: 16px;
 }
 
-.type-breakdown-header > span {
+.type-breakdown-header>span {
   font-weight: 600;
 }
 
@@ -2036,15 +2048,19 @@ body {
 
   color: var(--muted, #6b7280);
 }
+
 #appLockPasswordBtn {
   margin-top: 20px;
 }
+
 .lock-card form {
   text-align: left;
 }
-#lockAppBtn{
+
+#lockAppBtn {
   width: 100%;
 }
+
 .lock-card form button {
   margin-top: 20px;
 }
@@ -2178,6 +2194,7 @@ body {
   background: var(--border, #d1d5db);
   border-radius: 999px;
 }
+
 /* ==================== APP LOCK PASSWORD MODAL ==================== */
 
 #appLockPasswordModal.hidden {
@@ -2269,7 +2286,7 @@ body {
   gap: 24px;
 }
 
-.app-lock-actions > div {
+.app-lock-actions>div {
   min-width: 0;
 }
 
@@ -2339,7 +2356,7 @@ body {
   color: #b42318;
 }
 
-#loggedTimeModal .field{
+#loggedTimeModal .field {
   padding: 20px;
 }
 
@@ -2357,9 +2374,11 @@ body {
   background: #eef0f3;
   color: #667085;
 }
+
 .quick-log-action {
   font-weight: 700;
 }
+
 @media (max-width: 640px) {
   .app-lock-actions {
     flex-direction: column;
@@ -2370,6 +2389,7 @@ body {
     width: 100%;
   }
 }
+
 /* =========================================================
    DARK MODE
    ========================================================= */
@@ -2630,40 +2650,42 @@ html[data-theme="dark"] .nav-item.active {
 /* ---------- Dark task ---------- */
 
 html[data-theme="dark"] .reason-option {
-     background: var(--panel);
-    border-color: var(--border);
+  background: var(--panel);
+  border-color: var(--border);
 }
+
 html[data-theme="dark"] .quick-time {
-     background: var(--panel);
-    border-color: var(--border);
+  background: var(--panel);
+  border-color: var(--border);
 }
 
 /* ---------- Dark work hours ---------- */
 
 html[data-theme="dark"] .work-day-metric {
-      background: var(--panel);
-    border-color: var(--border);
+  background: var(--panel);
+  border-color: var(--border);
 }
 
 html[data-theme="dark"] .work-week-table th {
-      background: var(--panel);
-    border-color: var(--border);
+  background: var(--panel);
+  border-color: var(--border);
 }
+
 html[data-theme="dark"] .work-day-preview {
-      background: var(--panel);
-    border-color: var(--border);
+  background: var(--panel);
+  border-color: var(--border);
 }
 
 /* ---------- Dark Edit ---------- */
 
 html[data-theme="dark"] .client-type-editor-row {
-      background: var(--panel);
-    border-color: var(--border);
+  background: var(--panel);
+  border-color: var(--border);
 }
 
 html[data-theme="dark"] .work-week-table th {
-      background: var(--panel);
-    border-color: var(--border);
+  background: var(--panel);
+  border-color: var(--border);
 }
 
 
@@ -2719,7 +2741,7 @@ html[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
   transform: translateX(0);
   transition: transform .22s ease;
 
-  box-shadow: 8px 0 28px rgba(0,0,0,.16);
+  box-shadow: 8px 0 28px rgba(0, 0, 0, .16);
 }
 
 /* Sidebar được ghim */
@@ -2770,7 +2792,7 @@ html[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
   background: var(--panel);
   color: var(--text);
 
-  box-shadow: 3px 2px 12px rgba(0,0,0,.16);
+  box-shadow: 3px 2px 12px rgba(0, 0, 0, .16);
 
   font-size: 23px;
   font-weight: 700;
@@ -2811,6 +2833,182 @@ html[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
   }
 
   .app.sidebar-pinned .sidebar {
-    box-shadow: 8px 0 28px rgba(0,0,0,.22);
+    box-shadow: 8px 0 28px rgba(0, 0, 0, .22);
+  }
+}
+
+/* =================================
+   COMBO SUBTASKS - HORIZONTAL ROWS
+================================= */
+
+.combo-subtasks-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.combo-subtasks-heading label {
+  display: block;
+  margin-bottom: 5px;
+}
+
+.combo-add-subtask-btn {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* Container */
+
+.combo-subtasks-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+
+  max-height: 460px;
+  overflow-y: auto;
+  overflow-x: hidden;
+
+  padding: 2px 5px 8px 2px;
+}
+
+/* Each row */
+
+.combo-subtask-row {
+  display: grid;
+
+  grid-template-columns:
+    minmax(90px, 0.8fr) minmax(180px, 2.5fr) minmax(38px, 42px);
+
+  align-items: center;
+  gap: 10px;
+
+  min-width: 0;
+}
+
+.combo-subtask-row>div {
+  min-width: 0;
+}
+
+/* Individual Time layout */
+
+.combo-subtasks-grid:has(.combo-subtask-time) .combo-subtask-row {
+  grid-template-columns:
+    minmax(85px, 0.8fr) minmax(150px, 2.2fr) minmax(95px, 0.9fr) minmax(38px, 42px);
+}
+
+/* Header */
+
+.combo-subtask-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+
+  padding: 9px 4px;
+
+  background: var(--modal-bg, var(--card-bg, #1f2937));
+
+  color: var(--text-secondary, #888);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* Inputs */
+
+.combo-subtask-row input {
+  width: 100%;
+  min-width: 0;
+  height: 39px;
+
+  box-sizing: border-box;
+
+  padding: 8px 10px;
+
+  border: 1px solid var(--border-color, rgba(128, 128, 128, 0.25));
+  border-radius: 8px;
+
+  font-size: 13px;
+}
+
+/* Country Code */
+
+.combo-subtask-code input {
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+/* URL */
+
+.combo-subtask-url input {
+  width: 100%;
+}
+
+/* Required Time */
+
+.combo-subtask-time input {
+  text-align: center;
+}
+
+/* Delete button */
+
+.combo-subtask-action {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.combo-remove-subtask-btn {
+  width: 30px;
+  height: 30px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border: none;
+  border-radius: 7px;
+
+  background: rgba(220, 60, 60, 0.1);
+  color: #e05b5b;
+
+  font-size: 20px;
+  line-height: 1;
+
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.combo-remove-subtask-btn:hover {
+  background: rgba(220, 60, 60, 0.22);
+}
+
+/* Hover row */
+
+.combo-subtask-row:not(.combo-subtask-header):hover input {
+  border-color: var(--accent-color, #64748b);
+}
+
+/* Add button */
+
+.combo-add-subtask-btn {
+  white-space: nowrap;
+}
+
+/* Mobile */
+
+@media (max-width: 600px) {
+  .combo-subtasks-grid {
+    overflow-x: auto;
+  }
+
+  .combo-subtask-row {
+    min-width: 480px;
+  }
+
+  .combo-subtasks-grid:has(.combo-subtask-time) .combo-subtask-row {
+    min-width: 560px;
   }
 }

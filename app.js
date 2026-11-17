@@ -1592,7 +1592,14 @@ function renderTask(task, compact = false, comboSubtask = false) {
   const dates = taskDates(task.id);
   const s = STATUS_META[task.status] || STATUS_META.open;
 
-  const firstWorkDate = dates.length ? dates[0] : "";
+  // Prefer the latest actual WorkLog / Correction date.
+  // If there is no work record yet, use the Task creation date.
+  const createdDate = task.createdAt
+    ? dateToLocalString(new Date(dateValue(task.createdAt)))
+    : "";
+
+  const firstWorkDate = dates.length ? dates[0] : createdDate;
+
   const worked = firstWorkDate ? shortDate(firstWorkDate) : "No work date yet";
 
   const {
@@ -2251,6 +2258,7 @@ async function applyBulkTaskStatus(tasksToUpdate, newStatus, targetMeta) {
 // ========================================
 // RENDER COMBO VIEW
 // ========================================
+
 function renderComboBoard(tasks, container) {
   const grouped = new Map();
 
@@ -2293,10 +2301,19 @@ function renderComboBoard(tasks, container) {
       const type = combo?.type || firstTask?.type || "Other";
       const date = combo?.date || firstTask?.fixedDate || "";
 
-      const totalFixedMinutes = subtasks.reduce(
-        (sum, task) => sum + (Number(task.fixedMinutes) || 0),
-        0,
-      );
+      // Old Combos without timeMode are treated as Fixed Time.
+      const timeMode = combo?.timeMode || "fixed";
+      const isIndividual = timeMode === "individual";
+
+      const totalMinutes = subtasks.reduce((sum, task) => {
+        const minutes = isIndividual
+          ? Number(task.requiredMinutes) || 0
+          : Number(task.fixedMinutes) || 0;
+
+        return sum + minutes;
+      }, 0);
+
+      const timeLabel = isIndividual ? "Total Required Time" : "Fixed Time";
 
       const isExpanded = expandedComboIds.has(comboId);
 
@@ -2305,110 +2322,108 @@ function renderComboBoard(tasks, container) {
         subtasks.every((task) => selectedTaskIds.has(task.id));
 
       return `
-      <section class="combo-card">
+        <section class="combo-card">
 
-        <div class="combo-card-header">
+          <div class="combo-card-header">
 
-          <div class="combo-main-info">
+            <div class="combo-main-info">
 
-            <div class="combo-eyebrow">MAIN TICKET</div>
+              <div class="combo-eyebrow">MAIN TICKET</div>
 
-            <h3>${escapeHtml(name)}</h3>
+              <h3>${escapeHtml(name)}</h3>
 
-            <div class="combo-meta">
-              <span>${escapeHtml(clientName)}</span>
-              <span>·</span>
-              <span>${escapeHtml(type)}</span>
-              <span>·</span>
-              <span>${escapeHtml(date)}</span>
-            </div>
-
-            <div class="combo-summary">
-              <span>${subtasks.length} Subtasks</span>
-              <span>·</span>
-              <span>Fixed Time: ${formatDuration(totalFixedMinutes)}</span>
-            </div>
-
-          </div>
-
-          <div class="combo-card-actions">
-
-            ${
-              mainUrl
-                ? `
-                  <a
-                    class="combo-link-btn"
-                    href="${escapeHtml(mainUrl)}"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    Open Main Link ↗
-                  </a>
-
-                  <button
-                    type="button"
-                    class="combo-copy-btn"
-                    data-copy-combo-link="${escapeHtml(mainUrl)}"
-                  >
-                    Copy Link
-                  </button>
-                `
-                : ""
-            }
-
-            <button
-              type="button"
-              class="combo-action-btn"
-              data-edit-combo="${escapeHtml(comboId)}"
-            >
-              Edit Combo
-            </button>
-
-            <button
-              type="button"
-              class="combo-action-btn combo-delete-btn"
-              data-delete-combo="${escapeHtml(comboId)}"
-            >
-              Delete Combo
-            </button>
-
-            <button
-              type="button"
-              class="combo-toggle-btn"
-              data-combo-toggle="${escapeHtml(comboId)}"
-            >
-              ${isExpanded ? "Hide Subtasks" : "Show Subtasks"}
-              <span>${isExpanded ? "▲" : "▼"}</span>
-            </button>
-
-          </div>
-
-          
-
-        </div>
-
-        ${
-          isExpanded
-            ? `
-              <div class="combo-subtasks">
-
-                ${subtasks
-                  .map(
-                    (task) => `
-                  <div class="combo-subtask">
-                    ${renderTask(task, false, true)}
-                  </div>
-                `,
-                  )
-                  .join("")}
-
+              <div class="combo-meta">
+                <span>${escapeHtml(clientName)}</span>
+                <span>·</span>
+                <span>${escapeHtml(type)}</span>
+                <span>·</span>
+                <span>${escapeHtml(date)}</span>
               </div>
-            `
-            : ""
-        }
 
-      </section>
-    `;
+              <div class="combo-summary">
+                <span>${subtasks.length} Subtasks</span>
+                <span>·</span>
+                <span>${timeLabel}: ${formatDuration(totalMinutes)}</span>
+              </div>
+
+            </div>
+
+            <div class="combo-card-actions">
+
+              ${
+                mainUrl
+                  ? `
+                    <a
+                      class="combo-link-btn"
+                      href="${escapeHtml(mainUrl)}"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Open Main Link ↗
+                    </a>
+
+                    <button
+                      type="button"
+                      class="combo-copy-btn"
+                      data-copy-combo-link="${escapeHtml(mainUrl)}"
+                    >
+                      Copy Link
+                    </button>
+                  `
+                  : ""
+              }
+
+              <button
+                type="button"
+                class="combo-action-btn"
+                data-edit-combo="${escapeHtml(comboId)}"
+              >
+                Edit Combo
+              </button>
+
+              <button
+                type="button"
+                class="combo-action-btn combo-delete-btn"
+                data-delete-combo="${escapeHtml(comboId)}"
+              >
+                Delete Combo
+              </button>
+
+              <button
+                type="button"
+                class="combo-toggle-btn"
+                data-combo-toggle="${escapeHtml(comboId)}"
+              >
+                ${isExpanded ? "Hide Subtasks" : "Show Subtasks"}
+                <span>${isExpanded ? "▲" : "▼"}</span>
+              </button>
+
+            </div>
+
+          </div>
+
+          ${
+            isExpanded
+              ? `
+                <div class="combo-subtasks">
+
+                  ${subtasks
+                    .map(
+                      (task) => `
+                        <div class="combo-subtask">
+                          ${renderTask(task, false, true)}
+                        </div>
+                      `,
+                    )
+                    .join("")}
+
+                </div>
+              `
+              : ""
+          }
+
+        </section>
+      `;
     })
     .join("");
 
@@ -2430,7 +2445,11 @@ function renderTasks() {
   const customDate = $("taskCustomDate")?.value || "";
 
   let tasks = state.tasks.filter(
-    (t) => state.showArchived || t.status !== STATUS.ARCHIVED,
+    (t) =>
+      // Combo view vẫn cần lấy các Subtasks
+      (taskViewMode === "combo" || !t.comboId) &&
+      // Giữ nguyên logic Archived hiện tại
+      (state.showArchived || t.status !== STATUS.ARCHIVED),
   );
 
   // STATUS FILTER
@@ -4310,7 +4329,17 @@ function taskMatchesDateFilter(task, filter, customDate = "") {
     return true;
   }
 
-  const dates = taskDates(task.id);
+  // Actual dates from WorkLogs and Corrections.
+  const workDates = taskDates(task.id);
+
+  // Combo Main Ticket Date is also a valid filter date.
+  const combo = task.comboId
+    ? state.combos.find((item) => item.id === task.comboId)
+    : null;
+
+  const baseDate = combo?.date || task.fixedDate || "";
+
+  const dates = [...new Set([...workDates, baseDate].filter(Boolean))];
 
   if (!dates.length) {
     return false;
@@ -4485,7 +4514,6 @@ function activityLabel(a) {
 }
 function updateDashboard() {
   const d = today();
-
   const normal = state.workSessions.filter((x) => x.date === d);
 
   const corr = state.corrections.filter((x) => x.date === d);
@@ -7127,21 +7155,338 @@ async function migrateFixedTasksToWorkLogs() {
 // COMBO TASKS
 // ========================================
 
-function parseComboSubtasks(raw = $("comboSubtasks")?.value || "") {
-  return raw
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => {
-      const parts = line.split(/\s+/);
-      const countryCode = (parts.shift() || "").toUpperCase();
+function parseComboTime(value) {
+  const input = String(value || "")
+    .trim()
+    .toLowerCase();
+
+  if (!input) return 0;
+
+  // Supports: 30m, 90m, 1h, 1h30m, 2h15m
+  const match = input.match(/^(?:(\d+)h)?(?:(\d+)m)?$/);
+
+  if (!match || (!match[1] && !match[2])) return 0;
+
+  const hours = Number(match[1] || 0);
+  const minutes = Number(match[2] || 0);
+
+  return hours * 60 + minutes;
+}
+
+function formatComboTimeInput(minutes) {
+  const total = Math.max(0, Number(minutes) || 0);
+  const hours = Math.floor(total / 60);
+  const mins = total % 60;
+
+  if (hours && mins) return `${hours}h${mins}m`;
+  if (hours) return `${hours}h`;
+  return `${mins}m`;
+}
+function parseComboSubtasks() {
+  const timeMode = $("comboTimeMode")?.value || "fixed";
+
+  const container = $("comboSubtasksList");
+
+  if (!container) return [];
+
+  return Array.from(container.querySelectorAll(".combo-subtask-card")).map(
+    (card) => {
+      const countryCode = (
+        card.querySelector('[data-field="countryCode"]')?.value || ""
+      )
+        .trim()
+        .toUpperCase();
+
+      const url = (
+        card.querySelector('[data-field="url"]')?.value || ""
+      ).trim();
+
+      const timeText =
+        card.querySelector('[data-field="requiredMinutes"]')?.value || "";
+
+      const requiredMinutes =
+        timeMode === "individual" ? parseComboTime(timeText.trim()) : 0;
 
       return {
         countryCode,
         title: countryCode,
-        url: parts.join(" ").trim(),
+        url,
+        requiredMinutes,
       };
+    },
+  );
+}
+function renderComboSubtasks(items = []) {
+  const container = $("comboSubtasksList");
+
+  if (!container) return;
+
+  container.innerHTML = "";
+
+  const timeMode = $("comboTimeMode")?.value || "fixed";
+  const isIndividual = timeMode === "individual";
+
+  const subtasks = items.length
+    ? items
+    : [{ countryCode: "", url: "", requiredMinutes: 0 }];
+
+  // Header
+  const header = document.createElement("div");
+  header.className = "combo-subtask-row combo-subtask-header";
+
+  header.innerHTML = `
+    <div>Country Code</div>
+    <div>Email Link</div>
+    ${isIndividual ? "<div>Required Time</div>" : ""}
+    <div></div>
+  `;
+
+  container.appendChild(header);
+
+  // Subtask rows
+  subtasks.forEach((item, index) => {
+    const row = document.createElement("div");
+
+    row.className = "combo-subtask-row combo-subtask-card";
+
+    const timeValue =
+      isIndividual && Number(item.requiredMinutes) > 0
+        ? formatComboTimeInput(item.requiredMinutes)
+        : "";
+
+    row.innerHTML = `
+      <div class="combo-subtask-code">
+        <input
+          type="text"
+          data-field="countryCode"
+          value="${escapeComboHtml(item.countryCode || "")}"
+          placeholder="e.g. DEN"
+          autocomplete="off"
+        />
+      </div>
+
+      <div class="combo-subtask-url">
+        <input
+          type="url"
+          data-field="url"
+          value="${escapeComboHtml(item.url || "")}"
+          placeholder="https://..."
+          autocomplete="off"
+        />
+      </div>
+
+      ${
+        isIndividual
+          ? `
+            <div class="combo-subtask-time">
+              <input
+                type="text"
+                data-field="requiredMinutes"
+                value="${escapeComboHtml(timeValue)}"
+                placeholder="1h30m"
+                autocomplete="off"
+              />
+            </div>
+          `
+          : ""
+      }
+
+      <div class="combo-subtask-action">
+        <button
+          type="button"
+          class="combo-remove-subtask-btn"
+          data-action="remove"
+          title="Remove Subtask"
+        >
+          ×
+        </button>
+      </div>
+    `;
+
+    // Số thứ tự để dễ nhận biết
+    row.dataset.index = index + 1;
+
+    container.appendChild(row);
+  });
+
+  updateComboPreview();
+}
+function escapeComboHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (char) => {
+    const entities = {
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;",
+    };
+
+    return entities[char];
+  });
+}
+
+function addComboSubtask() {
+  const current = parseComboSubtasks();
+
+  current.push({
+    countryCode: "",
+    url: "",
+    requiredMinutes: 0,
+  });
+
+  renderComboSubtasks(current);
+
+  const cards = $("comboSubtasksList")?.querySelectorAll(".combo-subtask-card");
+
+  const lastCard = cards?.[cards.length - 1];
+
+  lastCard?.querySelector('[data-field="countryCode"]')?.focus();
+}
+
+function removeComboSubtask(button) {
+  const card = button.closest(".combo-subtask-card");
+
+  if (!card) return;
+
+  const cards = Array.from(
+    $("comboSubtasksList").querySelectorAll(".combo-subtask-card"),
+  );
+
+  if (cards.length <= 1) {
+    notify("A Combo must have at least one Subtask.", "warning");
+    return;
+  }
+
+  card.remove();
+
+  // Cập nhật lại số thứ tự.
+  $("comboSubtasksList")
+    .querySelectorAll(".combo-subtask-card")
+    .forEach((item, index) => {
+      const label = item.querySelector(".combo-subtask-number");
+
+      if (label) {
+        label.textContent = `Subtask ${index + 1}`;
+      }
     });
+
+  updateComboPreview();
+}
+function updateComboPreview() {
+  const clientId = $("comboClient")?.value || "";
+  const type = $("comboType")?.value || "";
+  const timeMode = $("comboTimeMode")?.value || "fixed";
+
+  const minutesPerAsset = getFixedMinutesPerAsset(clientId, type);
+  const subtasks = parseComboSubtasks();
+
+  const fixedPreview = $("comboFixedPreview");
+  const subtaskPreview = $("comboSubtaskPreview");
+  const helper = $("comboSubtasksHelper");
+
+  const isIndividual = timeMode === "individual";
+
+  if (helper) {
+    helper.textContent = isIndividual
+      ? "Enter Country Code, Email Link and Required Time for each Subtask."
+      : "Enter Country Code and Email Link for each Subtask.";
+  }
+
+  if (isIndividual) {
+    if (fixedPreview) {
+      fixedPreview.textContent =
+        "Individual Time: each Subtask has its own Required Time.";
+    }
+
+    const total = subtasks.reduce(
+      (sum, item) => sum + (Number(item.requiredMinutes) || 0),
+      0,
+    );
+
+    if (subtaskPreview) {
+      subtaskPreview.textContent = `${subtasks.length} subtasks · Total Required Time: ${formatDuration(total)}`;
+    }
+
+    return;
+  }
+
+  if (fixedPreview) {
+    fixedPreview.textContent =
+      clientId && type
+        ? minutesPerAsset > 0
+          ? `Fixed Time: ${formatDuration(minutesPerAsset)} per subtask`
+          : "This Asset Type does not have Fixed Time configured."
+        : "Select a client and asset type to see Fixed Time.";
+  }
+
+  if (subtaskPreview) {
+    subtaskPreview.textContent = `${subtasks.length} subtasks · Total Fixed Time: ${formatDuration(
+      subtasks.length * minutesPerAsset,
+    )}`;
+  }
+}
+
+function openComboModal(comboId = "") {
+  const form = $("comboForm");
+
+  form?.reset();
+
+  const combo = comboId
+    ? state.combos.find((item) => item.id === comboId)
+    : null;
+
+  $("comboEditId").value = combo?.id || "";
+
+  $("comboModalTitle").textContent = combo
+    ? "Edit Main Ticket"
+    : "Create Combo";
+
+  $("createComboSubmitBtn").textContent = combo
+    ? "Save Changes"
+    : "Create Combo";
+
+  $("comboName").value = combo?.name || "";
+  $("comboMainUrl").value = combo?.mainUrl || "";
+  $("comboDate").value = combo?.date || today();
+
+  $("comboTimeMode").value = combo?.timeMode || "fixed";
+
+  // Use the Default Client configured in Settings
+  const selectedClientId = combo
+    ? combo.clientId || ""
+    : defaultTaskClientId || "";
+
+  populateComboClients(selectedClientId);
+  populateComboTypes(combo?.type || "");
+
+  if (combo) {
+    const subtasks = state.tasks
+      .filter((task) => task.comboId === combo.id)
+      .sort((a, b) =>
+        String(a.countryCode || a.title).localeCompare(
+          String(b.countryCode || b.title),
+        ),
+      )
+      .map((task) => ({
+        countryCode: task.countryCode || task.title || "",
+        url: task.url || "",
+        requiredMinutes: Number(task.requiredMinutes) || 0,
+      }));
+
+    renderComboSubtasks(subtasks);
+  } else {
+    renderComboSubtasks([
+      {
+        countryCode: "",
+        url: "",
+        requiredMinutes: 0,
+      },
+    ]);
+  }
+
+  updateComboPreview();
+
+  openModal("comboModal");
 }
 
 function populateComboClients(selectedClientId = "") {
@@ -7189,76 +7534,6 @@ function populateComboTypes(selectedType = "") {
   updateComboPreview();
 }
 
-function updateComboPreview() {
-  const clientId = $("comboClient")?.value || "";
-  const type = $("comboType")?.value || "";
-  const minutesPerAsset = getFixedMinutesPerAsset(clientId, type);
-  const subtasks = parseComboSubtasks();
-
-  const fixedPreview = $("comboFixedPreview");
-  const subtaskPreview = $("comboSubtaskPreview");
-
-  if (fixedPreview) {
-    fixedPreview.textContent =
-      clientId && type
-        ? minutesPerAsset > 0
-          ? `Fixed Time: ${formatDuration(minutesPerAsset)} per subtask`
-          : "This Asset Type does not have Fixed Time configured."
-        : "Select a client and asset type to see Fixed Time.";
-  }
-
-  if (subtaskPreview) {
-    subtaskPreview.textContent = `${subtasks.length} subtasks · Total Fixed Time: ${formatDuration(subtasks.length * minutesPerAsset)}`;
-  }
-}
-
-function openComboModal(comboId = "") {
-  const form = $("comboForm");
-  form?.reset();
-
-  const combo = comboId
-    ? state.combos.find((item) => item.id === comboId)
-    : null;
-
-  $("comboEditId").value = combo?.id || "";
-
-  $("comboModalTitle").textContent = combo
-    ? "Edit Main Ticket"
-    : "Create Combo";
-
-  $("createComboSubmitBtn").textContent = combo
-    ? "Save Changes"
-    : "Create Combo";
-
-  $("comboName").value = combo?.name || "";
-  $("comboMainUrl").value = combo?.mainUrl || "";
-  $("comboDate").value = combo?.date || today();
-
-  populateComboClients(combo?.clientId || "");
-  populateComboTypes(combo?.type || "");
-
-  if (combo) {
-    const subtasks = state.tasks
-      .filter((task) => task.comboId === combo.id)
-      .sort((a, b) =>
-        String(a.countryCode || a.title).localeCompare(
-          String(b.countryCode || b.title),
-        ),
-      );
-
-    $("comboSubtasks").value = subtasks
-      .map((task) =>
-        `${task.countryCode || task.title} ${task.url || ""}`.trim(),
-      )
-      .join("\n");
-  } else {
-    $("comboSubtasks").value = "";
-  }
-
-  updateComboPreview();
-  openModal("comboModal");
-}
-
 function validateComboUrl(value, required = false) {
   const url = String(value || "").trim();
 
@@ -7273,6 +7548,8 @@ function validateComboUrl(value, required = false) {
 }
 
 function validateComboSubtasks(subtasks) {
+  const timeMode = $("comboTimeMode")?.value || "fixed";
+
   if (!subtasks.length) {
     return "Please enter at least one subtask.";
   }
@@ -7287,20 +7564,27 @@ function validateComboSubtasks(subtasks) {
     const item = subtasks[i];
     const lineNumber = i + 1;
 
-    if (!/^[A-Z]{2,3}$/.test(item.countryCode)) {
-      return `Line ${lineNumber}: Country code must contain 2–3 letters.`;
+    if (!item.countryCode || !/^[A-Z]+$/.test(item.countryCode)) {
+      return `Subtask ${lineNumber}: Country code must contain letters only.`;
     }
 
     if (!item.url) {
-      return `Line ${lineNumber}: Missing email link.`;
+      return `Subtask ${lineNumber}: Missing email link.`;
     }
 
     if (!validateComboUrl(item.url, true)) {
-      return `Line ${lineNumber}: Please enter a valid HTTP/HTTPS link.`;
+      return `Subtask ${lineNumber}: Please enter a valid HTTP/HTTPS link.`;
     }
 
     if (seen.has(item.countryCode)) {
       return `Duplicate country code: ${item.countryCode}.`;
+    }
+
+    if (
+      timeMode === "individual" &&
+      (!item.requiredMinutes || item.requiredMinutes <= 0)
+    ) {
+      return `Subtask ${lineNumber}: Please enter a valid Required Time, e.g. 1h30m.`;
     }
 
     seen.add(item.countryCode);
@@ -7309,7 +7593,6 @@ function validateComboSubtasks(subtasks) {
   return "";
 }
 
-// Create one new Subtask and its related records.
 async function createComboSubtask({
   comboId,
   comboName,
@@ -7317,9 +7600,12 @@ async function createComboSubtask({
   clientName,
   type,
   date,
+  timeMode = "fixed",
   minutesPerAsset,
   item,
 }) {
+  const isIndividual = timeMode === "individual";
+
   const taskRef = await addDoc(collection(db, "tasks"), {
     title: item.countryCode,
     countryCode: item.countryCode,
@@ -7334,9 +7620,12 @@ async function createComboSubtask({
     note: "",
 
     assetAmount: 1,
-    fixedMinutes: minutesPerAsset,
+
+    // Individual Time must not be treated as Fixed Time.
+    fixedMinutes: isIndividual ? 0 : minutesPerAsset,
     fixedDate: date,
-    requiredMinutes: 0,
+
+    requiredMinutes: isIndividual ? item.requiredMinutes : 0,
 
     comboId,
     comboName,
@@ -7345,7 +7634,11 @@ async function createComboSubtask({
     updatedAt: serverTimestamp(),
   });
 
-  await syncFixedWorkLog(taskRef.id, minutesPerAsset, date);
+  if (isIndividual) {
+    await syncTaskRequiredWorkLog(taskRef.id, item.requiredMinutes, date);
+  } else {
+    await syncFixedWorkLog(taskRef.id, minutesPerAsset, date);
+  }
 
   await addDoc(collection(db, "activityLogs"), {
     taskId: taskRef.id,
@@ -7354,11 +7647,26 @@ async function createComboSubtask({
       comboId,
       comboName,
       countryCode: item.countryCode,
+      timeMode,
     },
     createdAt: serverTimestamp(),
   });
 
   return taskRef.id;
+}
+
+// Remove only automatically generated Fixed WorkLogs.
+// Manually logged WorkLogs are preserved.
+async function deleteComboFixedWorkLogs(taskId) {
+  const entries = state.workSessions.filter(
+    (item) =>
+      item.source === "fixed" &&
+      (item.fixedTaskId === taskId || item.taskId === taskId),
+  );
+
+  for (const item of entries) {
+    await deleteDoc(doc(db, "workSessions", item.id));
+  }
 }
 
 // Update fixed WorkLog without creating duplicate entries.
@@ -7411,7 +7719,6 @@ async function deleteComboSubtask(taskId) {
   await deleteDoc(doc(db, "tasks", taskId));
 }
 
-// Save a new Combo or update an existing Combo.
 async function saveCombo(e) {
   e.preventDefault();
 
@@ -7422,6 +7729,8 @@ async function saveCombo(e) {
   const clientId = $("comboClient").value;
   const type = $("comboType").value;
   const date = $("comboDate").value;
+  const timeMode = $("comboTimeMode")?.value || "fixed";
+  const isIndividual = timeMode === "individual";
 
   const client = getClient(clientId);
   const minutesPerAsset = getFixedMinutesPerAsset(clientId, type);
@@ -7450,7 +7759,7 @@ async function saveCombo(e) {
     );
   }
 
-  if (minutesPerAsset <= 0) {
+  if (!isIndividual && minutesPerAsset <= 0) {
     return notify(
       "This Asset Type does not have Fixed Time configured.",
       "warning",
@@ -7464,13 +7773,27 @@ async function saveCombo(e) {
   }
 
   const isEditing = Boolean(comboId);
-  const totalFixedMinutes = minutesPerAsset * subtasks.length;
+
+  const totalRequiredMinutes = isIndividual
+    ? subtasks.reduce(
+        (sum, item) => sum + (Number(item.requiredMinutes) || 0),
+        0,
+      )
+    : 0;
+
+  const totalFixedMinutes = isIndividual
+    ? 0
+    : minutesPerAsset * subtasks.length;
+
+  const totalMinutes = isIndividual ? totalRequiredMinutes : totalFixedMinutes;
+
+  const totalLabel = isIndividual ? "Total Required Time" : "Total Fixed Time";
 
   confirmAction(
     isEditing ? "Save Combo Changes?" : "Create Combo?",
     isEditing
       ? `Update "${name}" and synchronize its ${subtasks.length} subtasks?`
-      : `Create "${name}" with ${subtasks.length} subtasks? Total Fixed Time: ${formatDuration(totalFixedMinutes)}.`,
+      : `Create "${name}" with ${subtasks.length} subtasks? ${totalLabel}: ${formatDuration(totalMinutes)}.`,
     async () => {
       const button = $("createComboSubmitBtn");
 
@@ -7480,20 +7803,25 @@ async function saveCombo(e) {
       }
 
       try {
+        const comboData = {
+          name,
+          mainUrl,
+          clientId,
+          clientName: client.name,
+          type,
+          date,
+          timeMode,
+          minutesPerAsset: isIndividual ? 0 : minutesPerAsset,
+          ticketCount: subtasks.length,
+          totalFixedMinutes,
+          totalRequiredMinutes,
+          updatedAt: serverTimestamp(),
+        };
+
         if (!isEditing) {
-          const comboRef = await addDoc(collection(db, "combos"), {
-            name,
-            mainUrl,
-            clientId,
-            clientName: client.name,
-            type,
-            date,
-            minutesPerAsset,
-            ticketCount: subtasks.length,
-            totalFixedMinutes,
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
-          });
+          comboData.createdAt = serverTimestamp();
+
+          const comboRef = await addDoc(collection(db, "combos"), comboData);
 
           for (const item of subtasks) {
             await createComboSubtask({
@@ -7504,6 +7832,7 @@ async function saveCombo(e) {
               type,
               date,
               minutesPerAsset,
+              timeMode,
               item,
             });
           }
@@ -7538,21 +7867,8 @@ async function saveCombo(e) {
             subtasks.map((item) => item.countryCode),
           );
 
-          // Update Main Ticket information.
-          await updateDoc(doc(db, "combos", comboId), {
-            name,
-            mainUrl,
-            clientId,
-            clientName: client.name,
-            type,
-            date,
-            minutesPerAsset,
-            ticketCount: subtasks.length,
-            totalFixedMinutes,
-            updatedAt: serverTimestamp(),
-          });
+          await updateDoc(doc(db, "combos", comboId), comboData);
 
-          // Update existing Subtasks or create new ones.
           for (const item of subtasks) {
             const existingTask = existingByCode.get(item.countryCode);
 
@@ -7566,8 +7882,11 @@ async function saveCombo(e) {
                 project: client.name,
                 type,
 
-                fixedMinutes: minutesPerAsset,
+                fixedMinutes: isIndividual ? 0 : minutesPerAsset,
                 fixedDate: date,
+                requiredMinutes: isIndividual
+                  ? Number(item.requiredMinutes) || 0
+                  : 0,
 
                 comboName: name,
                 comboId,
@@ -7575,11 +7894,28 @@ async function saveCombo(e) {
                 updatedAt: serverTimestamp(),
               });
 
-              await updateComboFixedWorkLog(
-                existingTask.id,
-                minutesPerAsset,
-                date,
-              );
+              if (isIndividual) {
+                // Xóa Fixed WorkLog cũ.
+                await deleteComboFixedWorkLogs(existingTask.id);
+
+                // Tạo hoặc cập nhật Required WorkLog.
+                await syncTaskRequiredWorkLog(
+                  existingTask.id,
+                  item.requiredMinutes,
+                  date,
+                );
+              } else {
+                // Xóa Required WorkLog cũ nếu chuyển sang Fixed Time.
+                await syncTaskRequiredWorkLog(existingTask.id, 0, date);
+
+                // Tạo hoặc cập nhật Fixed WorkLog.
+                await updateComboFixedWorkLog(
+                  existingTask.id,
+                  minutesPerAsset,
+                  date,
+                );
+              }
+
               await addDoc(collection(db, "activityLogs"), {
                 taskId: existingTask.id,
                 action: "task_edited",
@@ -7587,6 +7923,7 @@ async function saveCombo(e) {
                   comboId,
                   comboName: name,
                   countryCode: item.countryCode,
+                  timeMode,
                 },
                 createdAt: serverTimestamp(),
               });
@@ -7599,12 +7936,13 @@ async function saveCombo(e) {
                 type,
                 date,
                 minutesPerAsset,
+                timeMode,
                 item,
               });
             }
           }
 
-          // Delete Subtasks removed from the edited list.
+          // Permanently remove Subtasks deleted from the Main Ticket.
           for (const oldTask of existingTasks) {
             const oldCode = String(
               oldTask.countryCode || oldTask.title,
@@ -7683,6 +8021,50 @@ async function copyComboLink(url) {
   } catch (err) {
     console.error("Copy link failed:", err);
     notify("Could not copy link.", "error");
+  }
+}
+
+async function syncTaskRequiredWorkLog(taskId, requiredMinutes) {
+  if (!taskId) return;
+
+  const task = getTask(taskId);
+  if (!task) return;
+
+  // Fixed Time được xử lý riêng
+  if ((Number(task.fixedMinutes) || 0) > 0) return;
+
+  const minutes = Math.max(0, Number(requiredMinutes) || 0);
+
+  // Tìm WorkLog được tạo để lưu Required Time của Task
+  const existing = state.workSessions.find(
+    (x) => x.taskId === taskId && x.source === "task_required",
+  );
+
+  // Không có thời gian thì xóa bản ghi đồng bộ cũ
+  if (minutes <= 0) {
+    if (existing) {
+      await deleteDoc(doc(db, "workSessions", existing.id));
+    }
+    return;
+  }
+
+  const data = {
+    taskId,
+    date: existing?.date || today(),
+    duration: minutes,
+    note: "Task Required Time",
+    type: "normal",
+    source: "task_required",
+    updatedAt: serverTimestamp(),
+  };
+
+  if (existing) {
+    await updateDoc(doc(db, "workSessions", existing.id), data);
+  } else {
+    await addDoc(collection(db, "workSessions"), {
+      ...data,
+      createdAt: serverTimestamp(),
+    });
   }
 }
 
@@ -7780,6 +8162,14 @@ async function saveTask(e) {
 
       await syncFixedWorkLog(id, fixedMinutes, fixedDate);
 
+      // Đồng bộ Normal Time trực tiếp vào Firestore WorkLogs
+      if (fixedMinutes > 0) {
+        // Chuyển sang Fixed Time thì xóa Normal Time đồng bộ cũ
+        await syncTaskRequiredWorkLog(id, 0);
+      } else {
+        await syncTaskRequiredWorkLog(id, requiredMinutes);
+      }
+
       await addActivity(id, "task_edited");
 
       notify("Task updated.");
@@ -7789,6 +8179,11 @@ async function saveTask(e) {
       const ref = await addDoc(collection(db, "tasks"), data);
 
       await syncFixedWorkLog(ref.id, fixedMinutes, fixedDate);
+
+      // Tạo WorkLog ngay khi tạo Task có Required Time
+      if (fixedMinutes <= 0 && requiredMinutes > 0) {
+        await syncTaskRequiredWorkLog(ref.id, requiredMinutes);
+      }
 
       await addActivity(ref.id, "task_created");
 
@@ -9611,15 +10006,49 @@ function bindActions() {
 
   $("comboClient").onchange = () => {
     populateComboTypes();
+    updateComboPreview();
+  };
+
+  $("comboTimeMode").onchange = () => {
+    const current = parseComboSubtasks();
+
+    renderComboSubtasks(current);
   };
 
   $("comboType").onchange = updateComboPreview;
-  $("comboSubtasks").oninput = updateComboPreview;
+
+  // Add Subtask
+  $("addComboSubtaskBtn").onclick = addComboSubtask;
+
+  // Remove Subtask + cập nhật số thứ tự
+  $("comboSubtasksList").addEventListener("click", (e) => {
+    const button = e.target.closest('[data-action="remove"]');
+
+    if (!button) return;
+
+    removeComboSubtask(button);
+  });
+
+  // Cập nhật preview khi nhập dữ liệu
+  $("comboSubtasksList").addEventListener("input", (e) => {
+    const input = e.target;
+
+    if (input.dataset.field === "countryCode") {
+      const start = input.selectionStart;
+      const end = input.selectionEnd;
+
+      input.value = input.value.toUpperCase().replace(/[^A-Z]/g, "");
+
+      input.setSelectionRange(
+        Math.min(start, input.value.length),
+        Math.min(end, input.value.length),
+      );
+    }
+
+    updateComboPreview();
+  });
+
   $("addClientBtn").onclick = () => openClientModal();
-
-  $("clientForm").onsubmit = saveClient;
-
-  $("addClientTypeBtn").onclick = addClientType;
 
   $("clientTypeInput").addEventListener("keydown", (e) => {
     if (e.key === "Enter") {

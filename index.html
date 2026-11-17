@@ -970,25 +970,38 @@
               </select>
             </div>
 
-            <div class="field field-full">
+            <div class="field">
               <label for="comboDate">Date *</label>
               <input id="comboDate" type="date" required />
             </div>
 
-            <div class="field field-full">
-              <label for="comboSubtasks"> Subtasks * </label>
+            <div class="field">
+              <label for="comboTimeMode">Time Mode *</label>
+              <select id="comboTimeMode">
+                <option value="fixed">Fixed Time</option>
+                <option value="individual">Individual Time</option>
+              </select>
+            </div>
 
-              <div class="field-helper">
-                One Subtask per line. Enter Country Code followed by Email Link.
-                Example: DK https://example.com/email
+            <div class="field field-full">
+              <div class="combo-subtasks-heading">
+                <div>
+                  <label>Subtasks *</label>
+                  <div id="comboSubtasksHelper" class="field-helper">
+                    Add each Subtask separately.
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  id="addComboSubtaskBtn"
+                  class="btn btn-secondary combo-add-subtask-btn"
+                >
+                  + Add Subtask
+                </button>
               </div>
 
-              <textarea
-                id="comboSubtasks"
-                rows="8"
-                required
-                placeholder="DK https://example.com/email-1&#10;SE https://example.com/email-2&#10;NO https://example.com/email-3"
-              ></textarea>
+              <div id="comboSubtasksList" class="combo-subtasks-grid"></div>
             </div>
 
             <div class="field field-full">
