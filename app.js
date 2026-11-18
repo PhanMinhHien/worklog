@@ -5955,12 +5955,12 @@ async function deleteClient(clientId) {
     }
   };
 
-  showConfirm({
-    title: "Delete Client",
-    message: `Delete "${client.name}" and all of its task type settings?`,
-    confirmText: "Delete",
-    danger: true,
-  });
+confirmAction(
+  "Delete Client",
+  `Delete "${client.name}" and all of its task type settings?`,
+  state.pendingConfirm,
+  "Delete"
+);
 }
 
 function fillSelects() {
@@ -10048,19 +10048,27 @@ function bindActions() {
     updateComboPreview();
   });
 
+// ==================== CLIENT MODAL EVENTS ====================
+
 // Open New Client modal
 $("addClientBtn").onclick = () => openClientModal();
 
-// Save New Client / Edit Client
-$("clientForm").addEventListener("submit", saveClient);
+// Add Task Type inside Client Modal
+$("addClientTypeBtn").onclick = () => {
+  addClientType();
+};
 
-// Add Task Type
+// Press Enter to add Task Type
 $("clientTypeInput").addEventListener("keydown", (e) => {
   if (e.key === "Enter") {
     e.preventDefault();
     addClientType();
   }
 });
+
+// Save New Client / Edit Client
+$("clientForm").onsubmit = saveClient;
+
   $("editWorkDayBtn").onclick = () => openWorkDayModal(today());
 
   // Edit any day directly from the weekly Work Hours table
