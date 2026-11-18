@@ -10048,14 +10048,19 @@ function bindActions() {
     updateComboPreview();
   });
 
-  $("addClientBtn").onclick = () => openClientModal();
+// Open New Client modal
+$("addClientBtn").onclick = () => openClientModal();
 
-  $("clientTypeInput").addEventListener("keydown", (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      addClientType();
-    }
-  });
+// Save New Client / Edit Client
+$("clientForm").addEventListener("submit", saveClient);
+
+// Add Task Type
+$("clientTypeInput").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    addClientType();
+  }
+});
   $("editWorkDayBtn").onclick = () => openWorkDayModal(today());
 
   // Edit any day directly from the weekly Work Hours table
