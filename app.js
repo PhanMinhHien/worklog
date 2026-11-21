@@ -2102,7 +2102,7 @@ function renderTaskBoardControls(types) {
     <div class="task-bulk-toolbar">
 
      ${
-       taskViewMode === "asset" || taskViewMode === "combo"
+taskViewMode === "asset"
          ? `
       <label class="task-select-all">
 
@@ -2112,7 +2112,7 @@ function renderTaskBoardControls(types) {
           ${allSelected ? "checked" : ""}
         >
 
-        ${taskViewMode === "combo" ? "Select all tickets" : "Select visible"}
+Select visible
 
       </label>
     `
@@ -2348,10 +2348,19 @@ function renderComboBoard(tasks, container) {
 
             </div>
 
-            <div class="combo-card-actions">
+     <div class="combo-card-actions">
 
-              ${
-                mainUrl
+  <label class="combo-select-all">
+    <input
+      type="checkbox"
+      data-select-combo="${escapeHtml(comboId)}"
+      ${allComboSelected ? "checked" : ""}
+    />
+    Select all tickets
+  </label>
+
+  ${
+    mainUrl
                   ? `
                     <a
                       class="combo-link-btn"
@@ -2796,7 +2805,7 @@ function ensureComboStyles() {
     }
 
     .combo-main-info {
-      min-width: 0;
+      width: 100%;
     }
 
     .combo-eyebrow {
@@ -2837,6 +2846,7 @@ function ensureComboStyles() {
       flex-wrap: wrap;
       gap: 7px;
       flex-shrink: 0;
+      width: 100%;
     }
 
     .combo-link-btn,
@@ -7182,9 +7192,53 @@ function formatComboTimeInput(minutes) {
   if (hours) return `${hours}h`;
   return `${mins}m`;
 }
+
+const COMBO_COUNTRY_LANGUAGES = {
+  DE: ["DE"],
+  EN: ["EN"],
+  FR: ["FR"],
+  AT: ["DE"],
+  BE: ["NL", "FR", "EN"],
+  NL: ["NL"],
+  UK: ["EN"],
+  ES: ["ES"],
+  PT: ["PT"],
+  IT: ["IT"],
+  DK: ["DA"],
+  NO: ["NO"],
+  SE: ["SV"],
+  EE: ["ET"],
+  LV: ["LV"],
+  LT: ["LT"],
+  PL: ["PL"],
+  FI: ["FI"],
+  SI: ["SL"],
+  HR: ["HR"],
+  SK: ["SK"],
+  CZ: ["CZ"],
+  HU: ["HU"],
+  RO: ["RO"],
+  BG: ["BG"],
+  RS: ["SR"],
+  ME: ["ME"],
+  CH: ["DE", "FR", "IT"],
+  UZ: ["UZ"],
+  KZ: ["KK", "RU"],
+  AZ: ["AZ"],
+};
+
+function getDefaultComboSubtasks() {
+  return Object.entries(COMBO_COUNTRY_LANGUAGES).flatMap(
+    ([country, languages]) =>
+      languages.map((language) => ({
+        countryCode: `${country}-${language}`,
+        url: "",
+        requiredMinutes: 0,
+      })),
+  );
+}
 function parseComboSubtasks() {
   const timeMode = $("comboTimeMode")?.value || "fixed";
-
   const container = $("comboSubtasksList");
 
   if (!container) return [];
@@ -7205,7 +7259,9 @@ function parseComboSubtasks() {
         card.querySelector('[data-field="requiredMinutes"]')?.value || "";
 
       const requiredMinutes =
-        timeMode === "individual" ? parseComboTime(timeText.trim()) : 0;
+        url && timeMode === "individual"
+          ? parseComboTime(timeText.trim())
+          : 0;
 
       return {
         countryCode,
@@ -7235,7 +7291,7 @@ function renderComboSubtasks(items = []) {
   header.className = "combo-subtask-row combo-subtask-header";
 
   header.innerHTML = `
-    <div>Country Code</div>
+<div>Country-Language</div>
     <div>Email Link</div>
     ${isIndividual ? "<div>Required Time</div>" : ""}
     <div></div>
@@ -7260,7 +7316,7 @@ function renderComboSubtasks(items = []) {
           type="text"
           data-field="countryCode"
           value="${escapeComboHtml(item.countryCode || "")}"
-          placeholder="e.g. DEN"
+placeholder="e.g. DE-DE"
           autocomplete="off"
         />
       </div>
@@ -7379,7 +7435,9 @@ function updateComboPreview() {
 
   const minutesPerAsset = getFixedMinutesPerAsset(clientId, type);
   const subtasks = parseComboSubtasks();
-
+  const linkedSubtasks = subtasks.filter(
+    (item) => String(item.url || "").trim(),
+  );
   const fixedPreview = $("comboFixedPreview");
   const subtaskPreview = $("comboSubtaskPreview");
   const helper = $("comboSubtasksHelper");
@@ -7398,13 +7456,15 @@ function updateComboPreview() {
         "Individual Time: each Subtask has its own Required Time.";
     }
 
-    const total = subtasks.reduce(
+    const total = linkedSubtasks.reduce(
       (sum, item) => sum + (Number(item.requiredMinutes) || 0),
       0,
     );
 
     if (subtaskPreview) {
-      subtaskPreview.textContent = `${subtasks.length} subtasks · Total Required Time: ${formatDuration(total)}`;
+      subtaskPreview.textContent =
+        `${linkedSubtasks.length}/${subtasks.length} linked subtasks · ` +
+        `Total Required Time: ${formatDuration(total)}`;
     }
 
     return;
@@ -7420,9 +7480,11 @@ function updateComboPreview() {
   }
 
   if (subtaskPreview) {
-    subtaskPreview.textContent = `${subtasks.length} subtasks · Total Fixed Time: ${formatDuration(
-      subtasks.length * minutesPerAsset,
-    )}`;
+    subtaskPreview.textContent =
+      `${linkedSubtasks.length}/${subtasks.length} linked subtasks · ` +
+      `Total Fixed Time: ${formatDuration(
+        linkedSubtasks.length * minutesPerAsset,
+      )}`;
   }
 }
 
@@ -7459,29 +7521,32 @@ function openComboModal(comboId = "") {
   populateComboClients(selectedClientId);
   populateComboTypes(combo?.type || "");
 
-  if (combo) {
-    const subtasks = state.tasks
+    if (combo) {
+    const savedSubtasks = state.tasks
       .filter((task) => task.comboId === combo.id)
-      .sort((a, b) =>
-        String(a.countryCode || a.title).localeCompare(
-          String(b.countryCode || b.title),
-        ),
-      )
       .map((task) => ({
         countryCode: task.countryCode || task.title || "",
         url: task.url || "",
         requiredMinutes: Number(task.requiredMinutes) || 0,
       }));
 
-    renderComboSubtasks(subtasks);
-  } else {
+    // Giữ nguyên Subtask đã lưu, chỉ bổ sung các mã mặc định còn thiếu.
+    const existingCodes = new Set(
+      savedSubtasks.map((item) =>
+        String(item.countryCode || "").toUpperCase(),
+      ),
+    );
+
+    const missingDefaults = getDefaultComboSubtasks().filter(
+      (item) => !existingCodes.has(item.countryCode),
+    );
+
     renderComboSubtasks([
-      {
-        countryCode: "",
-        url: "",
-        requiredMinutes: 0,
-      },
+      ...savedSubtasks,
+      ...missingDefaults,
     ]);
+  } else {
+    renderComboSubtasks(getDefaultComboSubtasks());
   }
 
   updateComboPreview();
@@ -7546,7 +7611,6 @@ function validateComboUrl(value, required = false) {
     return false;
   }
 }
-
 function validateComboSubtasks(subtasks) {
   const timeMode = $("comboTimeMode")?.value || "fixed";
 
@@ -7564,23 +7628,23 @@ function validateComboSubtasks(subtasks) {
     const item = subtasks[i];
     const lineNumber = i + 1;
 
-    if (!item.countryCode || !/^[A-Z]+$/.test(item.countryCode)) {
-      return `Subtask ${lineNumber}: Country code must contain letters only.`;
+    if (
+      !item.countryCode ||
+      !/^[A-Z]{2,3}(?:-[A-Z]{2,3})?$/.test(item.countryCode)
+    ) {
+      return `Subtask ${lineNumber}: Use a valid code, e.g. DE-DE or CH-FR.`;
     }
 
-    if (!item.url) {
-      return `Subtask ${lineNumber}: Missing email link.`;
-    }
-
-    if (!validateComboUrl(item.url, true)) {
+    if (item.url && !validateComboUrl(item.url, true)) {
       return `Subtask ${lineNumber}: Please enter a valid HTTP/HTTPS link.`;
     }
 
     if (seen.has(item.countryCode)) {
-      return `Duplicate country code: ${item.countryCode}.`;
+      return `Duplicate Subtask code: ${item.countryCode}.`;
     }
 
     if (
+      item.url &&
       timeMode === "individual" &&
       (!item.requiredMinutes || item.requiredMinutes <= 0)
     ) {
@@ -7605,7 +7669,17 @@ async function createComboSubtask({
   item,
 }) {
   const isIndividual = timeMode === "individual";
+  const hasEmailLink = Boolean(String(item.url || "").trim());
 
+  const effectiveRequiredMinutes =
+    hasEmailLink && isIndividual
+      ? Number(item.requiredMinutes) || 0
+      : 0;
+
+  const effectiveFixedMinutes =
+    hasEmailLink && !isIndividual
+      ? Number(minutesPerAsset) || 0
+      : 0;
   const taskRef = await addDoc(collection(db, "tasks"), {
     title: item.countryCode,
     countryCode: item.countryCode,
@@ -7622,11 +7696,10 @@ async function createComboSubtask({
     assetAmount: 1,
 
     // Individual Time must not be treated as Fixed Time.
-    fixedMinutes: isIndividual ? 0 : minutesPerAsset,
+    fixedMinutes: effectiveFixedMinutes,
     fixedDate: date,
 
-    requiredMinutes: isIndividual ? item.requiredMinutes : 0,
-
+    requiredMinutes: effectiveRequiredMinutes,
     comboId,
     comboName,
 
@@ -7634,12 +7707,21 @@ async function createComboSubtask({
     updatedAt: serverTimestamp(),
   });
 
-  if (isIndividual) {
-    await syncTaskRequiredWorkLog(taskRef.id, item.requiredMinutes, date);
-  } else {
-    await syncFixedWorkLog(taskRef.id, minutesPerAsset, date);
+  if (hasEmailLink) {
+    if (isIndividual) {
+      await syncTaskRequiredWorkLog(
+        taskRef.id,
+        effectiveRequiredMinutes,
+        date,
+      );
+    } else {
+      await syncFixedWorkLog(
+        taskRef.id,
+        effectiveFixedMinutes,
+        date,
+      );
+    }
   }
-
   await addDoc(collection(db, "activityLogs"), {
     taskId: taskRef.id,
     action: "task_created",
@@ -7734,7 +7816,13 @@ async function saveCombo(e) {
 
   const client = getClient(clientId);
   const minutesPerAsset = getFixedMinutesPerAsset(clientId, type);
+
   const subtasks = parseComboSubtasks();
+
+  // Chỉ những dòng có Email Link mới được xem là Subtask thật.
+  const linkedSubtasks = subtasks.filter(
+    (item) => String(item.url || "").trim()
+  );
 
   if (!name) {
     return notify("Please enter a Main Ticket name.", "warning");
@@ -7755,18 +7843,19 @@ async function saveCombo(e) {
   if (!validateComboUrl(mainUrl)) {
     return notify(
       "Main Ticket Link must be a valid HTTP/HTTPS link.",
-      "warning",
+      "warning"
     );
   }
 
-  if (!isIndividual && minutesPerAsset <= 0) {
+  if (!isIndividual && linkedSubtasks.length > 0 && minutesPerAsset <= 0) {
     return notify(
       "This Asset Type does not have Fixed Time configured.",
-      "warning",
+      "warning"
     );
   }
 
-  const validationError = validateComboSubtasks(subtasks);
+  // Chỉ validate các dòng có Email Link.
+  const validationError = validateComboSubtasks(linkedSubtasks);
 
   if (validationError) {
     return notify(validationError, "warning");
@@ -7775,25 +7864,29 @@ async function saveCombo(e) {
   const isEditing = Boolean(comboId);
 
   const totalRequiredMinutes = isIndividual
-    ? subtasks.reduce(
+    ? linkedSubtasks.reduce(
         (sum, item) => sum + (Number(item.requiredMinutes) || 0),
-        0,
+        0
       )
     : 0;
 
   const totalFixedMinutes = isIndividual
     ? 0
-    : minutesPerAsset * subtasks.length;
+    : minutesPerAsset * linkedSubtasks.length;
 
-  const totalMinutes = isIndividual ? totalRequiredMinutes : totalFixedMinutes;
+  const totalMinutes = isIndividual
+    ? totalRequiredMinutes
+    : totalFixedMinutes;
 
-  const totalLabel = isIndividual ? "Total Required Time" : "Total Fixed Time";
+  const totalLabel = isIndividual
+    ? "Total Required Time"
+    : "Total Fixed Time";
 
   confirmAction(
     isEditing ? "Save Combo Changes?" : "Create Combo?",
     isEditing
-      ? `Update "${name}" and synchronize its ${subtasks.length} subtasks?`
-      : `Create "${name}" with ${subtasks.length} subtasks? ${totalLabel}: ${formatDuration(totalMinutes)}.`,
+      ? `Update "${name}" and synchronize its ${linkedSubtasks.length} subtasks?`
+      : `Create "${name}" with ${linkedSubtasks.length} subtasks? ${totalLabel}: ${formatDuration(totalMinutes)}.`,
     async () => {
       const button = $("createComboSubmitBtn");
 
@@ -7812,7 +7905,7 @@ async function saveCombo(e) {
           date,
           timeMode,
           minutesPerAsset: isIndividual ? 0 : minutesPerAsset,
-          ticketCount: subtasks.length,
+          ticketCount: linkedSubtasks.length,
           totalFixedMinutes,
           totalRequiredMinutes,
           updatedAt: serverTimestamp(),
@@ -7821,9 +7914,13 @@ async function saveCombo(e) {
         if (!isEditing) {
           comboData.createdAt = serverTimestamp();
 
-          const comboRef = await addDoc(collection(db, "combos"), comboData);
+          const comboRef = await addDoc(
+            collection(db, "combos"),
+            comboData
+          );
 
-          for (const item of subtasks) {
+          // Chỉ tạo Task từ các dòng có Email Link.
+          for (const item of linkedSubtasks) {
             await createComboSubtask({
               comboId: comboRef.id,
               comboName: name,
@@ -7840,36 +7937,39 @@ async function saveCombo(e) {
           expandedComboIds.delete(comboRef.id);
 
           notify(
-            `Combo created successfully. ${subtasks.length} subtasks added.`,
-            "success",
+            `Combo created successfully. ${linkedSubtasks.length} subtasks added.`,
+            "success"
           );
         } else {
           const existingCombo = state.combos.find(
-            (item) => item.id === comboId,
+            (item) => item.id === comboId
           );
 
           if (!existingCombo) {
-            throw new Error("Combo not found. Please refresh and try again.");
+            throw new Error(
+              "Combo not found. Please refresh and try again."
+            );
           }
 
           const existingTasks = state.tasks.filter(
-            (task) => task.comboId === comboId,
+            (task) => task.comboId === comboId
           );
 
           const existingByCode = new Map(
             existingTasks.map((task) => [
               String(task.countryCode || task.title).toUpperCase(),
               task,
-            ]),
+            ])
           );
 
+          // Chỉ các Subtask còn Email Link mới được giữ lại.
           const incomingCodes = new Set(
-            subtasks.map((item) => item.countryCode),
+            linkedSubtasks.map((item) => item.countryCode)
           );
 
           await updateDoc(doc(db, "combos", comboId), comboData);
 
-          for (const item of subtasks) {
+          for (const item of linkedSubtasks) {
             const existingTask = existingByCode.get(item.countryCode);
 
             if (existingTask) {
@@ -7902,17 +8002,21 @@ async function saveCombo(e) {
                 await syncTaskRequiredWorkLog(
                   existingTask.id,
                   item.requiredMinutes,
-                  date,
+                  date
                 );
               } else {
                 // Xóa Required WorkLog cũ nếu chuyển sang Fixed Time.
-                await syncTaskRequiredWorkLog(existingTask.id, 0, date);
+                await syncTaskRequiredWorkLog(
+                  existingTask.id,
+                  0,
+                  date
+                );
 
                 // Tạo hoặc cập nhật Fixed WorkLog.
                 await updateComboFixedWorkLog(
                   existingTask.id,
                   minutesPerAsset,
-                  date,
+                  date
                 );
               }
 
@@ -7928,6 +8032,7 @@ async function saveCombo(e) {
                 createdAt: serverTimestamp(),
               });
             } else {
+              // Subtask mới có Email Link.
               await createComboSubtask({
                 comboId,
                 comboName: name,
@@ -7942,10 +8047,11 @@ async function saveCombo(e) {
             }
           }
 
-          // Permanently remove Subtasks deleted from the Main Ticket.
+          // Xóa các Subtask cũ đã bị xóa Email Link
+          // hoặc không còn trong Combo.
           for (const oldTask of existingTasks) {
             const oldCode = String(
-              oldTask.countryCode || oldTask.title,
+              oldTask.countryCode || oldTask.title
             ).toUpperCase();
 
             if (!incomingCodes.has(oldCode)) {
@@ -7953,7 +8059,10 @@ async function saveCombo(e) {
             }
           }
 
-          notify("Combo and Subtasks updated successfully.", "success");
+          notify(
+            "Combo and Subtasks updated successfully.",
+            "success"
+          );
         }
 
         closeModal("comboModal");
@@ -7968,11 +8077,13 @@ async function saveCombo(e) {
       } finally {
         if (button) {
           button.disabled = false;
-          button.textContent = isEditing ? "Save Changes" : "Create Combo";
+          button.textContent = isEditing
+            ? "Save Changes"
+            : "Create Combo";
         }
       }
     },
-    isEditing ? "Save Changes" : "Create Combo",
+    isEditing ? "Save Changes" : "Create Combo"
   );
 }
 
